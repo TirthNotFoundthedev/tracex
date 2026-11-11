@@ -34,7 +34,7 @@ Order is fixed. Plain reasons first, strength next to them, numbers last and clo
 
 Pattern rules:
 - Reason sentence = what matched + where or how, 12 words or fewer, no verbs of inference ("suggests", "indicates"). Examples: "Same phone number in both cases", "Same bank account number", "Same vehicle number: UP32 AB 1234", "Names sound alike: A / B", "Both called the same 2 numbers", "Both seen in the same place: Lucknow".
-- Strength words: "Strong match" (linked automatically), "Possible match. Please check." Weak links are not shown to officers.
+- Strength words: "Strong match" (linked automatically), "Possible match. Please check." Low-band pairs are not links and appear nowhere.
 - A reason against uses the alert icon and the same sentence style: "Different dates of birth: 1990 and 1994".
 - Source line: "Case [number], [document type], page [n], line [n]". If page or line is unknown: "Case [number], [document type]".
 - "More detail" opened shows, with a one-sentence explanation for each: "Match score: 0.91 (out of 1)", "Tier: 2 of 3", "Rules that matched: phone number exact, name sound", "Strong match starts at 0.85", raw values as stored. Admin terms are allowed only here.
@@ -113,7 +113,8 @@ Each card has one button; with several cards, the button on cards waiting for a 
 The explanation panel (section 1) as the whole screen. Title: "Why these are linked" (strong) or "Please check this link" (possible). Buttons depend on role:
 - Role may decide, possible match: `[ * Confirm they are the same ]` `[ Reject this link ]`.
 - Role may decide, strong match: `[ Reject this link ]` only, with the line "This was linked automatically. You can reject it if it is wrong."
-- Role may not decide: no buttons; line "Your role can look but not decide. Ask your supervisor."
+- Role cannot decide (Officer, Investigating officer): no buttons; line "You can look at this link but not decide it. Ask your supervisor."
+- Link joins two police areas and the officer is a Supervisor, or a Senior officer not covering both: no buttons; line "This link joins two police areas. Only a senior officer can decide it." (Senior not covering both: "You do not cover both police areas.")
 Both buttons equal size. Confirm acts at once. Reject opens O7.
 
 ### O7 Reject check
@@ -181,13 +182,13 @@ Open -> A3b: the explanation panel with admin detail open by default, buttons `[
 Title: "Access requests". Table: Requested by, For case (admin sees it), From area, Reason, Date, Status. Row: `[Open]`. Detail: reason text in full, and `[ * Approve ]` `[ Refuse ]`; Refuse has an optional "Reason for refusing". Approve needs second step: "Give [name] access to Case 31/207 for 30 days? [ * Yes, approve ] [No, go back]". Access end date field "Access ends": default 30 days.
 
 ### A5 Users and roles
-Title: "Users and roles". Table: Name, User ID, Role, Area, Status. `[ * Add user ]` primary. Form: Name, User ID, Area, Role ("Officer: can look", "Officer: can look and decide", "Admin"), `[ * Save user ]`. Row `[Open]` -> same form plus `[Turn off this user]` (danger, second confirm: "Turn off [name]? They will not be able to sign in. [ * Yes, turn off ] [No, go back]"). Roles are explained in one sentence beside each choice.
+Title: "Users and roles". Table: Name, User ID, Role, Area, Status. `[ * Add user ]` primary. Form: Name, User ID, Area, Role ("Officer: can look", "Investigating officer: can look", "Supervisor: can decide in own area", "Senior officer: can decide across areas", "Administrator: manages the system, no case access"), `[ * Save user ]`. Row `[Open]` -> same form plus `[Turn off this user]` (danger, second confirm: "Turn off [name]? They will not be able to sign in. [ * Yes, turn off ] [No, go back]"). Roles are explained in one sentence beside each choice; codes (JUNIOR etc.) are never shown. Administrators see no case content on any screen: A3, A4 and A8 show case details only to roles with case rights; an Administrator sees counts and status.
 
 ### A6 Audit log
 Title: "Activity log". Read-only table: Time, Person, What they did, Case, Item. Filters: date range, person, action type (words: "Looked at", "Confirmed", "Rejected", "Asked for access", "Approved access", "Uploaded"). Button `[Download as file]`. No edit or delete controls exist; line at top: "This log cannot be changed."
 
 ### A7 Thresholds
-Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (0.85) "Links at or above this are made automatically."; "Possible match starts at" (0.60) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "Not linked | Please check | Linked automatically". Primary `[ * Save settings ]`; after save: "Saved. New matching runs use these numbers. Past results do not change." Change needs second step stating how many links would move on a test run: "On the last run, 5 possible matches would become strong. [ * Save anyway ] [No, go back]".
+Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (0.85) "Links at or above this are made automatically."; "Possible match starts at" (0.60) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "No link made | Please check | Linked automatically" (the first zone is a score range only; nothing is stored or listed for it). Primary `[ * Save settings ]`; after save: "Saved. New matching runs use these numbers. Past results do not change." Change needs second step stating how many links would move on a test run: "On the last run, 5 possible matches would become strong. [ * Save anyway ] [No, go back]".
 
 ### A8 Network graph
 Title: "Network of links". Search "Find a person, phone number, account or vehicle", then `[ * Show network ]`. Canvas rules in DESIGN_RULES section 12. Left of canvas: legend (icon + word per node and edge kind). Right panel: selected node's explanation panel. Toggle `[(list) Show as list]` / `[(share-2) Show as picture]`. Message at limit: "Showing the 150 closest. Narrow the search to see others."

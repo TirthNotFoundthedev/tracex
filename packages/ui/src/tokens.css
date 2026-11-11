@@ -29,9 +29,6 @@
   --color-check-fg: #6b3f00;       /* 8.0:1 on check-bg */
   --color-check-bg: #fff1cc;
   --color-check-edge: #b45309;     /* 5.0:1 on paper */
-  --color-weak-fg: #3a4656;        /* 7.9:1 on weak-bg */
-  --color-weak-bg: #e6e9ee;
-  --color-weak-edge: #7a8594;
 
   /* ---- Colour: restricted (other jurisdiction) ---- */
   --color-restricted-fg: #2b2f55;  /* 10.6:1 on restricted-bg */

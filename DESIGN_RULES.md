@@ -29,8 +29,7 @@ Restrained: neutrals, one action colour, and colours that carry meaning only. Co
 | `action` | #0B3A6B | "Do this next": the single primary button, links, selected item. Deep blue, the usual colour of official forms, and not used for anything else. | 11.5:1 with white (AAA) |
 | `strong` | text #14532D on #E3F2E8, edge #1E7B45 | Strong match, linked automatically. | 7.9:1 text; edge 5.3:1 |
 | `check` | text #6B3F00 on #FFF1CC, edge #B45309 | Possible match, needs a person. Dark brown text on amber, never yellow text. | 8.0:1 text; edge 5.0:1 |
-| `weak` | text #3A4656 on #E6E9EE | Weak, not linked. Grey on purpose: no attention needed. | 7.9:1 |
-| `restricted` | text #2B2F55 on #E8E9F3 | Content in another jurisdiction. Distinct from every strength colour so that "restricted" is never mistaken for "weak". | 10.6:1 |
+| `restricted` | text #2B2F55 on #E8E9F3 | Content in another jurisdiction. Distinct from every strength colour so that "restricted" is never mistaken for a strength. | 10.6:1 |
 | `danger` | #9B1C1C (bg #FCE8E6) | Errors, reject, destructive actions. Used for nothing else. | 8.2:1 paper; 6.9:1 on bg |
 
 Rules:
@@ -72,7 +71,7 @@ Rules:
 ## 5. One primary action
 - Each screen has exactly one primary button: solid `action` fill, white text 24px/600 (officer), always bottom of content, verb + object ("Show where it appears").
 - Secondary actions are outlined buttons with `ink` text. Destructive ones use `danger` and are never the primary except on the Reject confirm step.
-- Confirm/Reject: on the explanation screen both are shown at equal size, side by side on desktop and stacked on phone with Confirm first. If the officer's role cannot confirm, neither is shown; the line "Your role can look but not decide. Ask your supervisor." appears. Reason: no disabled-looking buttons that provoke "why can't I?".
+- Confirm/Reject: on the explanation screen both are shown at equal size, side by side on desktop and stacked on phone with Confirm first. If the officer's role cannot decide this link, neither is shown; a line from the role table in section 7a appears. Reason: no disabled-looking buttons that provoke "why can't I?".
 - Reason for the rule: an officer facing two equally loud buttons will hesitate or guess.
 
 ## 6. Icons
@@ -106,18 +105,30 @@ Banned in the officer app (also avoid in admin labels where a plain word works):
 
 Admin panel may use "link strength", "threshold", "matching run" because admins configure them; each is explained in one sentence next to its field. Never show raw enum values or IDs without a plain-language label.
 
+## 7a. Roles in plain language
+Raw role codes are never shown in the officer app; admin shows the plain label with the code in "More detail" only.
+
+| Code | Label | What it can do | Line shown when it cannot decide |
+|---|---|---|---|
+| JUNIOR | Officer | Look | "You can look at this link but not decide it. Ask your supervisor." |
+| INVESTIGATOR | Investigating officer | Look | same as above |
+| SUPERVISOR | Supervisor | Decide links inside own police area | If the two cases are in different areas: "This link joins two police areas. Only a senior officer can decide it." |
+| SENIOR | Senior officer | Decide links; for two areas, must cover both | If not covering both: "You do not cover both police areas." |
+| ADMIN | Administrator | Manages the system, no case access | Sees no case content anywhere |
+
+Reason: officers recognise ranks and duties, not system codes, and must learn why a button is missing.
+
 ## 8. Link strength (not by colour alone)
-Three strengths, each shown with **colour + icon + words + border style + a 3-step bar**, so any one channel failing leaves the others:
+Two strengths are ever shown (a low-band pair is not a link and is never stored, listed or drawn, in either app). Each is shown with **colour + icon + words + border style + a 3-step bar**, so any one channel failing leaves the others:
 
 | Strength | Words (officer) | Icon | Border | Bar |
 |---|---|---|---|---|
 | High: linked automatically | "Strong match" | check-circle | solid 2px, `strong` | 3 of 3 filled |
 | Medium: needs a person | "Possible match. Please check." | alert-triangle | dashed 2px, `check` | 2 of 3 filled |
-| Low: not linked | not shown to officers; admin: "Weak. Not linked." | minus-circle | dotted 2px, `weak` | 1 of 3 filled |
 
 - Words always appear; the badge is never a coloured dot. Reason: screen readers, monochrome prints, colour-blind users.
 - Never show a percentage or decimal on the first view. Numbers and tier appear only after "More detail".
-- Admin may add the numeric score beside the words in the review queue and graph.
+- Admin may add the numeric score beside the words in the review queue and graph. Nothing in either app implies a stored weak link: no "weak" badge, filter, colour or edge style.
 
 ## 9. Explanation panel
 - Order: (1) strength badge, (2) "Why we think so" reasons, (3) "Why it may be wrong" reasons, (4) "Where this came from", (5) one "More detail" disclosure (closed by default), (6) the action buttons.
@@ -144,7 +155,7 @@ Three strengths, each shown with **colour + icon + words + border style + a 3-st
 
 ## 12. Graph view (admin only)
 - Nodes are shapes with labels, never colour only: person = circle, phone = rounded square, bank account = diamond, vehicle = triangle, case = hexagon. Each label is visible text (min 14px), not hover-only.
-- Edges: solid heavy = strong, dashed = possible, dotted thin = weak, using the strength border styles. Restricted nodes are drawn as the `restricted` card shape with a lock and no label text beyond "Another police area".
+- Edges: solid heavy = strong, dashed = possible, using the strength border styles. Restricted nodes are drawn as the `restricted` card shape with a lock and no label text beyond "Another police area".
 - A legend is always visible, with icons + words. Selecting a node opens the same explanation panel as the officer app, with admin detail.
 - Keyboard: Tab moves between nodes, Enter opens, and a "List view" toggle presents every node and edge as a table. Reason: graphs are inaccessible without a list alternative.
 - Cap 150 nodes on screen with the message "Showing the 150 closest. Narrow the search to see others." Reason: unreadable above that, and slow on admin PCs.
@@ -163,6 +174,11 @@ Three strengths, each shown with **colour + icon + words + border style + a 3-st
 Button (primary, secondary, danger), TextField, SearchField, Select (admin only), Checkbox, FileDrop (admin), Tabs (admin only), TopBar, SideNav (admin), Breadcrumb, ListRow, Table (admin), Badge/StrengthBadge, ReasonList, EvidenceSource, MoreDetail (disclosure), RestrictedCard, Message (info/success/error, in-page), ConfirmStep, EmptyState, LanguageSwitch, GraphCanvas + GraphLegend (admin), Pager ("Show more").
 Not in v1: toasts that vanish, tooltips (information hidden in hover is invisible on touch), carousels, modals other than ConfirmStep, drag and drop as the only way.
 
+## 14a. Follow-up requirements (owner: Rao, Release Manager; not part of the design PR)
+- Self-host the font files (Noto Sans, Noto Sans Devanagari, Noto Sans Mono, WOFF2) in `packages/ui`.
+- Add Lucide as a pinned dependency of `packages/ui`.
+- Add a CI check that fails on any key missing in the Hindi i18n file.
+
 ## 15. Review checklist (applied to rendered screenshots; any fail blocks the merge)
 Screenshots required at 1280px wide desktop and 375px phone, in English and Hindi, with the longest real strings.
 1. No item from section 0 is present.
@@ -180,3 +196,4 @@ Screenshots required at 1280px wide desktop and 375px phone, in English and Hind
 13. Back and language switch visible and working; the officer can reach home in one click.
 14. Reject has a second step; Confirm and Reject have Undo.
 15. Page usable at 200 percent zoom and in grayscale (strength still readable).
+16. On the first real screens, also verify what the specimen could not: real Noto fonts loaded (no system fallback), layout at 375px width, and the longest real Hindi strings (no clipping, no truncation).
