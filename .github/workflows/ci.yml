@@ -39,5 +39,20 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
+      - name: Hindi i18n keys match English
+        run: npm run check:i18n
       - run: npm test
       - run: npm run build
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose up --build -d --wait --wait-timeout 240
+      - run: curl --fail http://localhost:8000/health
+      - if: failure()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down -v
