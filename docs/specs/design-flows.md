@@ -37,7 +37,7 @@ Pattern rules:
 - Strength words: "Strong match" (linked automatically), "Possible match. Please check." Low-band pairs are not links and appear nowhere.
 - A reason against uses the alert icon and the same sentence style: "Different dates of birth: 1990 and 1994".
 - Source line: "Case [number], [document type], page [n], line [n]". If page or line is unknown: "Case [number], [document type]".
-- "More detail" opened shows, with a one-sentence explanation for each: "Match score: 0.91 (out of 1)", "Tier: 2 of 3", "Rules that matched: phone number exact, name sound", "Strong match starts at 0.85", raw values as stored. Admin terms are allowed only here.
+- "More detail" opened shows, with a one-sentence explanation for each: "Match score: 91 (out of 100)", "Tier: 2 of 3", "Rules that matched: phone number exact, name sound", "Strong match starts at 80", raw values as stored. Admin terms are allowed only here.
 - Phone numbers in the officer app are shown in full to the officer who owns the case (mono font); masking is a backend rule, not designed here.
 
 ## 2. Officer app
@@ -123,13 +123,16 @@ Replaces the content (no modal):
 ```
 | Reject this link?                                |
 | The two records will no longer be shown          |
-| as the same.                  |
+| as the same.                                     |
+| Why are you rejecting it?                        |
+| [ ____________________________ ]                 |
 | [ * No, go back ]      [ (x) Yes, reject ]       |
 ```
+The reason is required (access spec 3.1: reject, undo and reopen all need a reason; a missing reason is refused with 422). Empty field: "Please write your reason." beside the field, and "Yes, reject" does not act. The same reason field, labelled "Why are you undoing it?", sits on the step before "Undo this link" is carried out (A3b, O6, O8). Confirm needs no reason.
 "Yes, reject" uses the danger style; "No, go back" is primary here because the safe choice should be the easiest. Flow: Reject -> O7 -> Yes -> O8.
 
 ### O8 Link decided
-Message, stays on the page: "(check) You confirmed this link. The two records are now shown as the same." or "(x) You rejected this link." Buttons: `[ * Back to this case ]`, and `[ Undo ]` for Supervisor and above only. After Undo: "Your decision was undone. [Check this link again]". Every decision is written to the audit log by the backend; the officer is not told about the log.
+Message, stays on the page: "(check) You confirmed this link. The two records are now shown as the same." or "(x) You rejected this link. If this was a mistake, ask your supervisor." Buttons: `[ * Back to this case ]`, and after a Confirm only, `[ Undo ]` for Supervisor and above. After Undo: "Your decision was undone. [Check this link again]". There is no Undo after a Reject: reopening a rejected link happens only in the admin panel review queue (A3, Rejected filter; D34), never in the officer app. Every decision is written to the audit log by the backend; the officer is not told about the log.
 
 ### O9 Other police area (restricted card)
 ```
@@ -147,10 +150,10 @@ The value shown is the officer's own item, not theirs. No case number, area name
 Title: "Ask for access". Text: "Tell the other police area why you need to see this case."
 ```
 | Your reason                                      |
-| [ ____________________________ ]  (at least 20 characters) |
+| [ ____________________________ ]  (10 to 500 characters) |
 | [ * Send request ]   [ Cancel ]                  |
 ```
-Errors: empty -> "Please write your reason. [Fix]"; short -> "Please write a little more: at least 20 characters."
+Errors: empty -> "Please write your reason. [Fix]"; short -> "Please write a little more: at least 10 characters."; over 500 -> "Please shorten your reason: at most 500 characters."
 
 ### O11 Request sent
 "(check) Request sent. We will tell you when it is decided." `[ * Back to this case ]`. Notification of the decision appears on O2 as a message at the top: "Your request for access was approved. [See the case]".
@@ -167,35 +170,171 @@ Sign in -> My cases -> Case -> Item -> Also appears in -> Why linked -> Confirm 
 
 ## 3. Admin panel
 
-Layout: left navigation (icon + label) with Upload, Matching, Review queue, Access requests, Users and roles, Audit log, Thresholds, Network graph. Header: user name, area, `[(languages) हिंदी]`, `[(log-out) Sign out]`. Each page has one title and at most one primary button.
+Layout: left navigation (icon + label) with Upload, Matching, Review queue, Approvals, Users and roles, Audit log, Thresholds, Network graph. Header: user name, area, `[(languages) हिंदी]`, `[(log-out) Sign out]`. Each page has one title and at most one primary button.
 
 ### A1 Upload case material
 Title: "Upload case material". Fields: "Case" (select from list or "New case number"), a drop area "Drop files here or [Choose files]", accepted types written in words: "PDF, Word, Excel, text, images". Primary: `[ * Upload files ]`. Result table: File, Case, Status ("Waiting", "Reading", "Done", "Could not read: [reason in words]"), `[Open]`. Failure row action: `[Try again]`.
 
 ### A2 Matching
-Title: "Find links between cases". Line: "Last run: 12 Mar 2026, 14:05. Found 6 strong, 14 possible." Primary: `[ * Start matching ]`. While running: progress line "Matching 120 of 480 records..." and `[Stop]`. When done: message "Matching finished. 14 possible matches need review. [Go to review queue]".
+Title: "Find links between cases". Line: "Last run: 12 Mar 2026, 14:05. Found 6 strong, 14 possible." Primary: `[ * Start matching ]`. While running: progress line "Matching 120 of 480 records..." and the line "A run cannot be stopped. Please wait." (runs cannot be cancelled in the MVP; there is no Stop button). When done: message "Matching finished. 14 possible matches need review. [Go to review queue]".
 
 ### A3 Review queue (possible matches)
 Title: "Links to check". Table, 44px rows, columns: Strength (badge, words + score), Item, Case A, Case B, Main reason, Waiting since. Sort labels in words. Filters: Type, Area, "Waiting more than 7 days". Row button `[Open]`.
 Open -> A3b: the explanation panel with admin detail open by default, buttons `[ * Confirm they are the same ]` `[ Reject this link ]`, then `[Next one]`. Reject needs the same second step (O7). Strong links show `[ Undo this link ]` instead of Reject. Count shown: "Link 3 of 14".
 
-### A4 Access requests
-Title: "Access requests". Table: Requested by, For case (admin sees it), From area, Reason, Date, Status. Row: `[Open]`. Detail: reason text in full, and `[ * Approve ]` `[ Refuse ]`; Refuse has an optional "Reason for refusing". Approve needs second step: "Give [name] access to Case 31/207 for 30 days? [ * Yes, approve ] [No, go back]". Access end date field "Access ends": default 30 days.
+#### A3c Rejected filter and Reopen (D34)
+Reopening a rejected link is done here and nowhere else. The officer app never lists a rejected link and has no Reopen button (a rejected link is not a connection, so there is not even a locked card for it).
+
+**Where the filter sits.** Directly under the page title, above the Type / Area filters, as a three-choice status switch with the label "Show" (D43):
+```
+Show:  [ (check) Waiting (14) ]  [ Rejected (3) ]  [ Undone (2) ]
+```
+It is a row of buttons, 44px high, 8px apart. The chosen one has a solid 2px `action` border, bold text and a check icon; the other has a `line` border and no icon, so the choice is readable in grayscale. Default is "Waiting". All three counts are always visible. The choice is kept in the page address so Back returns to it. Type and Area filters apply to both choices; "Waiting more than 7 days" is hidden under Rejected and Undone.
+
+**Counts.** Counts include only links the viewer may see (access spec: rows the viewer may not see do not exist for them). A count never reveals a hidden link.
+
+**Rejected table.** Line above it: "These links were rejected. A supervisor can reopen them." Columns: Item, Case A, Case B, Rejected by (name, then the plain role label from DESIGN_RULES 7a), Rejected on ("12 Mar 2026"), Reason (wraps, never cut with "..."; full text in Open), `[Open]`. Default sort: Rejected on, newest first. No strength badge (the link is no longer a link). "Show more" after 50 rows. The reason is always present (it is required when rejecting).
+
+**Undone filter (D43).** Same table, same row design and same Reopen flow. Line above it: "These links were undone. A supervisor can reopen them." Columns: Item, Case A, Case B, Undone by, Undone on, Reason, `[Open]`. Open shows the history message "(x) Undone by Charu Singh (Supervisor) on 12 Mar 2026" with the reason, then the explanation panel and `[ * Reopen this link ]`. Reopening an undone link behaves exactly as for a rejected one (it becomes a Possible match under Waiting with the "Reopened" tag; D37 applies). Empty: "No undone links. Links that supervisors undo will appear here."
+
+**Open on a rejected link (A3d).** The explanation panel as it stood when rejected, admin detail open, headed by a message with the history (never hidden in More detail):
+```
+| (x) Rejected by Meena Rao (Investigating officer) on 12 Mar 2026 |
+|     Reason: Different people. Ages differ by 12 years.            |
+| Why we think so / Why it may be wrong / Where this came from      |
+| [ * (rotate-ccw) Reopen this link ]   [ Back to the list ]        |
+```
+`Reopen this link` is the one primary button, shown only to a viewer who holds the right (table below). Nothing else on this screen changes the link.
+
+**Reopen confirmation (second step).** Replaces the content, no modal, same pattern as O7:
+```
+| Reopen this link?                                                 |
+| It goes back to "Links to check". A person must then confirm      |
+| or reject it. Matching runs will not change it.                   |
+| Why are you reopening it?                                         |
+| [ ______________________________ ]                                |
+| [ * Yes, reopen ]            [ No, go back ]                      |
+```
+"Yes, reopen" is primary here because reopening loses nothing: the link only returns to the queue and can be rejected again. "No, go back" is outlined. The reason is required (access spec 3.1). It is kept in the link history, not in the audit log. Empty field: "Please write your reason." beside the field, and "Yes, reopen" does not act.
+
+**After reopen.** The message stays on the page: "(check) You reopened this link. It is back in 'Links to check'." with `[ * Open it ]` and `[ Back to the list ]`. The link:
+- leaves the Rejected (or Undone) filter at once; that count goes down by 1, Waiting count up by 1;
+- appears under Waiting as a Possible match (dashed `check` border, alert-triangle, "Possible match. Please check.") with a second tag "(rotate-ccw) Reopened" beside the badge, so it is not mistaken for a new link;
+- in A3b shows "Reopened by Charu Singh on 14 Mar 2026. Earlier it was rejected (or undone) by Meena Rao on 12 Mar 2026." and "Matching runs do not change this link. Only a person can." (D37: a reopened link is never changed by a rerun, so its strength stays as it was);
+- takes the normal decisions again: `[ * Confirm they are the same ]` `[ Reject this link ]` (Reject with its second step, O7), for roles that may decide it.
+There is no Undo for a reopen; to reverse it a supervisor rejects the link again in the normal way.
+
+**Who can reopen.** Access spec: Reopen a REJECTED / UNDONE link is allowed for SUPERVISOR and above; a link whose ends are in different districts is decided only by a SENIOR covering both ends (D32). Rejected and undone links are not connections, so no stub is shown for them. A link the viewer cannot see does not exist for them: it is never listed, counted or confirmed by a message, and opening it by address shows the generic not-found state (404, never 403; D35): "We could not find this link. [Back to the list]". A role line is shown only to a viewer who can see the link but lacks the role.
+| Viewer | Rejected / Undone filter | Reopen |
+|---|---|---|
+| Supervisor, both cases in own area | rows listed, full detail | button shown |
+| Supervisor, link joins two areas | row not listed; opened by address: not-found state | none |
+| Senior officer covering both ends | rows listed, full detail | button shown |
+| Senior officer not covering both | row not listed; opened by address: not-found state | none |
+| Administrator (D29) | counts only (below) | none |
+| Investigating officer, Officer (can see the link, lack the role) | not part of the admin panel; if reached: "Only a supervisor can reopen a link." | none |
+A missing button always comes with its line (DESIGN_RULES 5), never a greyed button.
+
+**Administrator view (D29).** The filter shows all three counts. In place of the table: a message "You can see how many links are waiting, rejected or undone. Case details are for officers with access." and a counts-only summary: Waiting, Rejected, Undone, Reopened this month. No `[Open]`, no case numbers, no names.
+
+**Empty state.** "No rejected links. Links that officers reject will appear here." If filters hide everything: "Nothing found. Check the filters or try fewer words." with `[Clear filters]`.
+
+**Problem states.** Reopen failed: "We could not reopen it. Nothing was changed. [Try again]". Someone already acted (conflict): "Someone already changed this link. [Show the list]". Access removed meanwhile, or any link the viewer cannot see: the not-found state, "We could not find this link. [Back to the list]" (never a message that confirms the link exists). Loading: "Loading..." with spinner.
+
+**Strings (English / Hindi).** Western digits in both. `{n}`, `{name}`, `{date}`, `{role}` are filled by the app. The keys go into the shared i18n files, both languages together, when the screen is built; this spec does not add them. Hindi needs native-speaker review before release.
+| Key | English | Hindi |
+|---|---|---|
+| queue.show | Show | दिखाएँ |
+| queue.filter.waiting | Waiting ({n}) | प्रतीक्षा में ({n}) |
+| queue.filter.rejected | Rejected ({n}) | अस्वीकृत ({n}) |
+| queue.rejected.intro | These links were rejected. A supervisor can reopen them. | ये लिंक अस्वीकार किए गए थे। सुपरवाइज़र इन्हें फिर से खोल सकते हैं। |
+| queue.col.rejectedBy | Rejected by | किसने अस्वीकार किया |
+| queue.col.rejectedOn | Rejected on | अस्वीकार करने की तारीख |
+| queue.col.reason | Reason | कारण |
+| queue.reason.required | Please write your reason. | कृपया अपना कारण लिखें। |
+| queue.filter.undone | Undone ({n}) | वापस लिए गए ({n}) |
+| queue.undone.intro | These links were undone. A supervisor can reopen them. | ये लिंक वापस लिए गए थे। सुपरवाइज़र इन्हें फिर से खोल सकते हैं। |
+| queue.col.undoneBy | Undone by | किसने वापस लिया |
+| queue.col.undoneOn | Undone on | वापस लेने की तारीख |
+| queue.undone.history | Undone by {name} ({role}) on {date} | {name} ({role}) ने {date} को वापस लिया |
+| queue.empty.undone | No undone links. Links that supervisors undo will appear here. | कोई वापस लिया गया लिंक नहीं है। सुपरवाइज़र जो लिंक वापस लेंगे, वे यहाँ दिखेंगे। |
+| undo.reasonLabel | Why are you undoing it? | इसे वापस क्यों ले रहे हैं? |
+| reject.reasonLabel | Why are you rejecting it? | इसे अस्वीकार क्यों कर रहे हैं? |
+| queue.rejected.history | Rejected by {name} ({role}) on {date} | {name} ({role}) ने {date} को अस्वीकार किया |
+| queue.reopen.button | Reopen this link | इस लिंक को फिर से खोलें |
+| queue.reopen.title | Reopen this link? | इस लिंक को फिर से खोलें? |
+| queue.reopen.body | It goes back to "Links to check". A person must then confirm or reject it. Matching runs will not change it. | यह "जाँचने वाले लिंक" में वापस जाएगा। फिर किसी व्यक्ति को इसे पक्का या अस्वीकार करना होगा। मिलान चलाने से यह नहीं बदलेगा। |
+| queue.reopen.reasonLabel | Why are you reopening it? | इसे फिर से क्यों खोल रहे हैं? |
+| queue.reopen.yes | Yes, reopen | हाँ, फिर से खोलें |
+| queue.reopen.no | No, go back | नहीं, वापस जाएँ |
+| queue.reopen.done | You reopened this link. It is back in "Links to check". | आपने यह लिंक फिर से खोल दिया। यह अब "जाँचने वाले लिंक" में है। |
+| queue.reopen.openIt | Open it | इसे खोलें |
+| queue.backToList | Back to the list | सूची पर वापस जाएँ |
+| queue.tag.reopened | Reopened | फिर से खोला गया |
+| queue.reopened.history | Reopened by {name} on {date}. Earlier it was rejected or undone by {name2} on {date2}. | {name} ने {date} को फिर से खोला। पहले इसे {name2} ने {date2} को अस्वीकार या वापस किया था। |
+| queue.reopened.rerun | Matching runs do not change this link. Only a person can. | मिलान चलाने से यह लिंक नहीं बदलता। केवल कोई व्यक्ति बदल सकता है। |
+| queue.empty.rejected | No rejected links. Links that officers reject will appear here. | कोई अस्वीकृत लिंक नहीं है। अधिकारी जो लिंक अस्वीकार करेंगे, वे यहाँ दिखेंगे। |
+| queue.empty.filtered | Nothing found. Check the filters or try fewer words. | कुछ नहीं मिला। फ़िल्टर जाँचें या कम शब्द लिखें। |
+| queue.clearFilters | Clear filters | फ़िल्टर हटाएँ |
+| queue.noRight.role | Only a supervisor can reopen a link. | केवल सुपरवाइज़र लिंक को फिर से खोल सकते हैं। |
+| queue.admin.counts | You can see how many links are waiting, rejected or undone. Case details are for officers with access. | आप देख सकते हैं कि कितने लिंक प्रतीक्षा में, अस्वीकृत या वापस लिए गए हैं। मामले का ब्योरा केवल पहुँच वाले अधिकारियों के लिए है। |
+| queue.error.reopen | We could not reopen it. Nothing was changed. | हम इसे फिर से नहीं खोल सके। कुछ भी बदला नहीं गया। |
+| queue.error.conflict | Someone already changed this link. | किसी ने यह लिंक पहले ही बदल दिया है। |
+| queue.error.notFound | We could not find this link. | हमें यह लिंक नहीं मिला। |
+| officer.rejected.mistake | You rejected this link. If this was a mistake, ask your supervisor. | आपने यह लिंक अस्वीकार किया। अगर यह ग़लती थी, तो अपने सुपरवाइज़र से कहें। |
+
+### A4 Approvals (access requests and changes)
+Title: "Approvals". A two-choice switch under the title, same design as the A3 status switch: "Access requests (n)" and "Changes (n)". Supervisors see only "Access requests"; Senior officers and Administrators see both. Access requests: Table: Requested by, For case (admin sees it), From area, Reason, Date, Status. Row: `[Open]`. Detail: reason text in full, and `[ * Approve ]` `[ Refuse ]`; Refuse has an optional "Reason for refusing". Approve needs second step: "Give [name] access to Case 31/207 for 30 days? [ * Yes, approve ] [No, go back]". Access end date field "Access ends": default 30 days.
+
+#### A4a Changes to approve (D35)
+Every Administrator change to users, roles, areas, case assignments and match settings is a proposal. It takes effect only when a Senior officer approves it. The page reuses the A4 pattern, so there is no new screen.
+Table: Proposed by, Change (plain words, e.g. "Turn off Ravi Kumar", "Ravi Kumar: Supervisor to Senior officer", "Match settings: strong match starts at 80, new 85"), About, Date, Status ("Waiting for a senior officer", "Approved", "Refused"). Row `[Open]`. Detail: the old value and the new value side by side, who proposed it and when, then `[ * Approve this change ]` `[ Refuse this change ]`. Approve has a second step, as in A4: "Apply this change? It takes effect now. [ * Yes, approve ] [No, go back]". Refuse has an optional "Reason for refusing". After: "(check) You approved this change. It is now in effect." or "(x) You refused this change. Nothing was changed."
+Who sees the buttons (access spec 3.2): a Senior officer whose coverage includes the person or area concerned (for match settings, a Senior officer covering all states), who is neither the proposer nor the subject. A Senior officer outside that coverage cannot see the change: not listed, and opened by address it shows "We could not find this change. [Back to the list]". The proposer sees "You proposed this change. Another senior officer must decide it." and no buttons; the subject sees "This change is about you. Another senior officer must decide it." and no buttons. An Administrator sees only the status of the changes they proposed, never an Approve button.
+
+**Pending state on the item.** After any Save on A5 or A7 the page shows, and keeps until it is decided: "(clock) Sent for approval. Nothing changes until a senior officer approves it." The item carries a tag "(clock) Change waiting for approval" (icon + words, dashed border): on the A5 table row and on the user form, and above the A7 fields with "The current numbers stay in use until then." while the proposed values are shown beside the current ones. The old values keep working until approval. Approved: tag disappears, "Saved." appears on next open. Refused: tag becomes "(x) Change refused" with the refusal reason if one was written, and the old values remain.
 
 ### A5 Users and roles
-Title: "Users and roles". Table: Name, User ID, Role, Area, Status. `[ * Add user ]` primary. Form: Name, User ID, Area, Role ("Officer: can look", "Investigating officer: can look", "Supervisor: can decide in own area", "Senior officer: can decide across areas", "Administrator: manages the system, no case access"), `[ * Save user ]`. Row `[Open]` -> same form plus `[Turn off this user]` (danger, second confirm: "Turn off [name]? They will not be able to sign in. [ * Yes, turn off ] [No, go back]"). Roles are explained in one sentence beside each choice; codes (JUNIOR etc.) are never shown. Administrators see no case content on any screen: A3, A4 and A8 show case details only to roles with case rights; an Administrator sees counts and status.
+Title: "Users and roles". Table: Name, User ID, Role, Area, Status. `[ * Add user ]` primary. Form: Name, User ID, Area, Role ("Officer: can look", "Investigating officer: can look", "Supervisor: can decide in own area", "Senior officer: can decide across areas", "Administrator: manages the system, no case access"), `[ * Save user ]` (a proposal: after it, "Sent for approval. Nothing changes until a senior officer approves it."). Row `[Open]` -> same form plus `[Turn off this user]` (danger, second confirm: "Turn off [name]? They will not be able to sign in once a senior officer approves. [ * Yes, send for approval ] [No, go back]"). Roles are explained in one sentence beside each choice; codes (JUNIOR etc.) are never shown. Administrators see no case content on any screen: A3, A4 and A8 show case details only to roles with case rights; an Administrator sees counts and status.
+
+**Approval strings (D35).**
+| Key | English | Hindi |
+|---|---|---|
+| approvals.title | Approvals | मंज़ूरियाँ |
+| approvals.show.access | Access requests ({n}) | पहुँच के अनुरोध ({n}) |
+| approvals.show.changes | Changes ({n}) | बदलाव ({n}) |
+| approvals.col.proposedBy | Proposed by | किसने प्रस्तावित किया |
+| approvals.col.change | Change | बदलाव |
+| approvals.col.about | About | किसके बारे में |
+| approvals.status.waiting | Waiting for a senior officer | वरिष्ठ अधिकारी की प्रतीक्षा में |
+| approvals.status.approved | Approved | मंज़ूर |
+| approvals.status.refused | Refused | अस्वीकृत |
+| approvals.approve | Approve this change | यह बदलाव मंज़ूर करें |
+| approvals.refuse | Refuse this change | यह बदलाव अस्वीकार करें |
+| approvals.approve.confirm | Apply this change? It takes effect now. | यह बदलाव लागू करें? यह अभी से लागू होगा। |
+| approvals.approve.yes | Yes, approve | हाँ, मंज़ूर करें |
+| approvals.done.approved | You approved this change. It is now in effect. | आपने यह बदलाव मंज़ूर किया। यह अब लागू है। |
+| approvals.done.refused | You refused this change. Nothing was changed. | आपने यह बदलाव अस्वीकार किया। कुछ नहीं बदला। |
+| approvals.noRight.proposer | You proposed this change. Another senior officer must decide it. | यह बदलाव आपने प्रस्तावित किया था। कोई दूसरे वरिष्ठ अधिकारी इसका फ़ैसला करेंगे। |
+| approvals.noRight.subject | This change is about you. Another senior officer must decide it. | यह बदलाव आपके बारे में है। कोई दूसरे वरिष्ठ अधिकारी इसका फ़ैसला करेंगे। |
+| approvals.error.notFound | We could not find this change. | हमें यह बदलाव नहीं मिला। |
+| approvals.sent | Sent for approval. Nothing changes until a senior officer approves it. | मंज़ूरी के लिए भेज दिया गया। वरिष्ठ अधिकारी के मंज़ूर करने तक कुछ नहीं बदलेगा। |
+| approvals.tag.waiting | Change waiting for approval | बदलाव मंज़ूरी की प्रतीक्षा में है |
+| approvals.tag.refused | Change refused | बदलाव अस्वीकृत |
+| approvals.thresholds.pending | The current numbers stay in use until then. | तब तक मौजूदा संख्याएँ ही चलेंगी। |
+| approvals.turnoff.yes | Yes, send for approval | हाँ, मंज़ूरी के लिए भेजें |
+| approvals.turnoff.warn | They will not be able to sign in once a senior officer approves. | वरिष्ठ अधिकारी के मंज़ूर करने के बाद वे साइन इन नहीं कर पाएँगे। |
 
 ### A6 Audit log
-Title: "Activity log". Read-only table: Time, Person, What they did, Case, Item. Filters: date range, person, action type (words: "Looked at", "Confirmed", "Rejected", "Asked for access", "Approved access", "Uploaded"). Button `[Download as file]`. No edit or delete controls exist; line at top: "This log cannot be changed."
+Title: "Activity log". Read-only table: Time, Person, What they did, Case, Item. Filters: date range, person, action type (words: "Looked at", "Confirmed", "Rejected", "Asked for access", "Approved access", "Uploaded"). No download or export control exists (the audit spec allows no export), and no edit or delete controls; line at top: "This log cannot be changed."
 
 ### A7 Thresholds
-Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (0.85) "Links at or above this are made automatically."; "Possible match starts at" (0.60) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "No link made | Please check | Linked automatically" (the first zone is a score range only; nothing is stored or listed for it). Primary `[ * Save settings ]`; after save: "Saved. New matching runs use these numbers. Past results do not change." Change needs second step stating how many links would move on a test run: "On the last run, 5 possible matches would become strong. [ * Save anyway ] [No, go back]".
+Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (80, a score from 0 to 100) "Links at or above this are made automatically."; "Possible match starts at" (45) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "No link made | Please check | Linked automatically" (the first zone is a score range only; nothing is stored or listed for it). Primary `[ * Save settings ]`; after save: "Sent for approval. Nothing changes until a senior officer approves it." (a proposal, A4a). After approval, new matching runs use the numbers and past results do not change There is no test run or preview of how many links would move (no dry-run in the MVP). Allowed values are written under each field: strong from 70 to 100; possible from 30 up to 10 below the strong value. A value outside them shows "Please enter a number from 70 to 100." / "Please enter a number from 30 to [strong value minus 10]."
 
 ### A8 Network graph
 Title: "Network of links". Search "Find a person, phone number, account or vehicle", then `[ * Show network ]`. Canvas rules in DESIGN_RULES section 12. Left of canvas: legend (icon + word per node and edge kind). Right panel: selected node's explanation panel. Toggle `[(list) Show as list]` / `[(share-2) Show as picture]`. Message at limit: "Showing the 150 closest. Narrow the search to see others."
 
 ### Admin flow in one line
-Upload -> Matching -> Links to check -> Confirm or Reject -> (Network graph to inspect) ; side flows: Access requests, Users and roles, Match settings, Activity log.
+Upload -> Matching -> Links to check -> Confirm or Reject -> (Network graph to inspect) ; side flows: Approvals (access requests and changes), Users and roles, Match settings, Activity log.
 
 ## 4. Shared states
 

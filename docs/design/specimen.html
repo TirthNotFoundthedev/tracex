@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TraceX design specimen</title>
+    <link rel="stylesheet" href="../../packages/ui/src/fonts.css" />
     <link rel="stylesheet" href="../../packages/ui/src/tokens.css" />
     <style>
       /* Layout of this page only; every value comes from tokens.css. */
@@ -217,6 +218,102 @@
         background: var(--color-danger-bg);
         color: var(--color-danger);
       }
+      .queue {
+        --tap-min: 2.75rem;
+        --tap-gap: var(--space-2);
+        --control-pad-x: var(--space-4);
+        font-size: var(--text-sm);
+      }
+      .queue .btn {
+        font-size: var(--text-sm);
+      }
+      .filter {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-4);
+      }
+      .filter .btn {
+        border-color: var(--color-line);
+        font-weight: var(--weight-regular);
+      }
+      .filter .btn[aria-pressed="true"] {
+        border-color: var(--color-action);
+        font-weight: var(--weight-bold);
+      }
+      .qtable {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .qtable th,
+      .qtable td {
+        text-align: left;
+        vertical-align: top;
+        padding: var(--space-3) var(--space-2);
+        border-bottom: var(--border-1) solid var(--color-line-soft);
+      }
+      .qtable .mono,
+      .qtable .btn {
+        white-space: nowrap;
+      }
+      main.wide {
+        max-width: 72rem;
+        padding-top: 0;
+      }
+      .qtable th {
+        font-weight: var(--weight-semibold);
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-weight: var(--weight-semibold);
+        border: var(--border-2) solid var(--color-ink-2);
+        border-radius: var(--radius);
+        padding: 0 var(--space-2);
+      }
+      .tag .i {
+        width: 1rem;
+        height: 1rem;
+      }
+      @media (max-width: 40rem) {
+        section {
+          padding: var(--space-4);
+        }
+        .qtable thead {
+          position: absolute;
+          left: -9999px;
+        }
+        .qtable,
+        .qtable tbody,
+        .qtable tr,
+        .qtable td {
+          display: block;
+        }
+        .qtable tr {
+          padding: var(--space-3) 0;
+          border-bottom: var(--border-1) solid var(--color-line-soft);
+        }
+        .qtable td {
+          border: 0;
+          padding: var(--space-1) 0;
+        }
+        .qtable td::before {
+          content: attr(data-label) ": ";
+          font-weight: var(--weight-semibold);
+        }
+        .qtable td.act::before {
+          content: none;
+        }
+        .row .btn,
+        .filter .btn {
+          flex: 1 1 100%;
+        }
+        .type-row {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -247,6 +344,10 @@
         <path d="M18 6 6 18" />
         <path d="m6 6 12 12" />
       </symbol>
+      <symbol id="rotate-ccw" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </symbol>
       <symbol id="back" viewBox="0 0 24 24">
         <path d="m12 19-7-7 7-7" />
         <path d="M19 12H5" />
@@ -264,7 +365,7 @@
     <main data-app="officer">
       <h1>Design specimen</h1>
       <p class="sec">
-        Uses only tokens.css. Fonts fall back to system fonts until the Noto files are self-hosted.
+        Uses only tokens.css. Fonts are the self-hosted Noto files from packages/ui/fonts.
       </p>
 
       <section>
@@ -469,7 +570,7 @@
         </p>
         <details>
           <summary>More detail</summary>
-          <p class="sec">Match score: 0.91 (out of 1). Strong match starts at 0.85.</p>
+          <p class="sec">Match score: 91 (out of 100). Strong match starts at 80.</p>
         </details>
         <div class="row">
           <button class="btn primary" type="button">
@@ -501,6 +602,296 @@
           <svg class="i"><use href="#alert" /></svg
           ><span>We could not save. Nothing was changed. <strong>Try again</strong></span>
         </div>
+      </section>
+    </main>
+
+    <main class="wide">
+      <section>
+        <h2>Review queue: Rejected filter (admin, English)</h2>
+        <div class="queue" data-app="admin">
+          <div class="filter" role="group" aria-label="Show">
+            <strong>Show:</strong>
+            <button class="btn" type="button" aria-pressed="false">Waiting (14)</button>
+            <button class="btn" type="button" aria-pressed="true">
+              <svg class="i"><use href="#check" /></svg>Rejected (3)
+            </button>
+            <button class="btn" type="button" aria-pressed="false">Undone (2)</button>
+          </div>
+          <p>These links were rejected. A supervisor can reopen them.</p>
+          <table class="qtable">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Case A</th>
+                <th>Case B</th>
+                <th>Rejected by</th>
+                <th>Rejected on</th>
+                <th>Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="Item"><span class="mono">98xxxx1234</span></td>
+                <td data-label="Case A"><span class="mono">24/118</span></td>
+                <td data-label="Case B"><span class="mono">31/207</span></td>
+                <td data-label="Rejected by">Meena Rao (Investigating officer)</td>
+                <td data-label="Rejected on">12 Mar 2026</td>
+                <td data-label="Reason">Different people. Ages differ by 12 years.</td>
+                <td class="act"><button class="btn" type="button">Open</button></td>
+              </tr>
+              <tr>
+                <td data-label="Item">Mohd. Irfan</td>
+                <td data-label="Case A"><span class="mono">24/118</span></td>
+                <td data-label="Case B"><span class="mono">40/009</span></td>
+                <td data-label="Rejected by">Ravi Kumar (Supervisor)</td>
+                <td data-label="Rejected on">9 Mar 2026</td>
+                <td data-label="Reason">Same name, different people. Ages differ by 12 years.</td>
+                <td class="act"><button class="btn" type="button">Open</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <h2 style="margin-top: var(--space-5)">Reopen this link?</h2>
+          <p>
+            It goes back to &quot;Links to check&quot;. A person must then confirm or reject it.
+            Matching runs will not change it.
+          </p>
+          <p class="sec">
+            <span class="tag"
+              ><svg class="i"><use href="#rotate-ccw" /></svg>Reopened</span
+            >
+            Matching runs do not change this link. Only a person can.
+          </p>
+          <p>
+            <label for="rfe"><strong>Why are you reopening it?</strong></label
+            ><br /><input
+              id="rfe"
+              type="text"
+              aria-invalid="true"
+              aria-describedby="ree"
+              style="
+                width: 100%;
+                min-height: var(--tap-min);
+                font: inherit;
+                border: var(--border-2) solid var(--color-danger);
+                border-radius: var(--radius);
+                padding: 0 var(--space-3);
+                box-sizing: border-box;
+              "
+            /><br /><span
+              id="ree"
+              class="msg"
+              style="display: inline-flex; margin-top: var(--space-2)"
+              ><svg class="i"><use href="#alert" /></svg>Please write your reason.</span
+            >
+          </p>
+          <div class="row">
+            <button class="btn primary" type="button">
+              <svg class="i"><use href="#rotate-ccw" /></svg>Yes, reopen
+            </button>
+            <button class="btn" type="button">No, go back</button>
+          </div>
+        </div>
+      </section>
+
+      <section lang="hi" style="line-height: var(--leading-hi)">
+        <h2>समीक्षा सूची: अस्वीकृत फ़िल्टर (एडमिन, हिंदी)</h2>
+        <div class="queue" data-app="admin">
+          <div class="filter" role="group" aria-label="दिखाएँ">
+            <strong>दिखाएँ:</strong>
+            <button class="btn" type="button" aria-pressed="false">प्रतीक्षा में (14)</button>
+            <button class="btn" type="button" aria-pressed="true">
+              <svg class="i"><use href="#check" /></svg>अस्वीकृत (3)
+            </button>
+            <button class="btn" type="button" aria-pressed="false">वापस लिए गए (2)</button>
+          </div>
+          <p>ये लिंक अस्वीकार किए गए थे। सुपरवाइज़र इन्हें फिर से खोल सकते हैं।</p>
+          <table class="qtable">
+            <thead>
+              <tr>
+                <th>आइटम</th>
+                <th>मामला A</th>
+                <th>मामला B</th>
+                <th>किसने अस्वीकार किया</th>
+                <th>अस्वीकार करने की तारीख</th>
+                <th>कारण</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="आइटम"><span class="mono">98xxxx1234</span></td>
+                <td data-label="मामला A"><span class="mono">24/118</span></td>
+                <td data-label="मामला B"><span class="mono">31/207</span></td>
+                <td data-label="किसने अस्वीकार किया">मीना राव (जाँच अधिकारी)</td>
+                <td data-label="अस्वीकार करने की तारीख">12 मार्च 2026</td>
+                <td data-label="कारण">अलग लोग हैं। उम्र में 12 साल का अंतर है।</td>
+                <td class="act"><button class="btn" type="button">खोलें</button></td>
+              </tr>
+              <tr>
+                <td data-label="आइटम">Mohd. Irfan</td>
+                <td data-label="मामला A"><span class="mono">24/118</span></td>
+                <td data-label="मामला B"><span class="mono">40/009</span></td>
+                <td data-label="किसने अस्वीकार किया">रवि कुमार (सुपरवाइज़र)</td>
+                <td data-label="अस्वीकार करने की तारीख">9 मार्च 2026</td>
+                <td data-label="कारण">नाम एक है, लोग अलग हैं। उम्र में 12 साल का अंतर है।</td>
+                <td class="act"><button class="btn" type="button">खोलें</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <h2 style="margin-top: var(--space-5)">इस लिंक को फिर से खोलें?</h2>
+          <p>
+            यह &quot;जाँचने वाले लिंक&quot; में वापस जाएगा। फिर किसी व्यक्ति को इसे पक्का या
+            अस्वीकार करना होगा। मिलान चलाने से यह नहीं बदलेगा।
+          </p>
+          <p class="sec">
+            <span class="tag"
+              ><svg class="i"><use href="#rotate-ccw" /></svg>फिर से खोला गया</span
+            >
+            मिलान चलाने से यह लिंक नहीं बदलता। केवल कोई व्यक्ति बदल सकता है।
+          </p>
+          <p>
+            <label for="rfh"><strong>इसे फिर से क्यों खोल रहे हैं?</strong></label
+            ><br /><input
+              id="rfh"
+              type="text"
+              aria-invalid="true"
+              aria-describedby="reh"
+              style="
+                width: 100%;
+                min-height: var(--tap-min);
+                font: inherit;
+                border: var(--border-2) solid var(--color-danger);
+                border-radius: var(--radius);
+                padding: 0 var(--space-3);
+                box-sizing: border-box;
+              "
+            /><br /><span
+              id="reh"
+              class="msg"
+              style="display: inline-flex; margin-top: var(--space-2)"
+              ><svg class="i"><use href="#alert" /></svg>कृपया अपना कारण लिखें।</span
+            >
+          </p>
+          <div class="row">
+            <button class="btn primary" type="button">
+              <svg class="i"><use href="#rotate-ccw" /></svg>हाँ, फिर से खोलें
+            </button>
+            <button class="btn" type="button">नहीं, वापस जाएँ</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Review queue: Undone filter (admin, English)</h2>
+        <div class="queue" data-app="admin">
+          <div class="filter" role="group" aria-label="Show">
+            <strong>Show:</strong>
+            <button class="btn" type="button" aria-pressed="false">Waiting (14)</button>
+            <button class="btn" type="button" aria-pressed="false">Rejected (3)</button>
+            <button class="btn" type="button" aria-pressed="true">
+              <svg class="i"><use href="#check" /></svg>Undone (2)
+            </button>
+          </div>
+          <p>These links were undone. A supervisor can reopen them.</p>
+          <table class="qtable">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Case A</th>
+                <th>Case B</th>
+                <th>Undone by</th>
+                <th>Undone on</th>
+                <th>Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="Item"><span class="mono">98xxxx1234</span></td>
+                <td data-label="Case A"><span class="mono">24/118</span></td>
+                <td data-label="Case B"><span class="mono">31/207</span></td>
+                <td data-label="Undone by">Charu Singh (Supervisor)</td>
+                <td data-label="Undone on">12 Mar 2026</td>
+                <td data-label="Reason">Linked by mistake. Different phone owners.</td>
+                <td class="act"><button class="btn" type="button">Open</button></td>
+              </tr>
+              <tr>
+                <td data-label="Item">Mohd. Irfan</td>
+                <td data-label="Case A"><span class="mono">24/118</span></td>
+                <td data-label="Case B"><span class="mono">40/009</span></td>
+                <td data-label="Undone by">Charu Singh (Supervisor)</td>
+                <td data-label="Undone on">9 Mar 2026</td>
+                <td data-label="Reason">Number was reused by a new owner.</td>
+                <td class="act"><button class="btn" type="button">Open</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section lang="hi" style="line-height: var(--leading-hi)">
+        <h2>समीक्षा सूची: वापस लिए गए फ़िल्टर (एडमिन, हिंदी)</h2>
+        <div class="queue" data-app="admin">
+          <div class="filter" role="group" aria-label="दिखाएँ">
+            <strong>दिखाएँ:</strong>
+            <button class="btn" type="button" aria-pressed="false">प्रतीक्षा में (14)</button>
+            <button class="btn" type="button" aria-pressed="false">अस्वीकृत (3)</button>
+            <button class="btn" type="button" aria-pressed="true">
+              <svg class="i"><use href="#check" /></svg>वापस लिए गए (2)
+            </button>
+          </div>
+          <p>ये लिंक वापस लिए गए थे। सुपरवाइज़र इन्हें फिर से खोल सकते हैं।</p>
+          <table class="qtable">
+            <thead>
+              <tr>
+                <th>आइटम</th>
+                <th>मामला A</th>
+                <th>मामला B</th>
+                <th>किसने वापस लिया</th>
+                <th>वापस लेने की तारीख</th>
+                <th>कारण</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="आइटम"><span class="mono">98xxxx1234</span></td>
+                <td data-label="मामला A"><span class="mono">24/118</span></td>
+                <td data-label="मामला B"><span class="mono">31/207</span></td>
+                <td data-label="किसने वापस लिया">चारु सिंह (सुपरवाइज़र)</td>
+                <td data-label="वापस लेने की तारीख">12 मार्च 2026</td>
+                <td data-label="कारण">गलती से जुड़ गया। फ़ोन के मालिक अलग हैं।</td>
+                <td class="act"><button class="btn" type="button">खोलें</button></td>
+              </tr>
+              <tr>
+                <td data-label="आइटम">Mohd. Irfan</td>
+                <td data-label="मामला A"><span class="mono">24/118</span></td>
+                <td data-label="मामला B"><span class="mono">40/009</span></td>
+                <td data-label="किसने वापस लिया">चारु सिंह (सुपरवाइज़र)</td>
+                <td data-label="वापस लेने की तारीख">9 मार्च 2026</td>
+                <td data-label="कारण">नंबर नए मालिक को मिल गया था।</td>
+                <td class="act"><button class="btn" type="button">खोलें</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section lang="hi" style="line-height: var(--leading-hi)">
+        <h2>Longest Hindi strings (officer density)</h2>
+        <p>यह लिंक दो थाना क्षेत्रों को जोड़ता है। इसका फ़ैसला केवल वरिष्ठ अधिकारी कर सकते हैं।</p>
+        <div class="row">
+          <button class="btn primary" type="button" style="line-height: var(--leading-hi)">
+            <svg class="i"><use href="#rotate-ccw" /></svg>इस लिंक को फिर से खोलें
+          </button>
+          <button class="btn danger" type="button" style="line-height: var(--leading-hi)">
+            <svg class="i"><use href="#x" /></svg>हाँ, इस लिंक को अस्वीकार करें
+          </button>
+        </div>
+        <p class="sec" style="margin-top: var(--space-4)">
+          आपको इस लिंक को फिर से खोलने की पहुँच नहीं है।
+        </p>
       </section>
     </main>
   </body>
