@@ -52,9 +52,8 @@ Show who knew what, and when. Every significant action and every access decision
 | ACCESS_GRANT_REVOKED / _EXPIRED | Revocation, auto-revocation, expiry first seen | USER or SYSTEM | GRANT | `cause` (`MANUAL`, `ROLE_CHANGE`, `LINK_CLOSED`, `TIME`) |
 | DATA_UPLOADED | Upload accepted | USER | BATCH | `file_sha256`, `byte_count`, `document_count` |
 | MATCHING_RUN_STARTED / _COMPLETED | Matching begins / ends | USER | RUN | `thresholds_version`; completed adds `auto_count`, `suggested_count` (system-wide) |
-| THRESHOLD_PROPOSED / _APPROVED / _REJECTED | Threshold change workflow | USER | SETTING | `name`, `old_value`, `new_value` |
 | USER_CREATED / USER_DISABLED | Account lifecycle | USER | USER | `role`, `district_id` |
-| USER_CHANGE_PROPOSED / _APPROVED / _REJECTED | Role or jurisdiction change workflow | USER | USER | `old_role`, `new_role`, `old_district_id`, `new_district_id` |
+| CHANGE_PROPOSED / _APPROVED / _DENIED | `pending_change` workflow (thresholds, roles, jurisdictions, SUPERVISOR/SENIOR creation) | USER | SETTING or USER | `kind`, `old_value`, `new_value` (settings and role/district ids only) |
 | AUDIT_VIEWED | An audit page is about to be returned | USER | AUDIT | `filters`, `seq_from`, `seq_to`, `result_count`, `redacted` (bool) |
 | AUDIT_VERIFY_RUN | Verification run | USER or SYSTEM | AUDIT | `range_from`, `range_to`, `result` (`OK`, `BROKEN`), `first_bad_seq`, `head_seq`, `head_hash` |
 
@@ -158,8 +157,6 @@ Users and seed data as in `api-access-control.md` section 7. "Tamper" tests use 
 Log export, retention or purge (rows are kept for the life of the database), streaming to external systems, signing with external keys.
 
 ## Open questions for Fable
-1. External copy of `head_hash` after each run, kept by hand in the runbook. Recommend: yes, no extra service.
-2. Entity lists log up to 500 entity ids per view, so "who viewed which entity" is exact. Recommend: yes; cap is fine for the demo.
-3. Store `client_ip`. Recommend: yes (synthetic users, useful for forensics).
-4. ADMIN reads system events only; case-bound rows REDACTED. Recommend: yes (separation of duties).
-5. A failed audit insert fails the request (fail closed). Recommend: yes, even though it hurts availability.
+1. Entity lists log up to 500 entity ids per view, so "who viewed which entity" is exact. Recommend: yes.
+2. Store `client_ip`. Recommend: yes (synthetic users, useful for forensics).
+3. ADMIN reads system events only; case-bound rows REDACTED. Recommend: yes (separation of duties).
