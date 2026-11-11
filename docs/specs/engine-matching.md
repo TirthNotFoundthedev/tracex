@@ -6,6 +6,8 @@ Owner: Iyer (Engine Lead) · Task P1.1 · Ruleset version: `engine-matching/1.1`
 
 **Jurisdiction-blind.** The engine matches across all cases with no access awareness. No gate looks at districts or states, and AUTO links are created regardless of jurisdiction (`docs/specs/api-access-control.md` §1). The API enforces what a viewer sees of a link and who may decide on it (§6). All names, numbers and cases in this document are invented.
 
+**Errata 1 (2026-11-11, from the P1.5 data-kit review).** AC-03 numbers corrected (the old pair was not an adjacent swap and reused AC-01's phone). Filled gaps: run scope (`input_case_ids`), REGISTERED_TO source, `seen at` sources, person district, Tier 3 hop rules, identifier-pair run order and entity id order; from the P1.2 contract review: engine call signatures, `decision_id` in edge history, and a reopened pair may be rejected again. No weight, cap, band or flag changed; no engine code existed, so the ruleset version stays `engine-matching/1.1`.
+
 ## 1. Entity types and linkable pairs
 
 | Type | Comparable attributes (normalized form produced upstream) |
@@ -24,7 +26,7 @@ Rules: SAME_AS only between two entities of the **same type** from **different c
 | Edge | Code | Factor `a` | Can be an anchor (§5) |
 |---|---|---|---|
 | `owns` (stated user/holder in FIR or note; account holder field of a bank statement) | OWNS | 1.0 | yes |
-| `registered to` (SIM subscriber record) | REGISTERED_TO | 0.5 | no |
+| `registered to` (SIM subscriber record: a row of the subscriber file, `sdr.csv` in the data kit; never an OWNS source) | REGISTERED_TO | 0.5 | no |
 | `mentioned alongside` | MENTIONED_WITH | 0.2 | no |
 
 **Identifier flags** (computed by Graph over all cases before scoring; a flagged identifier is a *trap identifier*):
@@ -49,7 +51,7 @@ A pair is compared only if it shares at least one block key. No key, no comparis
 | B6 NETWORK | PERSON | 2-hop identifier neighbourhoods share ≥2 identifiers that are not HUB or SHARED |
 | B7 ORG_KEY | ORG | phonetic key of the reduced org name |
 
-Further rules: same type, different cases; each unordered pair once; pairs on the block list (§6) are dropped before comparison; a block with >500 members is skipped and counted as `oversized_block` in the run record.
+Further rules: same type, different cases; at least one end case in the run's `input_case_ids` (default: every loaded case), so new input is matched against all loaded cases; each unordered pair once; pairs on the block list (§6) are dropped before comparison; a block with >500 members is skipped and counted as `oversized_block` in the run record.
 
 **Common tokens.** A name token is *common* if it is in the ruleset list (mohammad and its variants mohd/md/muhammad, kumar, kumari, singh, kaur, devi, lal, ram, prasad, chand, das, khan, ali, ahmed, shaikh, ansari, sharma, yadav, begum, bai, ben) or appears in ≥1% of all person entities (minimum 20 entities).
 
@@ -85,10 +87,10 @@ Each item has contribution `c = round(weight × strength, 1)` with strength in [
 | PER_RELATIVE_NAME | 2 | both have relative name of same relation, `name_sim` ≥ 0.85 | name_sim | 15 | Father's (or relative's) names match: "{rel_a}" and "{rel_b}". |
 | PER_DOB_MATCH | 2 | identical full DOB | 1.0 | 20 | Same date of birth: {dob}. |
 | PER_AGE_CLOSE | 2 | no full DOB on one side; ages at a common date differ ≤2 years | 1.0 if Δ≤1, 0.5 if Δ=2 | 10 | Ages are close: {age_a} and {age_b} years. |
-| PER_LOCALITY | 2 | same locality (1.0) or same district only (0.4) | as stated | 10 | Both are linked to the same area: {place}. |
+| PER_LOCALITY | 2 | same locality (1.0) or same district only (0.4); a person's district is the stated one, else the district of the case | as stated | 10 | Both are linked to the same area: {place}. |
 | PER_NEAR_PHONE | 2 | attributed phones form a CONFIRMED PHONE_TRANSPOSED link | min(a_A, a_B) | 15 | Their phone numbers differ by two swapped digits, and an officer confirmed it is the same phone. |
-| PER_SHARED_NETWORK | 3 | k ≥ 2 distinct identifiers within 2 hops (called, transferred money to, owns) on both sides; excludes HUB/SHARED identifiers and any identifier already used in a Tier 1 item of this pair | k=2: 0.6, k=3: 0.8, k≥4: 1.0 | 30 | Both are connected to the same {k} phone numbers or accounts: {list}. |
-| PER_CO_LOCATION | 3 | k ≥ 2 distinct (place, date ±1 day) pairs from `seen at` edges on both sides | k=2: 0.7, k≥3: 1.0 | 20 | Both were recorded at the same place on the same day {k} times. |
+| PER_SHARED_NETWORK | 3 | k ≥ 2 distinct identifiers within 2 hops (called, transferred money to, owns) on both sides; excludes HUB/SHARED identifiers and any identifier already used in a Tier 1 item of this pair. Edge direction is ignored; a path may pass through an excluded identifier, which is itself not counted; `registered to` is not a hop | k=2: 0.6, k=3: 0.8, k≥4: 1.0 | 30 | Both are connected to the same {k} phone numbers or accounts: {list}. |
+| PER_CO_LOCATION | 3 | k ≥ 2 distinct (place, date ±1 day) pairs from `seen at` edges on both sides. Sources: a CDR row's tower place and call date for a phone the person `owns` that is not SHARED, HUB or MULTI_USER; a case line stating the person was seen at a place on a date. Places compare by normalized text | k=2: 0.7, k≥3: 1.0 | 20 | Both were recorded at the same place on the same day {k} times. |
 | ORG_NAME_SIM | 2 | reduced names `name_sim` ≥ 0.85 and reduced name not empty | name_sim | 40 | Organisation names are similar: "{name_a}" and "{name_b}". |
 
 **Trap factor `t`** = 0.2 if the identifier is SHARED, HUB or MULTI_USER, else 1.0. A trap item carries a modifier (shape in §7; key `match.modifier.trap_identifier`; English: "This {id_label} is used by more than one person, so it counts for less."). A modifier has no sources and never says which other cases raised the flag. Each shared identifier gives its own item. Name dissimilarity alone is never opposing evidence (aliases are common).
@@ -152,7 +154,7 @@ Identifier pairs need G1, G4, G5 and G6; ID_EXACT alone scores 100 and becomes A
 
 ## 6. SAME_AS edges, states, clusters, persistence
 
-**Edge.** A Neo4j relationship between the two untouched entity nodes; nothing is written onto the entities. Properties: `link_id` (random UUIDv4, never derived from entity, case or run ids); `entity_a_id` < `entity_b_id` (canonical pair; at most one SAME_AS edge per pair at any time); `entity_type`, `case_a`, `case_b`, `state`, `score`, `band`, `gates` {passed, failed[]}; `evidence` (the §7 payload); `ruleset_version`, `thresholds_version`, `match_run_id`; `created_at`, `updated_at`; `history[]` ({from, to, actor, at, reason_code, reason_text}). A later run updates the edge in place (score, evidence, versions; same `link_id`) under the rerun rules below. Apart from withdrawal, the engine never deletes an edge.
+**Edge.** A Neo4j relationship between the two untouched entity nodes; nothing is written onto the entities. Properties: `link_id` (random UUIDv4, never derived from entity, case or run ids); `entity_a_id` < `entity_b_id` (canonical pair; at most one SAME_AS edge per pair at any time); `entity_type`, `case_a`, `case_b`, `state`, `score`, `band`, `gates` {passed, failed[]}; `evidence` (the §7 payload); `ruleset_version`, `thresholds_version`, `match_run_id`; `created_at`, `updated_at`; `history[]` ({from, to, actor, at, reason_code, reason_text, decision_id}; `decision_id` null for engine transitions). A later run updates the edge in place (score, evidence, versions; same `link_id`) under the rerun rules below. Apart from withdrawal, the engine never deletes an edge.
 
 **States and transitions.** Roles are the canonical roles of `api-access-control.md` §2.1. "Both ends ALLOW" means the actor has ALLOW on both end cases (§2.4 R3, §3). So a link whose ends are in different districts can be decided only by a SENIOR whose state covers both.
 
@@ -174,12 +176,14 @@ Identifier pairs need G1, G4, G5 and G6; ID_EXACT alone scores 100 and becomes A
 - A rerun never changes CONFIRMED, REJECTED or UNDONE edges.
 - An AUTO edge that no longer passes every gate becomes SUGGESTED (`DEMOTED`); it is never demoted silently.
 - A SUGGESTED edge becomes AUTO only if all AUTO gates pass (`PROMOTED`).
-- A SUGGESTED edge whose score falls below medium_min is withdrawn: the edge is removed (`WITHDRAWN`) and the pair is **not** put on the block list.
+- A SUGGESTED edge whose score falls below medium_min is withdrawn: the edge is removed (`WITHDRAWN`) and the pair is **not** put on the block list. If a later run proposes the pair again, that is a new edge with a new `link_id`; a `link_id` never comes back.
 - A reopened edge (its history contains REJECTED or UNDONE) is never promoted or withdrawn: per the block-list rule, only a human ends it.
 
-**Block list.** The block list is the set of SAME_AS edges in REJECTED or UNDONE state, keyed by canonical pair; there is no second store. The engine never proposes a blocked pair again and never makes it AUTO. Only a reopen moves it out, and a reopened pair can end only in CONFIRMED by a human. Scores are never fed back into weights. Undo removes nothing: entities, provenance and the edge with its history remain.
+**Block list.** The block list is the set of SAME_AS edges in REJECTED or UNDONE state, keyed by canonical pair; there is no second store. The engine never proposes a blocked pair again and never makes it AUTO. Only a reopen moves it out, and a reopened pair is ended only by a human (CONFIRMED, or REJECTED again); it never becomes AUTO. Scores are never fed back into weights. Undo removes nothing: entities, provenance and the edge with its history remain.
 
-**Audit hand-off.** The engine never imports the API and never writes audit rows. Every engine call that creates or changes edges returns one transition record per transition, its own demotions included: `{link_id, from, to, actor ("engine" or user id), match_run_id, reason_code, at}` (`to` is null for WITHDRAWN). The API writes the audit rows from these records.
+**Audit hand-off.** The engine never imports the API and never writes audit rows. Every engine call that creates or changes edges returns one transition record per transition, its own demotions included: `{link_id, from, to, actor ("engine" or user id), match_run_id, decision_id, reason_code, at}` (`to` is null for WITHDRAWN; `decision_id` is null for engine transitions, `match_run_id` null for human decisions). The API writes the audit rows from these records.
+
+**Engine calls.** `run_matching(input_case_ids, triggered_by, thresholds_version, thresholds)` returns the run record and transition records. `apply_decision(link_id, expected_from, to_state, actor_user_id, decision_id, reason_code, reason_text)` is the only way a human decision changes an edge. The engine checks only that `expected_from` is the edge's current state and that the transition is legal (§6 table); role and jurisdiction are the API's. It returns the transition record, or `ILLEGAL_TRANSITION` / `STATE_MISMATCH` with nothing changed. The API commits the decision and its audit row first and then calls `apply_decision`, replaying it until the engine has applied it. The call is idempotent on `decision_id`: a replay returns the same record and changes nothing. Because the edge may lag the committed decision, `run_matching` starts only when no committed decision is still unapplied, and no decision is accepted while a run is RUNNING; otherwise a rerun could promote, demote or withdraw an edge a human has already decided. The API maps its run scope to case ids; `input_case_ids` empty or omitted means every loaded case.
 
 **Run record** (the engine returns it; the API persists it): `match_run_id` (random), `started_at`, `finished_at`, `triggered_by` (user id of whoever started the run), `input_case_ids`, `ruleset_version`, `thresholds_version`, counts by resulting state and by band (Low pairs counted, not stored), `oversized_block` count, `status` (RUNNING / SUCCEEDED / FAILED), `error_code`.
 
@@ -188,7 +192,7 @@ Identifier pairs need G1, G4, G5 and G6; ID_EXACT alone scores 100 and becomes A
 - C2. No implied links: A~B and B~C never create an A~C edge. The API builds cluster and path responses per viewer. Any link with an end case the viewer lacks ALLOW on is a hideable segment and becomes a stub (`api-access-control.md` §4). Members beyond that segment are not listed.
 - C3. Before an edge becomes AUTO, the engine checks every cross-case pair in the resulting cluster for opposing items (§3.3 and ACCT_BANK_CONFLICT), whether or not that pair has an edge. A hard or veto item on any pair makes the new edge SUGGESTED (`match.gate.cluster_conflict`). A veto between the edge's own two ends means no edge.
 - C4. An AUTO edge may not join two clusters that each have ≥2 members (`match.gate.cluster_bridge`). It may not put two distinct entities from the same case into one cluster (`match.gate.cluster_same_case`). A human may still confirm such an edge.
-- C5. Run order: identifier pairs first, then person and org pairs by score descending, ties by (`entity_a_id`, `entity_b_id`).
+- C5. Run order: identifier pairs first, then person and org pairs; within each group by score descending, ties by (`entity_a_id`, `entity_b_id`). Entity ids are assigned by ingest, increasing in load order (case id compared numerically, then file, then line), and are stable across runs; random entity ids would break AC-23 and AC-26.
 
 ## 7. Explanation payload (one link, `GET` by `link_id`)
 
@@ -216,7 +220,7 @@ Identifier pairs need G1, G4, G5 and G6; ID_EXACT alone scores 100 and becomes A
   "history": [ { "from": null, "to": "AUTO", "at": "2026-11-20T10:00:00Z", "reason_code": null } ]
 }
 ```
-Other shapes: **modifier** `{ "code": "SHARED" | "HUB" | "MULTI_USER", "factor": 0.2, "template_key": "match.modifier.trap_identifier" }`; **`against` item** = a support item plus `"severity": "soft" | "hard" | "veto"`, with a negative `contribution`; **failed gate** `{ "gate": "G2", "template_key": "match.gate.no_anchor" }`. The payload carries no English text; the client renders every line from `template_key` + `params`. Payload `history` entries carry only `from`, `to`, `at` and `reason_code`; `actor` and `reason_text` stay on the edge and are never in the explanation payload. The **cited-line set** of a link (what an access grant exposes) is the union of `records[].source` and every `items[].sources`.
+Other shapes: **modifier** `{ "code": "SHARED" | "HUB" | "MULTI_USER", "factor": 0.2, "template_key": "match.modifier.trap_identifier" }`; **`against` item** = a support item plus `"severity": "soft" | "hard" | "veto"`, with a negative `contribution`; **failed gate** `{ "gate": "G2", "template_key": "match.gate.no_anchor" }`. The payload carries no English text; the client renders every line from `template_key` + `params`. Payload `history` entries carry only `from`, `to`, `at` and `reason_code`; `actor` and `reason_text` stay on the edge and are never in the explanation payload. The engine emits sources as `{case_id, document_id, line}` only; the API may add `page`, `document_type` and `case_number` of that same source document when it serves the payload. The **cited-line set** of a link (what an access grant exposes) is the union of `records[].source` and every `items[].sources`.
 
 **Invariant:** Σ `support[].subtotal` + Σ `against[].contribution` + `clamp_adjustment.value` = `score`, where `subtotal` = `raw` + `cap_adjustment.value`, by exact decimal equality. Masking identifier values, and returning 404 for a link the viewer may not fully see, are the API's job (`api-access-control.md` §2.4 R2, §4).
 
@@ -226,9 +230,9 @@ Comparator outputs (name_sim, flags, k) are fixtures, so scoring tests do not de
 
 | # | Synthetic input | Expected |
 |---|---|---|
-| AC-01 | **Worked scenario.** CASE-A FIR line 12: "Mohd. Irfan … mobile 90000 14471 … a/c 5010000019082 (IFSC SYNB0000123)". CASE-A bank statement: a/c …9082 transfers to UPI 9000021203@upi (line 4) and 9000028816@upi (line 7). CASE-B CDR: 9000021203 → 9000014471 (line 33), 9000028816 → 9000014471 (line 41). CASE-B note line 3: "Number 9000014471 is used by Irfan bhai." | Phone pairs …4471, …1203, …8816: ID_EXACT 100 → AUTO (three edges). Person: SHARED_PHONE 45.0 + PER_NAME_SIM 22.5 + PER_SHARED_NETWORK (k=2) 18.0 = **85.5 High, AUTO**, all gates pass. Four SAME_AS edges in all; entities untouched. |
+| AC-01 | **Worked scenario.** CASE-A FIR line 12: "Mohd. Irfan … mobile 90000 14471 … a/c 5010000019082 (IFSC SYNB0000123)". CASE-A bank statement: a/c …9082 transfers to UPI 9000021203@upi (line 4) and 9000028816@upi (line 7). CASE-B CDR: 9000021203 → 9000014471 (line 33), 9000028816 → 9000014471 (line 41). CASE-B note line 3: "Number 9000014471 is used by Irfan bhai." | Phone pairs …4471, …1203, …8816: ID_EXACT 100 → AUTO (three edges). Person: SHARED_PHONE 45.0 + PER_NAME_SIM 22.5 + PER_SHARED_NETWORK (k=2) 18.0 = **85.5 High, AUTO**, all gates pass. Four SAME_AS edges in all, in a run on a store holding only CASE-A and CASE-B; entities untouched. |
 | AC-02 | Vehicle `UP32AB1234` in CASE-C FIR and `up 32 ab 1234` in CASE-D note | Vehicle pair 100 High AUTO |
-| AC-03 | Phones 9000014471 (CASE-E) and 9000017441 (CASE-F) | PHONE_TRANSPOSED 55 → Medium SUGGESTED |
+| AC-03 | Phones 9000081914 (CASE-E) and 9000081194 (CASE-F) (adjacent swap) | PHONE_TRANSPOSED 55 → Medium SUGGESTED |
 | AC-04 | Account 5010000077345 at IFSC SYNB0000123 (CASE-G) and at IFSC FAKE0000456 (CASE-H) | ACCT_BANK_CONFLICT veto → Low, no edge |
 | AC-05 | "Jaswinder Bhullar", age 34, Village Kherapur (CASE-J) vs "Jasvinder Bhullar", age 35, Kherapur (CASE-K); fixture name_sim 0.94 | 28.2 + 10 + 10 = **48.2 Medium** SUGGESTED (no anchor) |
 | AC-06 | **Trap, common name same city.** "Mohammed Khan" (CASE-L) vs "Mohd Khan" (CASE-M), both district Rampur only; name_sim 1.0, rarity 0.4 | 12.0 + 4.0 = **16.0 Low**, no edge |
