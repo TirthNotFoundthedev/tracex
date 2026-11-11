@@ -51,7 +51,7 @@ A pair is compared only if it shares at least one block key. No key, no comparis
 | B6 NETWORK | PERSON | 2-hop identifier neighbourhoods share ≥2 identifiers that are not HUB or SHARED |
 | B7 ORG_KEY | ORG | phonetic key of the reduced org name |
 
-Further rules: same type, different cases; both end cases in the run's `input_case_ids` (default: every loaded case); each unordered pair once; pairs on the block list (§6) are dropped before comparison; a block with >500 members is skipped and counted as `oversized_block` in the run record.
+Further rules: same type, different cases; at least one end case in the run's `input_case_ids` (default: every loaded case), so new input is matched against all loaded cases; each unordered pair once; pairs on the block list (§6) are dropped before comparison; a block with >500 members is skipped and counted as `oversized_block` in the run record.
 
 **Common tokens.** A name token is *common* if it is in the ruleset list (mohammad and its variants mohd/md/muhammad, kumar, kumari, singh, kaur, devi, lal, ram, prasad, chand, das, khan, ali, ahmed, shaikh, ansari, sharma, yadav, begum, bai, ben) or appears in ≥1% of all person entities (minimum 20 entities).
 
@@ -230,7 +230,7 @@ Comparator outputs (name_sim, flags, k) are fixtures, so scoring tests do not de
 
 | # | Synthetic input | Expected |
 |---|---|---|
-| AC-01 | **Worked scenario.** CASE-A FIR line 12: "Mohd. Irfan … mobile 90000 14471 … a/c 5010000019082 (IFSC SYNB0000123)". CASE-A bank statement: a/c …9082 transfers to UPI 9000021203@upi (line 4) and 9000028816@upi (line 7). CASE-B CDR: 9000021203 → 9000014471 (line 33), 9000028816 → 9000014471 (line 41). CASE-B note line 3: "Number 9000014471 is used by Irfan bhai." | Phone pairs …4471, …1203, …8816: ID_EXACT 100 → AUTO (three edges). Person: SHARED_PHONE 45.0 + PER_NAME_SIM 22.5 + PER_SHARED_NETWORK (k=2) 18.0 = **85.5 High, AUTO**, all gates pass. Four SAME_AS edges in all, in a run with `input_case_ids` [CASE-A, CASE-B]; entities untouched. |
+| AC-01 | **Worked scenario.** CASE-A FIR line 12: "Mohd. Irfan … mobile 90000 14471 … a/c 5010000019082 (IFSC SYNB0000123)". CASE-A bank statement: a/c …9082 transfers to UPI 9000021203@upi (line 4) and 9000028816@upi (line 7). CASE-B CDR: 9000021203 → 9000014471 (line 33), 9000028816 → 9000014471 (line 41). CASE-B note line 3: "Number 9000014471 is used by Irfan bhai." | Phone pairs …4471, …1203, …8816: ID_EXACT 100 → AUTO (three edges). Person: SHARED_PHONE 45.0 + PER_NAME_SIM 22.5 + PER_SHARED_NETWORK (k=2) 18.0 = **85.5 High, AUTO**, all gates pass. Four SAME_AS edges in all, in a run on a store holding only CASE-A and CASE-B; entities untouched. |
 | AC-02 | Vehicle `UP32AB1234` in CASE-C FIR and `up 32 ab 1234` in CASE-D note | Vehicle pair 100 High AUTO |
 | AC-03 | Phones 9000081914 (CASE-E) and 9000081194 (CASE-F) (adjacent swap) | PHONE_TRANSPOSED 55 → Medium SUGGESTED |
 | AC-04 | Account 5010000077345 at IFSC SYNB0000123 (CASE-G) and at IFSC FAKE0000456 (CASE-H) | ACCT_BANK_CONFLICT veto → Low, no edge |
