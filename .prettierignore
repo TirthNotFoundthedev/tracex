@@ -1,0 +1,15 @@
+node_modules
+dist
+package-lock.json
+backend
+uv.lock
+AGENT_RULES.md
+CODEBASE_RULES.md
+DECISIONS.md
+DESIGN_RULES.md
+PLAN.md
+PROTOCOLS.md
+ROSTER.md
+STATE.md
+docs/specs
+qa/tickets
