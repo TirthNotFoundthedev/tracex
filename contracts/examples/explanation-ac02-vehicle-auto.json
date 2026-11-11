@@ -1,0 +1,57 @@
+{
+  "link_id": "e51a09bd-3c77-4d12-a8f6-72b0d4c9e613",
+  "entity_type": "VEHICLE",
+  "state": "AUTO",
+  "score": 100.0,
+  "band": "HIGH",
+  "thresholds": { "high_min": 80, "medium_min": 45, "thresholds_version": 1 },
+  "ruleset_version": "engine-matching/1.1",
+  "gates": { "passed": true, "failed": [] },
+  "records": [
+    {
+      "entity_id": "ent_c05",
+      "case_id": "CASE-C",
+      "raw_text": "UP32AB1234",
+      "normalized": "UP32AB1234",
+      "extraction_confidence": 0.9,
+      "source": { "case_id": "CASE-C", "document_id": "doc_fir_c", "line": 7 }
+    },
+    {
+      "entity_id": "ent_d09",
+      "case_id": "CASE-D",
+      "raw_text": "up 32 ab 1234",
+      "normalized": "UP32AB1234",
+      "extraction_confidence": 0.9,
+      "source": { "case_id": "CASE-D", "document_id": "doc_note_d", "line": 2 }
+    }
+  ],
+  "support": [
+    {
+      "tier": 1,
+      "cap": 100,
+      "raw": 100.0,
+      "cap_adjustment": { "value": 0.0, "template_key": "match.adjust.cap" },
+      "subtotal": 100.0,
+      "items": [
+        {
+          "evidence_id": "ev_1",
+          "kind": "ID_EXACT",
+          "strength": 1.0,
+          "weight": 100,
+          "contribution": 100.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.id_exact",
+          "params": { "id_label": "VEHICLE", "value": "UP32AB1234" },
+          "sources": [
+            { "case_id": "CASE-C", "document_id": "doc_fir_c", "line": 7 },
+            { "case_id": "CASE-D", "document_id": "doc_note_d", "line": 2 }
+          ]
+        }
+      ]
+    }
+  ],
+  "against": [],
+  "clamp_adjustment": { "value": 0.0, "template_key": "match.adjust.clamp" },
+  "history": [{ "from": null, "to": "AUTO", "at": "2026-11-20T10:00:00Z", "reason_code": null }]
+}
