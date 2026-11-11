@@ -37,7 +37,7 @@ Pattern rules:
 - Strength words: "Strong match" (linked automatically), "Possible match. Please check." Low-band pairs are not links and appear nowhere.
 - A reason against uses the alert icon and the same sentence style: "Different dates of birth: 1990 and 1994".
 - Source line: "Case [number], [document type], page [n], line [n]". If page or line is unknown: "Case [number], [document type]".
-- "More detail" opened shows, with a one-sentence explanation for each: "Match score: 0.91 (out of 1)", "Tier: 2 of 3", "Rules that matched: phone number exact, name sound", "Strong match starts at 0.85", raw values as stored. Admin terms are allowed only here.
+- "More detail" opened shows, with a one-sentence explanation for each: "Match score: 91 (out of 100)", "Tier: 2 of 3", "Rules that matched: phone number exact, name sound", "Strong match starts at 80", raw values as stored. Admin terms are allowed only here.
 - Phone numbers in the officer app are shown in full to the officer who owns the case (mono font); masking is a backend rule, not designed here.
 
 ## 2. Officer app
@@ -150,10 +150,10 @@ The value shown is the officer's own item, not theirs. No case number, area name
 Title: "Ask for access". Text: "Tell the other police area why you need to see this case."
 ```
 | Your reason                                      |
-| [ ____________________________ ]  (at least 20 characters) |
+| [ ____________________________ ]  (10 to 500 characters) |
 | [ * Send request ]   [ Cancel ]                  |
 ```
-Errors: empty -> "Please write your reason. [Fix]"; short -> "Please write a little more: at least 20 characters."
+Errors: empty -> "Please write your reason. [Fix]"; short -> "Please write a little more: at least 10 characters."; over 500 -> "Please shorten your reason: at most 500 characters."
 
 ### O11 Request sent
 "(check) Request sent. We will tell you when it is decided." `[ * Back to this case ]`. Notification of the decision appears on O2 as a message at the top: "Your request for access was approved. [See the case]".
@@ -176,7 +176,7 @@ Layout: left navigation (icon + label) with Upload, Matching, Review queue, Acce
 Title: "Upload case material". Fields: "Case" (select from list or "New case number"), a drop area "Drop files here or [Choose files]", accepted types written in words: "PDF, Word, Excel, text, images". Primary: `[ * Upload files ]`. Result table: File, Case, Status ("Waiting", "Reading", "Done", "Could not read: [reason in words]"), `[Open]`. Failure row action: `[Try again]`.
 
 ### A2 Matching
-Title: "Find links between cases". Line: "Last run: 12 Mar 2026, 14:05. Found 6 strong, 14 possible." Primary: `[ * Start matching ]`. While running: progress line "Matching 120 of 480 records..." and `[Stop]`. When done: message "Matching finished. 14 possible matches need review. [Go to review queue]".
+Title: "Find links between cases". Line: "Last run: 12 Mar 2026, 14:05. Found 6 strong, 14 possible." Primary: `[ * Start matching ]`. While running: progress line "Matching 120 of 480 records..." and the line "A run cannot be stopped. Please wait." (runs cannot be cancelled in the MVP; there is no Stop button). When done: message "Matching finished. 14 possible matches need review. [Go to review queue]".
 
 ### A3 Review queue (possible matches)
 Title: "Links to check". Table, 44px rows, columns: Strength (badge, words + score), Item, Case A, Case B, Main reason, Waiting since. Sort labels in words. Filters: Type, Area, "Waiting more than 7 days". Row button `[Open]`.
@@ -290,10 +290,10 @@ Title: "Access requests". Table: Requested by, For case (admin sees it), From ar
 Title: "Users and roles". Table: Name, User ID, Role, Area, Status. `[ * Add user ]` primary. Form: Name, User ID, Area, Role ("Officer: can look", "Investigating officer: can look", "Supervisor: can decide in own area", "Senior officer: can decide across areas", "Administrator: manages the system, no case access"), `[ * Save user ]`. Row `[Open]` -> same form plus `[Turn off this user]` (danger, second confirm: "Turn off [name]? They will not be able to sign in. [ * Yes, turn off ] [No, go back]"). Roles are explained in one sentence beside each choice; codes (JUNIOR etc.) are never shown. Administrators see no case content on any screen: A3, A4 and A8 show case details only to roles with case rights; an Administrator sees counts and status.
 
 ### A6 Audit log
-Title: "Activity log". Read-only table: Time, Person, What they did, Case, Item. Filters: date range, person, action type (words: "Looked at", "Confirmed", "Rejected", "Asked for access", "Approved access", "Uploaded"). Button `[Download as file]`. No edit or delete controls exist; line at top: "This log cannot be changed."
+Title: "Activity log". Read-only table: Time, Person, What they did, Case, Item. Filters: date range, person, action type (words: "Looked at", "Confirmed", "Rejected", "Asked for access", "Approved access", "Uploaded"). No download or export control exists (the audit spec allows no export), and no edit or delete controls; line at top: "This log cannot be changed."
 
 ### A7 Thresholds
-Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (0.85) "Links at or above this are made automatically."; "Possible match starts at" (0.60) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "No link made | Please check | Linked automatically" (the first zone is a score range only; nothing is stored or listed for it). Primary `[ * Save settings ]`; after save: "Saved. New matching runs use these numbers. Past results do not change." Change needs second step stating how many links would move on a test run: "On the last run, 5 possible matches would become strong. [ * Save anyway ] [No, go back]".
+Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (80, a score from 0 to 100) "Links at or above this are made automatically."; "Possible match starts at" (45) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "No link made | Please check | Linked automatically" (the first zone is a score range only; nothing is stored or listed for it). Primary `[ * Save settings ]`; after save: "Saved. New matching runs use these numbers. Past results do not change." There is no test run or preview of how many links would move (no dry-run in the MVP). Allowed values are written under each field: strong from 70 to 100; possible from 30 up to 10 below the strong value. A value outside them shows "Please enter a number from 70 to 100." / "Please enter a number from 30 to [strong value minus 10]."
 
 ### A8 Network graph
 Title: "Network of links". Search "Find a person, phone number, account or vehicle", then `[ * Show network ]`. Canvas rules in DESIGN_RULES section 12. Left of canvas: legend (icon + word per node and edge kind). Right panel: selected node's explanation panel. Toggle `[(list) Show as list]` / `[(share-2) Show as picture]`. Message at limit: "Showing the 150 closest. Narrow the search to see others."

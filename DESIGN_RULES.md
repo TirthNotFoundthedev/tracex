@@ -144,7 +144,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - No case number, name, place, date, count of people, or strength. Reason: even those leak; the existence alone is what the officer may know.
 - Never greyed-out or blurred to hint at hidden text; there is no hidden text in the page at all. Reason: access is enforced by the API; the UI must not pretend to hold data it was not sent.
 - After the request: card shows "Request sent on 12 Mar. We will tell you when it is decided." and no button.
-- Access request form: reason field only (single field, required, 20-character minimum), button "Send request".
+- Access request form: reason field only (single field, required, 10 to 500 characters), button "Send request".
 
 ## 11. Feedback, undo, errors
 - Every action gets visible feedback within 1 second: a message in the page (not a vanishing toast) with icon and words, e.g. "Saved: you confirmed this link". Messages stay until dismissed or the next action. Reason: a slow reader needs time; vanishing text is missed.
