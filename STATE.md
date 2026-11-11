@@ -6,14 +6,20 @@ Last updated: 2026-11-11, session S0.
 - PLAN.md approved by the owner (2026-11-11).
 - Governance files written: AGENT_RULES, PROTOCOLS, CODEBASE_RULES, ROSTER, DECISIONS.
 
+- Private repo created: github.com/TirthNotFoundthedev/tracex. Bootstrap commit on `main`.
+
 ## In progress
-- P0.1 / P0.3: repo skeleton, tooling, CI, Docker Compose — Rao (Release Manager), branch `chore/foundation`.
+- PR #4 foundation (Rao): CI green, approved by Fable, being merged; then tag `m0-foundation`.
+- PR #2 design rules, flows, tokens (Sen): approved by Fable, merges after #4.
+- PR #1 access-control and audit specs (Khan): security review returned CHANGES (2 blockers, 9 majors); Khan amending per rulings D32-D35; Dutta re-reviews before merge.
+- PR #3 matching spec (Iyer): Khan's review returned CHANGES (1 blocker); Iyer amending per D33; Khan re-checks before merge.
 
 ## Next
-1. Merge foundation PR, tag `m0-foundation`.
-2. P1.1 matching spec — hire Iyer (Engine Lead, Opus).
-3. P1.3 access matrix + audit event list — hire Khan (Backend Lead); P1.4 design rules — hire Sen (Design Lead). Both can run alongside 1.1.
-4. P1.2 data model + OpenAPI contract, P1.5 dataset spec — after 1.1.
+1. Merge #1 and #3 once re-reviewed. Tag `m1-specs`.
+2. Rao follow-up PR: self-hosted Noto fonts, Lucide dependency, CI check that fails on a missing Hindi string, compose smoke test (`docker compose up` never run yet).
+3. P1.2 data model + OpenAPI contract (Khan, reviewed by Iyer) and P1.5 synthetic dataset spec (hire Bose). Both need the merged matching spec.
+4. Sen: add "Rejected" filter with Reopen to admin review queue flow (D34); re-render the specimen.
+5. P2 engine vertical slice (hire Naidu, Bose).
 
 ## Blockers
 - None.
