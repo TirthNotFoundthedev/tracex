@@ -1,0 +1,127 @@
+{
+  "link_id": "6f1c2e9a-0b4d-4f7e-9a51-3c2d8e7b1a40",
+  "entity_type": "PERSON",
+  "state": "AUTO",
+  "score": 85.5,
+  "band": "HIGH",
+  "thresholds": { "high_min": 80, "medium_min": 45, "thresholds_version": 1 },
+  "ruleset_version": "engine-matching/1.1",
+  "gates": { "passed": true, "failed": [] },
+  "records": [
+    {
+      "entity_id": "ent_a12",
+      "case_id": "CASE-A",
+      "raw_text": "Mohd. Irfan",
+      "normalized": "mohammad irfan",
+      "extraction_confidence": 0.9,
+      "source": {
+        "case_id": "CASE-A",
+        "document_id": "doc_fir_a",
+        "line": 12,
+        "page": 1,
+        "document_type": "FIR",
+        "case_number": "24/118"
+      }
+    },
+    {
+      "entity_id": "ent_b07",
+      "case_id": "CASE-B",
+      "raw_text": "Irfan bhai",
+      "normalized": "irfan",
+      "extraction_confidence": 0.9,
+      "source": {
+        "case_id": "CASE-B",
+        "document_id": "doc_note_b",
+        "line": 3,
+        "page": 1,
+        "document_type": "NOTE",
+        "case_number": "31/207"
+      }
+    }
+  ],
+  "support": [
+    {
+      "tier": 1,
+      "cap": 60,
+      "raw": 45.0,
+      "cap_adjustment": { "value": 0.0, "template_key": "match.adjust.cap" },
+      "subtotal": 45.0,
+      "items": [
+        {
+          "evidence_id": "ev_1",
+          "kind": "SHARED_PHONE",
+          "strength": 1.0,
+          "weight": 45,
+          "contribution": 45.0,
+          "is_anchor": true,
+          "modifiers": [],
+          "template_key": "match.evidence.shared_phone",
+          "params": {
+            "value": "9000014471",
+            "how_a": "OWNS",
+            "case_a": "CASE-A",
+            "how_b": "OWNS",
+            "case_b": "CASE-B"
+          },
+          "sources": [
+            { "case_id": "CASE-A", "document_id": "doc_fir_a", "line": 12 },
+            { "case_id": "CASE-B", "document_id": "doc_note_b", "line": 3 }
+          ]
+        }
+      ]
+    },
+    {
+      "tier": 2,
+      "cap": 55,
+      "raw": 22.5,
+      "cap_adjustment": { "value": 0.0, "template_key": "match.adjust.cap" },
+      "subtotal": 22.5,
+      "items": [
+        {
+          "evidence_id": "ev_2",
+          "kind": "PER_NAME_SIM",
+          "strength": 0.75,
+          "weight": 30,
+          "contribution": 22.5,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_name_sim",
+          "params": { "name_a": "mohammad irfan", "name_b": "irfan", "sim": 1.0 },
+          "sources": [
+            { "case_id": "CASE-A", "document_id": "doc_fir_a", "line": 12 },
+            { "case_id": "CASE-B", "document_id": "doc_note_b", "line": 3 }
+          ]
+        }
+      ]
+    },
+    {
+      "tier": 3,
+      "cap": 35,
+      "raw": 18.0,
+      "cap_adjustment": { "value": 0.0, "template_key": "match.adjust.cap" },
+      "subtotal": 18.0,
+      "items": [
+        {
+          "evidence_id": "ev_3",
+          "kind": "PER_SHARED_NETWORK",
+          "strength": 0.6,
+          "weight": 30,
+          "contribution": 18.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_shared_network",
+          "params": { "k": 2, "list": ["9000021203", "9000028816"] },
+          "sources": [
+            { "case_id": "CASE-A", "document_id": "doc_bank_a", "line": 4 },
+            { "case_id": "CASE-A", "document_id": "doc_bank_a", "line": 7 },
+            { "case_id": "CASE-B", "document_id": "doc_cdr_b", "line": 33 },
+            { "case_id": "CASE-B", "document_id": "doc_cdr_b", "line": 41 }
+          ]
+        }
+      ]
+    }
+  ],
+  "against": [],
+  "clamp_adjustment": { "value": 0.0, "template_key": "match.adjust.clamp" },
+  "history": [{ "from": null, "to": "AUTO", "at": "2026-11-20T10:00:00Z", "reason_code": null }]
+}

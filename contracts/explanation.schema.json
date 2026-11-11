@@ -1,0 +1,1323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tracex.invalid/contracts/explanation.schema.json",
+  "title": "TraceX link explanation payload",
+  "description": "Why two entities were linked (docs/specs/engine-matching.md section 7). Carries codes, numbers, ids and values only: no wording. Clients render every line from template_key plus params; wording lives in the shared i18n files (en, hi). Produced by the engine, stored on the link, served by GET /links/{link_id}/explanation after the access check. Invariant, tested by exact decimal equality: sum(support[].subtotal) + sum(against[].contribution) + clamp_adjustment.value = score, where subtotal = raw + cap_adjustment.value. A non-numeric `weight` never occurs; a veto item carries weight 0 and contribution 0. Identifier values in params may be masked by the API (masking rules are the API's, see docs/architecture.md); the schema treats them as opaque strings. Tiers with no items may be omitted (an identifier pair has tiers 1 and 2 at most; AC-02 has only tier 1), so clients must not expect three tier blocks. When the caller may not read the source lines of a case, the API masks PHONE and ACCOUNT values in every param, `raw_text` and `normalized`, and sets `masked` true; the full value then appears nowhere in the payload (access spec section 4.1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "link_id",
+    "entity_type",
+    "state",
+    "score",
+    "band",
+    "thresholds",
+    "ruleset_version",
+    "gates",
+    "records",
+    "support",
+    "against",
+    "clamp_adjustment",
+    "history"
+  ],
+  "properties": {
+    "link_id": {
+      "$ref": "#/$defs/uuid",
+      "description": "Opaque random id of the link; never derived from entity, case or run ids."
+    },
+    "entity_type": {
+      "enum": ["PERSON", "ORG", "PHONE", "ACCOUNT", "VEHICLE"]
+    },
+    "state": {
+      "$ref": "#/$defs/link_state"
+    },
+    "score": {
+      "$ref": "#/$defs/score",
+      "description": "Composite score 0 to 100, one decimal, after caps and clamp."
+    },
+    "band": {
+      "enum": ["HIGH", "MEDIUM", "LOW"],
+      "description": "LOW is possible only for a link that a human reopened or confirmed after thresholds moved; the engine never stores a new Low pair."
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["high_min", "medium_min", "thresholds_version"],
+      "properties": {
+        "high_min": {
+          "type": "number",
+          "minimum": 70,
+          "maximum": 100
+        },
+        "medium_min": {
+          "type": "number",
+          "minimum": 30,
+          "maximum": 90
+        },
+        "thresholds_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "ruleset_version": {
+      "type": "string",
+      "pattern": "^engine-matching/[0-9]+\\.[0-9]+$"
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed"],
+      "properties": {
+        "passed": {
+          "type": "boolean",
+          "description": "True only when every gate for this entity type passed (the AUTO condition)."
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/failed_gate"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "records": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/record"
+      },
+      "description": "The two end entities as extracted. Never a third case."
+    },
+    "support": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/tier"
+      },
+      "description": "Supporting evidence grouped by tier, ascending, omitting tiers without items. Identifier pairs use tiers 1 and 2 only; PERSON and ORG pairs may use 1 to 3."
+    },
+    "against": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/against_item"
+      },
+      "description": "Opposing evidence. Empty when nothing disagrees."
+    },
+    "clamp_adjustment": {
+      "$ref": "#/$defs/adjustment_clamp"
+    },
+    "history": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/history_entry"
+      },
+      "description": "Only from, to, at and reason_code. The actor and the free-text reason stay on the link history and are never in this payload."
+    },
+    "masked": {
+      "type": "boolean",
+      "description": "Added by the API, never by the engine: true when any value in this payload was masked."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "entity_type": {
+            "enum": ["PHONE", "ACCOUNT", "VEHICLE"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "support": {
+            "items": {
+              "properties": {
+                "tier": {
+                  "enum": [1, 2]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "gates": {
+            "properties": {
+              "passed": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "gates": {
+            "properties": {
+              "failed": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "gates": {
+            "properties": {
+              "passed": {
+                "const": false
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "gates": {
+            "properties": {
+              "failed": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "link_state": {
+      "enum": ["AUTO", "SUGGESTED", "CONFIRMED", "REJECTED", "UNDONE"]
+    },
+    "attribution_code": {
+      "enum": ["OWNS", "REGISTERED_TO", "MENTIONED_WITH"],
+      "description": "Rendered via template key match.attribution.<code lowercase>."
+    },
+    "id_label_code": {
+      "enum": ["PHONE", "ACCOUNT", "VEHICLE"],
+      "description": "Rendered via template key match.id_label.<code lowercase>."
+    },
+    "iso_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source": {
+      "type": "object",
+      "required": ["case_id", "document_id", "line"],
+      "additionalProperties": false,
+      "description": "Provenance of one cited line. Always one of the link's two end cases. document_type, page and case_number are added by the API from the document and case rows so the panel can print 'Case, document type, page, line'; the engine omits them.",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "document_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "page": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "document_type": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Z_]+$"
+        },
+        "case_number": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_id",
+        "case_id",
+        "raw_text",
+        "normalized",
+        "extraction_confidence",
+        "source"
+      ],
+      "properties": {
+        "entity_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw_text": {
+          "type": "string"
+        },
+        "normalized": {
+          "type": "string"
+        },
+        "extraction_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        }
+      }
+    },
+    "failed_gate": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/gate_g1"
+        },
+        {
+          "$ref": "#/$defs/gate_g2"
+        },
+        {
+          "$ref": "#/$defs/gate_g3"
+        },
+        {
+          "$ref": "#/$defs/gate_g4"
+        },
+        {
+          "$ref": "#/$defs/gate_g5"
+        },
+        {
+          "$ref": "#/$defs/gate_g6"
+        },
+        {
+          "$ref": "#/$defs/gate_g7"
+        }
+      ]
+    },
+    "gate_g1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "template_key"],
+      "properties": {
+        "gate": {
+          "const": "G1"
+        },
+        "template_key": {
+          "const": "match.gate.below_high"
+        }
+      }
+    },
+    "gate_g2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "template_key"],
+      "properties": {
+        "gate": {
+          "const": "G2"
+        },
+        "template_key": {
+          "const": "match.gate.no_anchor"
+        }
+      }
+    },
+    "gate_g3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "template_key"],
+      "properties": {
+        "gate": {
+          "const": "G3"
+        },
+        "template_key": {
+          "const": "match.gate.single_tier"
+        }
+      }
+    },
+    "gate_g4": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "template_key"],
+      "properties": {
+        "gate": {
+          "const": "G4"
+        },
+        "template_key": {
+          "const": "match.gate.hard_conflict"
+        }
+      }
+    },
+    "gate_g5": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "template_key"],
+      "properties": {
+        "gate": {
+          "const": "G5"
+        },
+        "template_key": {
+          "const": "match.gate.low_extraction"
+        }
+      }
+    },
+    "gate_g6": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "template_key"],
+      "properties": {
+        "gate": {
+          "const": "G6"
+        },
+        "template_key": {
+          "enum": [
+            "match.gate.cluster_conflict",
+            "match.gate.cluster_bridge",
+            "match.gate.cluster_same_case"
+          ]
+        }
+      }
+    },
+    "gate_g7": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "template_key"],
+      "properties": {
+        "gate": {
+          "const": "G7"
+        },
+        "template_key": {
+          "const": "match.gate.org_review_only"
+        }
+      }
+    },
+    "adjustment_cap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "template_key"],
+      "properties": {
+        "value": {
+          "type": "number",
+          "maximum": 0,
+          "description": "cap - raw when raw exceeds the cap, else 0. Its own line, never merged into an item."
+        },
+        "template_key": {
+          "const": "match.adjust.cap"
+        }
+      }
+    },
+    "adjustment_clamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "template_key"],
+      "properties": {
+        "value": {
+          "type": "number",
+          "description": "clamp(S_raw, 0, 100) - S_raw."
+        },
+        "template_key": {
+          "const": "match.adjust.clamp"
+        }
+      }
+    },
+    "tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "cap", "raw", "cap_adjustment", "subtotal", "items"],
+      "properties": {
+        "tier": {
+          "enum": [1, 2, 3]
+        },
+        "cap": {
+          "type": "number",
+          "minimum": 0
+        },
+        "raw": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Sum of item contributions in this tier, before the cap."
+        },
+        "cap_adjustment": {
+          "$ref": "#/$defs/adjustment_cap"
+        },
+        "subtotal": {
+          "type": "number",
+          "minimum": 0,
+          "description": "raw + cap_adjustment.value."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/support_item"
+          }
+        }
+      }
+    },
+    "modifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "factor", "template_key"],
+      "description": "Trap-identifier modifier. Has no sources and never says which other cases raised the flag. The identifier label for the wording comes from the item's kind.",
+      "properties": {
+        "code": {
+          "enum": ["SHARED", "HUB", "MULTI_USER"]
+        },
+        "factor": {
+          "const": 0.2
+        },
+        "template_key": {
+          "const": "match.modifier.trap_identifier"
+        }
+      }
+    },
+    "item_base": {
+      "type": "object",
+      "required": [
+        "evidence_id",
+        "kind",
+        "strength",
+        "weight",
+        "contribution",
+        "is_anchor",
+        "modifiers",
+        "template_key",
+        "params",
+        "sources"
+      ],
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string"
+        },
+        "strength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "contribution": {
+          "type": "number",
+          "description": "round_half_up(weight x strength, 1); negative for opposing items."
+        },
+        "is_anchor": {
+          "type": "boolean",
+          "description": "True for a SHARED_* item with both attributions OWNS and trap factor 1.0 (gate G2)."
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/modifier"
+          }
+        },
+        "template_key": {
+          "type": "string",
+          "pattern": "^match\\.evidence\\.[a-z_]+$"
+        },
+        "params": {
+          "type": "object"
+        },
+        "sources": {
+          "$ref": "#/$defs/sources"
+        }
+      }
+    },
+    "support_item": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/i_id_exact"
+        },
+        {
+          "$ref": "#/$defs/i_phone_transposed"
+        },
+        {
+          "$ref": "#/$defs/i_shared_phone"
+        },
+        {
+          "$ref": "#/$defs/i_shared_account"
+        },
+        {
+          "$ref": "#/$defs/i_shared_vehicle"
+        },
+        {
+          "$ref": "#/$defs/i_per_name_sim"
+        },
+        {
+          "$ref": "#/$defs/i_per_relative_name"
+        },
+        {
+          "$ref": "#/$defs/i_per_dob_match"
+        },
+        {
+          "$ref": "#/$defs/i_per_age_close"
+        },
+        {
+          "$ref": "#/$defs/i_per_locality"
+        },
+        {
+          "$ref": "#/$defs/i_per_near_phone"
+        },
+        {
+          "$ref": "#/$defs/i_per_shared_network"
+        },
+        {
+          "$ref": "#/$defs/i_per_co_location"
+        },
+        {
+          "$ref": "#/$defs/i_org_name_sim"
+        }
+      ]
+    },
+    "against_item": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/a_acct_bank_conflict"
+        },
+        {
+          "$ref": "#/$defs/a_per_dob_conflict"
+        },
+        {
+          "$ref": "#/$defs/a_per_dob_mismatch"
+        },
+        {
+          "$ref": "#/$defs/a_per_age_conflict"
+        },
+        {
+          "$ref": "#/$defs/a_per_gender_conflict"
+        },
+        {
+          "$ref": "#/$defs/a_per_relative_conflict"
+        }
+      ]
+    },
+    "p_id_exact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id_label", "value"],
+      "properties": {
+        "id_label": {
+          "$ref": "#/$defs/id_label_code"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "p_phone_transposed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_a", "value_b"],
+      "properties": {
+        "value_a": {
+          "type": "string"
+        },
+        "value_b": {
+          "type": "string"
+        }
+      }
+    },
+    "p_shared_identifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "how_a", "case_a", "how_b", "case_b"],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "how_a": {
+          "$ref": "#/$defs/attribution_code"
+        },
+        "case_a": {
+          "type": "string",
+          "minLength": 1
+        },
+        "how_b": {
+          "$ref": "#/$defs/attribution_code"
+        },
+        "case_b": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "p_name_sim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name_a", "name_b", "sim"],
+      "properties": {
+        "name_a": {
+          "type": "string"
+        },
+        "name_b": {
+          "type": "string"
+        },
+        "sim": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "p_org_name_sim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name_a", "name_b"],
+      "properties": {
+        "name_a": {
+          "type": "string"
+        },
+        "name_b": {
+          "type": "string"
+        }
+      }
+    },
+    "p_relative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rel_a", "rel_b"],
+      "properties": {
+        "rel_a": {
+          "type": "string"
+        },
+        "rel_b": {
+          "type": "string"
+        }
+      }
+    },
+    "p_dob_match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dob"],
+      "properties": {
+        "dob": {
+          "$ref": "#/$defs/iso_date"
+        }
+      }
+    },
+    "p_dob_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dob_a", "dob_b"],
+      "properties": {
+        "dob_a": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "dob_b": {
+          "$ref": "#/$defs/iso_date"
+        }
+      }
+    },
+    "p_age_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["age_a", "age_b"],
+      "properties": {
+        "age_a": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "age_b": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "p_locality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["place"],
+      "properties": {
+        "place": {
+          "type": "string"
+        }
+      }
+    },
+    "p_none": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 0
+    },
+    "p_network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["k", "list"],
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "list": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "p_co_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["k"],
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 2
+        }
+      }
+    },
+    "p_bank_conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bank_a", "bank_b"],
+      "properties": {
+        "bank_a": {
+          "type": "string"
+        },
+        "bank_b": {
+          "type": "string"
+        }
+      }
+    },
+    "i_id_exact": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "ID_EXACT"
+        },
+        "template_key": {
+          "const": "match.evidence.id_exact"
+        },
+        "params": {
+          "$ref": "#/$defs/p_id_exact"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_phone_transposed": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PHONE_TRANSPOSED"
+        },
+        "template_key": {
+          "const": "match.evidence.phone_transposed"
+        },
+        "params": {
+          "$ref": "#/$defs/p_phone_transposed"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_shared_phone": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "SHARED_PHONE"
+        },
+        "template_key": {
+          "const": "match.evidence.shared_phone"
+        },
+        "params": {
+          "$ref": "#/$defs/p_shared_identifier"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_shared_account": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "SHARED_ACCOUNT"
+        },
+        "template_key": {
+          "const": "match.evidence.shared_account"
+        },
+        "params": {
+          "$ref": "#/$defs/p_shared_identifier"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_shared_vehicle": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "SHARED_VEHICLE"
+        },
+        "template_key": {
+          "const": "match.evidence.shared_vehicle"
+        },
+        "params": {
+          "$ref": "#/$defs/p_shared_identifier"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_name_sim": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_NAME_SIM"
+        },
+        "template_key": {
+          "const": "match.evidence.per_name_sim"
+        },
+        "params": {
+          "$ref": "#/$defs/p_name_sim"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_relative_name": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_RELATIVE_NAME"
+        },
+        "template_key": {
+          "const": "match.evidence.per_relative_name"
+        },
+        "params": {
+          "$ref": "#/$defs/p_relative"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_dob_match": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_DOB_MATCH"
+        },
+        "template_key": {
+          "const": "match.evidence.per_dob_match"
+        },
+        "params": {
+          "$ref": "#/$defs/p_dob_match"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_age_close": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_AGE_CLOSE"
+        },
+        "template_key": {
+          "const": "match.evidence.per_age_close"
+        },
+        "params": {
+          "$ref": "#/$defs/p_age_pair"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_locality": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_LOCALITY"
+        },
+        "template_key": {
+          "const": "match.evidence.per_locality"
+        },
+        "params": {
+          "$ref": "#/$defs/p_locality"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_near_phone": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_NEAR_PHONE"
+        },
+        "template_key": {
+          "const": "match.evidence.per_near_phone"
+        },
+        "params": {
+          "$ref": "#/$defs/p_none"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_shared_network": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_SHARED_NETWORK"
+        },
+        "template_key": {
+          "const": "match.evidence.per_shared_network"
+        },
+        "params": {
+          "$ref": "#/$defs/p_network"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_per_co_location": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "PER_CO_LOCATION"
+        },
+        "template_key": {
+          "const": "match.evidence.per_co_location"
+        },
+        "params": {
+          "$ref": "#/$defs/p_co_location"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "i_org_name_sim": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "ORG_NAME_SIM"
+        },
+        "template_key": {
+          "const": "match.evidence.org_name_sim"
+        },
+        "params": {
+          "$ref": "#/$defs/p_org_name_sim"
+        },
+        "contribution": {
+          "minimum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "a_acct_bank_conflict": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "required": ["severity"],
+      "properties": {
+        "kind": {
+          "const": "ACCT_BANK_CONFLICT"
+        },
+        "template_key": {
+          "const": "match.evidence.acct_bank_conflict"
+        },
+        "params": {
+          "$ref": "#/$defs/p_bank_conflict"
+        },
+        "severity": {
+          "const": "veto"
+        },
+        "weight": {
+          "const": 0
+        },
+        "contribution": {
+          "maximum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "a_per_dob_conflict": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "required": ["severity"],
+      "properties": {
+        "kind": {
+          "const": "PER_DOB_CONFLICT"
+        },
+        "template_key": {
+          "const": "match.evidence.per_dob_conflict"
+        },
+        "params": {
+          "$ref": "#/$defs/p_dob_pair"
+        },
+        "severity": {
+          "const": "hard"
+        },
+        "contribution": {
+          "maximum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "a_per_dob_mismatch": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "required": ["severity"],
+      "properties": {
+        "kind": {
+          "const": "PER_DOB_MISMATCH"
+        },
+        "template_key": {
+          "const": "match.evidence.per_dob_mismatch"
+        },
+        "params": {
+          "$ref": "#/$defs/p_dob_pair"
+        },
+        "severity": {
+          "const": "soft"
+        },
+        "contribution": {
+          "maximum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "a_per_age_conflict": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "required": ["severity"],
+      "properties": {
+        "kind": {
+          "const": "PER_AGE_CONFLICT"
+        },
+        "template_key": {
+          "const": "match.evidence.per_age_conflict"
+        },
+        "params": {
+          "$ref": "#/$defs/p_age_pair"
+        },
+        "severity": {
+          "enum": ["soft", "hard"],
+          "description": "Hard when the ages differ by more than 10 years (weight 40), else soft (weight 20)."
+        },
+        "contribution": {
+          "maximum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "a_per_gender_conflict": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "required": ["severity"],
+      "properties": {
+        "kind": {
+          "const": "PER_GENDER_CONFLICT"
+        },
+        "template_key": {
+          "const": "match.evidence.per_gender_conflict"
+        },
+        "params": {
+          "$ref": "#/$defs/p_none"
+        },
+        "severity": {
+          "const": "hard"
+        },
+        "contribution": {
+          "maximum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "a_per_relative_conflict": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/item_base"
+        }
+      ],
+      "required": ["severity"],
+      "properties": {
+        "kind": {
+          "const": "PER_RELATIVE_CONFLICT"
+        },
+        "template_key": {
+          "const": "match.evidence.per_relative_conflict"
+        },
+        "params": {
+          "$ref": "#/$defs/p_relative"
+        },
+        "severity": {
+          "const": "soft"
+        },
+        "contribution": {
+          "maximum": 0
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "at", "reason_code"],
+      "properties": {
+        "from": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/link_state"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "to": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/link_state"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null only for WITHDRAWN, which removes the edge."
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason_code": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Z_]+$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "DEMOTED, PROMOTED, WITHDRAWN for engine transitions; null for a first creation or a human decision."
+        }
+      }
+    }
+  }
+}

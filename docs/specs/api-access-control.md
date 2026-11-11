@@ -57,6 +57,8 @@ Cell = `own case / own jurisdiction / other jurisdiction`. A = ALLOW, R = REDACT
 | Approve / deny a pending change | D/D/D | D/D/D | D/D/D | A/A/D (subject in coverage) | D/D/D |
 | View audit log (rows by case relation) | D/D/D | D/D/D | A/A/D | A/A/D | D/D/D |
 | Verify audit chain | D/D/D | D/D/D | D/D/D | A/A/A | D/D/D |
+| View system link totals (`GET /stats/links`) | D/D/D | D/D/D | D/D/D | D/D/D | A/A/A |
+| Read own access requests and grants; read requests and grants of cases in own authority | A/A/A (own) | A/A/A (own) | A/A/D (authority) | A/A/D (authority) | D/D/D |
 
 Notes: "Request access" on an own case is DENY (nothing to request). System-wide rows have equal columns. Audit reads follow one row-level rule (audit spec section 7): rows the reader may not see do not exist for them; ADMIN reads system events only. Rejected and undone links are not connections: no stub.
 
@@ -73,8 +75,9 @@ An AUTO link can be undone but not rejected (409). A link whose ends are in diff
 The MVP has seeded users and no password feature: no route sets or resets credentials. Every ADMIN change to users (create, enable, disable), roles, jurisdictions, case assignments and thresholds is one generic `pending_change` (kind, subject, old value, new value, proposer, `change_hash` = SHA-256 of the canonical content, state PENDING / APPROVED / DENIED, decider). It applies only on approval.
 | Rule | |
 |---|---|
-| Approver | SENIOR whose coverage includes the subject's jurisdiction (old and new, for a move); for thresholds, a SENIOR with all-state coverage. Not the proposer, not the subject. A caller outside the subject's coverage gets 404. |
+| Approver | SENIOR whose coverage includes **every** jurisdiction the change touches, old and new: the subject's district; for an assignment change also the **district of the case**; for USER_CREATE and USER_JURISDICTION the new coverage must be a subset of the approver's coverage. Changes whose subject has no district (an ADMIN), changes of role to or from SENIOR or ADMIN, and thresholds need a SENIOR with all-state coverage. Not the proposer, not the subject. A caller outside that set gets 404 (a pending change and the case number inside it do not exist for them). |
 | Binding | Approval presents the `change_hash`. A changed proposal is a new record needing new approval. If the current value no longer equals `old_value`, approval fails (409). |
+| New accounts | USER_CREATE makes an account with no usable password; a login for it fails exactly like a wrong password. No route sets one. |
 | Last approver | Disabling or moving the last SENIOR able to approve a jurisdiction is refused (409). |
 
 ## 4. What a REDACTED link shows
@@ -102,6 +105,15 @@ Stubs are embedded where a link would appear (entity detail, link list, graph ne
 | Graph | A stub is an unlabelled leaf with no far-side edges. |
 | Approver view | Approver sees requester, reason and a stub of the near side. |
 
+### 4.1 Masking of identifier values (N4)
+Names and vehicles are not masked in the MVP. **PHONE and ACCOUNT values** (and any government-id type added later) are shown in full only to a caller who may read source lines of the case the value belongs to, by the "View source lines" cell: JUNIOR own case; INVESTIGATOR and above own case and own jurisdiction; a grant only for a non-JUNIOR holder. Everyone else sees a masked value.
+| Rule | |
+|---|---|
+| Server side | The API masks. When a value is masked, the full value appears **nowhere** in that response: not in `display_value`, `facts`, explanation `records[].raw_text` and `normalized`, evidence params `value`, `value_a`, `value_b` and `list`, `main_reason.params`, or a header or error. Search matches on the full value only for callers who see it in full. |
+| Flag | `masked` is true on an object when any value in it was masked. |
+| Formats (fixed) | Phone: first 2 and last 4 digits, the rest `x` (`98xxxx1234`). Account: last 4 digits behind exactly 8 `x`, whatever its length. |
+| Test | For each masked view (entity, list, explanation, graph, cluster, path, queue, stub-adjacent) scan the response body for every seeded full value; none may appear. |
+
 ## 5. Access-request lifecycle
 | Item | Rule |
 |---|---|
@@ -113,6 +125,9 @@ Stubs are embedded where a link would appear (entity detail, link list, graph ne
 | No pivot | The far entity under a grant shows only the granted link: no stubs, no counts, no other links; it cannot anchor a stub or request. Other entities of the far case stay hidden (404). |
 | Closes when | Link REJECTED or UNDONE, evidence later cites a line outside the fixed ranges (cause EVIDENCE_CHANGED), holder's role, jurisdiction, assignment or active flag changes, expiry, or revocation by the approving authority (effective next request). |
 | Status shown | One status per stub. Approval simply makes the link ALLOW. |
+| Denial note | The optional note reaches the requester: it must carry no case detail (the field is 200 characters and the UI says so). |
+| Approver's own stub | The approver gets a stub bound to (approver, link) with `near_entity_id` on the approver's side; the requester's `stub_id` and near entity are never shown to the approver. |
+| Views | Requester and approver have different response shapes (`AccessRequestMine`, `AccessRequestToDecide`; `GrantHeld`, `GrantAuthority`); neither carries a field of the other. |
 
 ## 6. Session rules
 | Item | Rule |
@@ -126,9 +141,9 @@ Stubs are embedded where a link would appear (entity detail, link list, graph ne
 | Failures | Missing, malformed, expired, bad signature, stale `ver`, dead `sid`: 401, audited. |
 
 ## 7. Acceptance cases
-Seed (synthetic): state Northvale (districts Rivergate, Hillcrest), state Eastmark (Lakeside). Cases: C-101, C-102 Rivergate; C-201 Hillcrest; C-301 Lakeside.
+Seed (synthetic): state Northvale (districts Rivergate, Hillcrest), state Eastmark (Lakeside). Cases: C-101, C-102 Rivergate; C-201, C-202 Hillcrest; C-301 Lakeside; C-401 Rampur (Eastmark; no user, meena covers it). `case_number` is unique per district.
 Users: asha JUNIOR Rivergate (C-101); isha JUNIOR Rivergate (no assignment); bharat INVESTIGATOR Rivergate (C-101, C-102); charu SUPERVISOR Rivergate; deepak SENIOR coverage Northvale; meena SENIOR coverage all states; esha INVESTIGATOR Hillcrest (C-201); farid SUPERVISOR Hillcrest; gita INVESTIGATOR Lakeside (C-301); hari ADMIN.
-Entities: E-1 phone C-101; E-2 same phone C-201; E-3 C-102; E-4 vehicle C-101; E-5 C-301; E-7 C-201; E-8 C-201.
+Entities: E-1 phone C-101; E-2 same phone C-201; E-3 C-102; E-4 vehicle C-101; E-5 C-301; E-7 C-201; E-8 C-202 (same phone value as E-1, in its own case so within-case merging cannot absorb it into E-2). A38 uses a second all-state SENIOR created only inside the test.
 Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 REJECTED. L-5 E-1~E-8 AUTO is created after bharat's request in A22.
 
 | # | Actor | Attempt | Expected |
@@ -137,10 +152,10 @@ Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 RE
 | A2 | asha | View L-2 | ALLOW |
 | A3 | asha | Confirm L-2 | 403 |
 | A4 | asha | Source lines of C-102 (case visible, cell D) | 403 |
-| A5 | bharat | E-1 detail | One stub for L-1 and one for L-3, same shape (state not shown); no far fields |
+| A5 | bharat | E-1 detail; E-4 detail | E-1: one stub for L-1 (L-4 is REJECTED, no stub). E-4: one stub for L-3. Same shape whatever the state; no far fields |
 | A6 | bharat | GET /links/L-1 by id | Same 404 as a random UUID; audited |
 | A7 | bharat | GET /links/L-1/explanation; GET /stubs/{L-1 stub} | 404; stub only |
-| A8 | bharat | E-1 `link_count` | Excludes L-1, L-3; `has_hidden_connection: true` |
+| A8 | bharat | E-1 `link_count`; E-4 `link_count` | E-1 excludes L-1; E-4 excludes L-3; both `has_hidden_connection: true` |
 | A9 | bharat | Search the phone value existing only in E-2 | Same empty result as an unknown number |
 | A10 | bharat | Confirm L-2 | ALLOW; CONFIRMED |
 | A11 | bharat | Undo L-2 | 403 |
@@ -170,7 +185,7 @@ Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 RE
 | A35 | deepak / hari | deepak approves a change whose subject is deepak; deepak approves a change for a Lakeside user; hari approves any change | 403; 404 (outside coverage); 403 |
 | A36 | deepak | Approve a threshold change | 404 (needs all-state coverage); meena approves, value changes |
 | A37 | meena | Approve with a stale `change_hash`; approve after `old_value` changed | 409; new proposal needed |
-| A38 | hari | Disable the only SENIOR covering Lakeside (approved) | 409 refused |
+| A38 | hari | In a test with a second all-state SENIOR who is then the only other approver: propose disabling the SENIOR who is the last able to approve Lakeside; approve | 409 `LAST_APPROVER` refused |
 | A39 | Any | Token with edited `role`, bad signature; `alg: none`; expired; none | 401 each, audited |
 | A40 | isha | Valid token plus `role: SENIOR`, `district: Hillcrest` claims | Ignored; JUNIOR Rivergate |
 | A41 | Any | 1000 random or sequential ids on case, entity, link, stub, explanation, request, grant, change routes, as bharat and as hari | Identical 404 body and headers; each audited |
@@ -180,6 +195,11 @@ Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 RE
 | A45 | Any | 6 failed logins for the same username string, then for a nonexistent one | 429 in both cases |
 | A46 | bharat | Review queue | Only ALLOW links; no stub appears |
 | A47 | test | Walk the route table | Every route has a policy and an audit event |
+| A52 | bharat | `GET /links/{id}`, its explanation and a stub of a WITHDRAWN link | Same 404 as a random id; not listed anywhere |
+| A53 | hari | Start a run scoped to one batch, then read the run | Matched against all loaded cases; response has totals of AUTO and SUGGESTED created only: no LOW count, no per-case or per-pair counts |
+| A49 | deepak | Approve an ASSIGNMENT_ADD naming C-301 for a Northvale officer; approve a USER_CREATE of a SENIOR covering Eastmark | 404 (case district outside coverage); 404 (new coverage not a subset) |
+| A50 | asha, isha, bharat | Fetch entity, list, explanation of a phone in C-102 (asha: own case) and in C-201 under a grant held by isha (JUNIOR) | asha sees it in full; the other masked (`98xxxx1234`); the full value is in no field of the body |
+| A51 | hari | `GET /stats/links` | One object of totals; no parameters, no breakdown; any officer role 404; `/review-queue` 404 for hari |
 | A48 | Worked scenario | AUTO person link between C-101 and C-201; bharat sees stub, requests, deepak approves, bharat reads explanation | Link AUTO throughout; stub, PENDING, grant ACTIVE; explanation returned |
 
 ## 8. Out of scope

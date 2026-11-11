@@ -1,0 +1,127 @@
+{
+  "link_id": "b3a7d2c4-5e19-4a86-8f03-9d1e6c7a2b55",
+  "entity_type": "PERSON",
+  "state": "SUGGESTED",
+  "score": 45.0,
+  "band": "MEDIUM",
+  "thresholds": { "high_min": 80, "medium_min": 45, "thresholds_version": 1 },
+  "ruleset_version": "engine-matching/1.1",
+  "gates": {
+    "passed": false,
+    "failed": [
+      { "gate": "G1", "template_key": "match.gate.below_high" },
+      { "gate": "G4", "template_key": "match.gate.hard_conflict" }
+    ]
+  },
+  "records": [
+    {
+      "entity_id": "ent_m01",
+      "case_id": "CASE-M1",
+      "raw_text": "Arjun Mehra",
+      "normalized": "arjun mehra",
+      "extraction_confidence": 0.9,
+      "source": { "case_id": "CASE-M1", "document_id": "doc_fir_m1", "line": 8 }
+    },
+    {
+      "entity_id": "ent_m02",
+      "case_id": "CASE-M2",
+      "raw_text": "Arjun Mehra",
+      "normalized": "arjun mehra",
+      "extraction_confidence": 0.9,
+      "source": { "case_id": "CASE-M2", "document_id": "doc_fir_m2", "line": 5 }
+    }
+  ],
+  "support": [
+    {
+      "tier": 1,
+      "cap": 60,
+      "raw": 45.0,
+      "cap_adjustment": { "value": 0.0, "template_key": "match.adjust.cap" },
+      "subtotal": 45.0,
+      "items": [
+        {
+          "evidence_id": "ev_1",
+          "kind": "SHARED_PHONE",
+          "strength": 1.0,
+          "weight": 45,
+          "contribution": 45.0,
+          "is_anchor": true,
+          "modifiers": [],
+          "template_key": "match.evidence.shared_phone",
+          "params": {
+            "value": "9000046120",
+            "how_a": "OWNS",
+            "case_a": "CASE-M1",
+            "how_b": "OWNS",
+            "case_b": "CASE-M2"
+          },
+          "sources": [
+            { "case_id": "CASE-M1", "document_id": "doc_fir_m1", "line": 9 },
+            { "case_id": "CASE-M2", "document_id": "doc_fir_m2", "line": 6 }
+          ]
+        }
+      ]
+    },
+    {
+      "tier": 2,
+      "cap": 55,
+      "raw": 40.0,
+      "cap_adjustment": { "value": 0.0, "template_key": "match.adjust.cap" },
+      "subtotal": 40.0,
+      "items": [
+        {
+          "evidence_id": "ev_2",
+          "kind": "PER_NAME_SIM",
+          "strength": 1.0,
+          "weight": 30,
+          "contribution": 30.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_name_sim",
+          "params": { "name_a": "arjun mehra", "name_b": "arjun mehra", "sim": 1.0 },
+          "sources": [
+            { "case_id": "CASE-M1", "document_id": "doc_fir_m1", "line": 8 },
+            { "case_id": "CASE-M2", "document_id": "doc_fir_m2", "line": 5 }
+          ]
+        },
+        {
+          "evidence_id": "ev_3",
+          "kind": "PER_LOCALITY",
+          "strength": 1.0,
+          "weight": 10,
+          "contribution": 10.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_locality",
+          "params": { "place": "Sector 9" },
+          "sources": [
+            { "case_id": "CASE-M1", "document_id": "doc_fir_m1", "line": 10 },
+            { "case_id": "CASE-M2", "document_id": "doc_fir_m2", "line": 7 }
+          ]
+        }
+      ]
+    }
+  ],
+  "against": [
+    {
+      "evidence_id": "ev_4",
+      "kind": "PER_DOB_CONFLICT",
+      "severity": "hard",
+      "strength": 1.0,
+      "weight": 40,
+      "contribution": -40.0,
+      "is_anchor": false,
+      "modifiers": [],
+      "template_key": "match.evidence.per_dob_conflict",
+      "params": { "dob_a": "1990-04-12", "dob_b": "1978-09-30" },
+      "sources": [
+        { "case_id": "CASE-M1", "document_id": "doc_fir_m1", "line": 8 },
+        { "case_id": "CASE-M2", "document_id": "doc_fir_m2", "line": 5 }
+      ]
+    }
+  ],
+  "clamp_adjustment": { "value": 0.0, "template_key": "match.adjust.clamp" },
+  "history": [
+    { "from": null, "to": "SUGGESTED", "at": "2026-11-20T10:00:00Z", "reason_code": null }
+  ]
+}

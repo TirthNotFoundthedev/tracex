@@ -1,0 +1,156 @@
+{
+  "link_id": "0d94e8f1-72ab-4c3d-b6e5-14a9f0c83d27",
+  "entity_type": "PERSON",
+  "state": "SUGGESTED",
+  "score": 90.0,
+  "band": "HIGH",
+  "thresholds": { "high_min": 80, "medium_min": 45, "thresholds_version": 1 },
+  "ruleset_version": "engine-matching/1.1",
+  "gates": {
+    "passed": false,
+    "failed": [{ "gate": "G2", "template_key": "match.gate.no_anchor" }]
+  },
+  "records": [
+    {
+      "entity_id": "ent_k11",
+      "case_id": "CASE-K1",
+      "raw_text": "Rohit Sethi",
+      "normalized": "rohit sethi",
+      "extraction_confidence": 0.9,
+      "source": { "case_id": "CASE-K1", "document_id": "doc_fir_k1", "line": 4 }
+    },
+    {
+      "entity_id": "ent_k22",
+      "case_id": "CASE-K2",
+      "raw_text": "Rohit Sethi",
+      "normalized": "rohit sethi",
+      "extraction_confidence": 0.9,
+      "source": { "case_id": "CASE-K2", "document_id": "doc_fir_k2", "line": 2 }
+    }
+  ],
+  "support": [
+    {
+      "tier": 2,
+      "cap": 55,
+      "raw": 72.0,
+      "cap_adjustment": { "value": -17.0, "template_key": "match.adjust.cap" },
+      "subtotal": 55.0,
+      "items": [
+        {
+          "evidence_id": "ev_1",
+          "kind": "PER_NAME_SIM",
+          "strength": 0.95,
+          "weight": 30,
+          "contribution": 28.5,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_name_sim",
+          "params": { "name_a": "rohit sethi", "name_b": "rohit seti", "sim": 0.95 },
+          "sources": [
+            { "case_id": "CASE-K1", "document_id": "doc_fir_k1", "line": 4 },
+            { "case_id": "CASE-K2", "document_id": "doc_fir_k2", "line": 2 }
+          ]
+        },
+        {
+          "evidence_id": "ev_2",
+          "kind": "PER_DOB_MATCH",
+          "strength": 1.0,
+          "weight": 20,
+          "contribution": 20.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_dob_match",
+          "params": { "dob": "1988-06-03" },
+          "sources": [
+            { "case_id": "CASE-K1", "document_id": "doc_fir_k1", "line": 5 },
+            { "case_id": "CASE-K2", "document_id": "doc_fir_k2", "line": 3 }
+          ]
+        },
+        {
+          "evidence_id": "ev_3",
+          "kind": "PER_LOCALITY",
+          "strength": 1.0,
+          "weight": 10,
+          "contribution": 10.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_locality",
+          "params": { "place": "Kherapur" },
+          "sources": [
+            { "case_id": "CASE-K1", "document_id": "doc_fir_k1", "line": 6 },
+            { "case_id": "CASE-K2", "document_id": "doc_fir_k2", "line": 4 }
+          ]
+        },
+        {
+          "evidence_id": "ev_4",
+          "kind": "PER_RELATIVE_NAME",
+          "strength": 0.9,
+          "weight": 15,
+          "contribution": 13.5,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_relative_name",
+          "params": { "rel_a": "mohan sethi", "rel_b": "mohan sethi" },
+          "sources": [
+            { "case_id": "CASE-K1", "document_id": "doc_fir_k1", "line": 4 },
+            { "case_id": "CASE-K2", "document_id": "doc_fir_k2", "line": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "tier": 3,
+      "cap": 35,
+      "raw": 50.0,
+      "cap_adjustment": { "value": -15.0, "template_key": "match.adjust.cap" },
+      "subtotal": 35.0,
+      "items": [
+        {
+          "evidence_id": "ev_5",
+          "kind": "PER_SHARED_NETWORK",
+          "strength": 1.0,
+          "weight": 30,
+          "contribution": 30.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_shared_network",
+          "params": { "k": 4, "list": ["9000071001", "9000071002", "9000071003", "9000071004"] },
+          "sources": [
+            { "case_id": "CASE-K1", "document_id": "doc_cdr_k1", "line": 10 },
+            { "case_id": "CASE-K1", "document_id": "doc_cdr_k1", "line": 11 },
+            { "case_id": "CASE-K1", "document_id": "doc_cdr_k1", "line": 12 },
+            { "case_id": "CASE-K1", "document_id": "doc_cdr_k1", "line": 13 },
+            { "case_id": "CASE-K2", "document_id": "doc_cdr_k2", "line": 20 },
+            { "case_id": "CASE-K2", "document_id": "doc_cdr_k2", "line": 21 },
+            { "case_id": "CASE-K2", "document_id": "doc_cdr_k2", "line": 22 },
+            { "case_id": "CASE-K2", "document_id": "doc_cdr_k2", "line": 23 }
+          ]
+        },
+        {
+          "evidence_id": "ev_6",
+          "kind": "PER_CO_LOCATION",
+          "strength": 1.0,
+          "weight": 20,
+          "contribution": 20.0,
+          "is_anchor": false,
+          "modifiers": [],
+          "template_key": "match.evidence.per_co_location",
+          "params": { "k": 3 },
+          "sources": [
+            { "case_id": "CASE-K1", "document_id": "doc_cdr_k1", "line": 30 },
+            { "case_id": "CASE-K1", "document_id": "doc_cdr_k1", "line": 31 },
+            { "case_id": "CASE-K1", "document_id": "doc_cdr_k1", "line": 32 },
+            { "case_id": "CASE-K2", "document_id": "doc_cdr_k2", "line": 40 },
+            { "case_id": "CASE-K2", "document_id": "doc_cdr_k2", "line": 41 },
+            { "case_id": "CASE-K2", "document_id": "doc_cdr_k2", "line": 42 }
+          ]
+        }
+      ]
+    }
+  ],
+  "against": [],
+  "clamp_adjustment": { "value": 0.0, "template_key": "match.adjust.clamp" },
+  "history": [
+    { "from": null, "to": "SUGGESTED", "at": "2026-11-20T10:00:00Z", "reason_code": null }
+  ]
+}
