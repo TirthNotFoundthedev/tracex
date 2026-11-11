@@ -1,0 +1,121 @@
+/*
+ * TraceX design tokens. Owner: Design Lead. Reasons for every value: DESIGN_RULES.md.
+ * App code uses these variables only: no raw hex, no raw px.
+ * Contrast ratios are stated in DESIGN_RULES.md section 1 and were computed, not estimated.
+ * Fonts are self-hosted (Noto Sans, Noto Sans Devanagari, Noto Sans Mono; SIL OFL 1.1).
+ */
+
+:root {
+  /* ---- Colour: neutrals ---- */
+  --color-paper: #ffffff;          /* page and card background */
+  --color-sunken: #eef1f5;         /* page background behind cards, table stripes */
+  --color-ink: #141b24;            /* body text: 17.3:1 on paper */
+  --color-ink-2: #3a4656;          /* secondary text: 9.6:1 on paper, 8.5:1 on sunken */
+  --color-muted: #566273;          /* admin-only metadata: 6.2:1 on paper (AA) */
+  --color-line: #7a8594;           /* control borders: 3.7:1 on paper (non-text AA) */
+  --color-line-soft: #cfd5dd;      /* decorative dividers only, never a control edge */
+  --color-header: #141b24;         /* app header bar */
+  --color-on-header: #ffffff;      /* 17.3:1 on header */
+
+  /* ---- Colour: action ---- */
+  --color-action: #0b3a6b;         /* the one primary action: 11.5:1 with white text */
+  --color-action-hover: #082b52;   /* 14.2:1 with white text */
+  --color-on-action: #ffffff;
+
+  /* ---- Colour: link strength (always paired with icon + words) ---- */
+  --color-strong-fg: #14532d;      /* 7.9:1 on strong-bg */
+  --color-strong-bg: #e3f2e8;
+  --color-strong-edge: #1e7b45;    /* 5.3:1 on paper */
+  --color-check-fg: #6b3f00;       /* 8.0:1 on check-bg */
+  --color-check-bg: #fff1cc;
+  --color-check-edge: #b45309;     /* 5.0:1 on paper */
+  --color-weak-fg: #3a4656;        /* 7.9:1 on weak-bg */
+  --color-weak-bg: #e6e9ee;
+  --color-weak-edge: #7a8594;
+
+  /* ---- Colour: restricted (other jurisdiction) ---- */
+  --color-restricted-fg: #2b2f55;  /* 10.6:1 on restricted-bg */
+  --color-restricted-bg: #e8e9f3;
+  --color-restricted-edge: #2b2f55;
+
+  /* ---- Colour: problems ---- */
+  --color-danger: #9b1c1c;         /* 8.2:1 on paper; also the fill of a danger button with white text */
+  --color-danger-bg: #fce8e6;      /* 6.9:1 with danger text */
+
+  /* ---- Type ---- */
+  --font-sans: "Noto Sans", "Noto Sans Devanagari", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "Noto Sans Mono", ui-monospace, "Cascadia Mono", monospace;
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --text-xs: 0.875rem;   /* 14px: admin metadata only, never in officer app */
+  --text-sm: 1rem;       /* 16px: admin body; officer app secondary line */
+  --text-md: 1.25rem;    /* 20px: officer body */
+  --text-lg: 1.5rem;     /* 24px: officer button text, section titles */
+  --text-xl: 1.875rem;   /* 30px: screen title */
+  --text-2xl: 2.25rem;   /* 36px: officer first-screen choices */
+
+  --leading-en: 1.5;
+  --leading-hi: 1.75;    /* Devanagari headroom for matras above and below the line */
+  --leading-tight: 1.3;  /* titles of one line only */
+  --measure: 40rem;      /* longest reading line, about 60 characters */
+
+  /* ---- Spacing (4px base; rem so it scales with user font size) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* ---- Shape ---- */
+  --radius: 0.25rem;     /* one radius everywhere; sober, not pill, not bubble */
+  --border-1: 1px;       /* dividers */
+  --border-2: 2px;       /* control edges, strength badges */
+  --border-3: 4px;       /* left rule on panels that need attention */
+
+  /* ---- Focus ---- */
+  --focus-ring-width: 3px;
+  --focus-ring-color: #0b3a6b;
+  --focus-ring-offset: 2px;
+  --focus-ring-on-dark: #ffffff;
+
+  /* ---- Density: officer app is the default ---- */
+  --text-body: var(--text-md);
+  --text-secondary: var(--text-sm);
+  --tap-min: 3.5rem;     /* 56px */
+  --tap-gap: var(--space-3);
+  --control-pad-x: var(--space-5);
+}
+
+/* Admin panel: denser, still never below 14px text or 44px targets. */
+[data-app="admin"] {
+  --text-body: var(--text-sm);
+  --text-secondary: var(--text-xs);
+  --tap-min: 2.75rem;    /* 44px */
+  --tap-gap: var(--space-2);
+  --control-pad-x: var(--space-4);
+}
+
+:lang(hi) {
+  --leading-en: var(--leading-hi);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.on-dark :focus-visible {
+  outline-color: var(--focus-ring-on-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,182 @@
+# DESIGN_RULES
+
+Owner: Sen (Design Lead). Tokens: `packages/ui/src/tokens.css`. Flows and exact labels: `docs/specs/design-flows.md`.
+Each rule carries its reason. A rule without a reason is a defect; challenge it through a ticket.
+
+**Who this is for.** The design target is the lightly trained, low-literacy officer who knows only what to click and when, on a shared office PC or an old phone, often in sunlight or a dim room, in Hindi or English. If that officer can finish the task, the average and senior officer can. The admin panel is denser but follows the same rules.
+
+## 0. Banned (a screenshot showing any of these is blocked)
+- Blue-to-purple gradients, and any decorative gradient. Reason: gradients carry no meaning and reduce text contrast unpredictably.
+- Glassmorphism (blur, translucent panels) and neon glows. Reason: low and variable contrast; reads as consumer software, not a government tool.
+- An unstyled component-library look (default Material, Bootstrap or Ant appearance). Reason: it signals nobody decided anything; components must use our tokens.
+- The rounded-card-on-pastel-background landing look, hero sections, marketing copy, taglines, illustrations of people. Reason: this is a work tool opened to do one job; every pixel of persuasion delays it.
+- Emoji as icons. Reason: they render differently per device, cannot be styled, and are unreadable at some sizes.
+- Warm beige backgrounds with serif headings. Reason: decorative; serif Devanagari at small size breaks down; white gives the best contrast.
+- A design-system dump: components or tokens with no written reason. Reason: unused variety increases inconsistency and review cost.
+- Pill buttons, large radii, drop shadows for depth, animated entrances, auto-playing motion. Reason: a sober tool, and motion distracts and fails on low-end devices.
+
+## 1. Palette
+Restrained: neutrals, one action colour, and colours that carry meaning only. Contrast below is WCAG 2.x computed from the hex values in tokens.css.
+
+| Token | Hex | Means | Contrast |
+|---|---|---|---|
+| `paper` | #FFFFFF | Page and panel background. White gives the highest contrast and is the least tiring in bright rooms. | base |
+| `sunken` | #EEF1F5 | Area behind panels, table stripes. Cool grey so it does not tint text. | ink 15.3:1 |
+| `ink` | #141B24 | Body text, titles. | 17.3:1 on paper (AAA) |
+| `ink-2` | #3A4656 | Secondary text. Allowed everywhere. | 9.6:1 paper, 8.5:1 sunken (AAA) |
+| `muted` | #566273 | Admin-only low-importance metadata. Never in the officer app. | 6.2:1 paper, 5.5:1 sunken (AA) |
+| `line` | #7A8594 | Edges of buttons, inputs, tables. | 3.7:1 paper (AA non-text) |
+| `action` | #0B3A6B | "Do this next": the single primary button, links, selected item. Deep blue, the usual colour of official forms, and not used for anything else. | 11.5:1 with white (AAA) |
+| `strong` | text #14532D on #E3F2E8, edge #1E7B45 | Strong match, linked automatically. | 7.9:1 text; edge 5.3:1 |
+| `check` | text #6B3F00 on #FFF1CC, edge #B45309 | Possible match, needs a person. Dark brown text on amber, never yellow text. | 8.0:1 text; edge 5.0:1 |
+| `weak` | text #3A4656 on #E6E9EE | Weak, not linked. Grey on purpose: no attention needed. | 7.9:1 |
+| `restricted` | text #2B2F55 on #E8E9F3 | Content in another jurisdiction. Distinct from every strength colour so that "restricted" is never mistaken for "weak". | 10.6:1 |
+| `danger` | #9B1C1C (bg #FCE8E6) | Errors, reject, destructive actions. Used for nothing else. | 8.2:1 paper; 6.9:1 on bg |
+
+Rules:
+- Body text in the officer app must reach AAA (7:1). Admin body text and all non-text parts reach AA (4.5:1 text, 3:1 non-text). Reason: officers read in poor light on poor screens.
+- Colour is never the only carrier of meaning (section 8). Reason: colour-blind officers (about 1 in 12 men) and monochrome printouts.
+- Green means "strong" only, never "OK/success" on its own. Red means danger only. Reason: officers learn the colours as a fixed vocabulary.
+- Dark theme is not provided in v1. Reason: doubles review surface; white is more legible in offices with glare.
+
+## 2. Type
+- Families: **Noto Sans** (Latin) and **Noto Sans Devanagari** (Hindi), **Noto Sans Mono** for case numbers, phone numbers, account numbers and vehicle numbers. All SIL Open Font Licence 1.1, free, self-hosted as WOFF2 from `packages/ui/fonts`; no CDN at runtime. Reason: one designed family with matching Latin and Devanagari weights and x-height, wide glyph coverage, and no fallback to an unknown system font that clips matras. Stack in `--font-sans`.
+- Weights: 400 and 600 only for text, 700 for screen titles. Reason: fewer weights, faster load on slow links.
+- Scale (rem so the user's browser font size is honoured): 14 / 16 / 20 / 24 / 30 / 36 px as `--text-xs..2xl`.
+- Minimum sizes: **officer app body 20px, nothing below 16px anywhere**; **admin body 16px, nothing below 14px**, and 14px only for metadata. Reason: small text is the first thing a low-literacy reader gives up on.
+- Hierarchy in the officer app, one level per job: screen title 30px/700; item title 24px/600; body 20px/400; secondary line 16px ink-2. A screen has exactly one title. Reason: the officer scans for "where am I" first.
+- No all-caps, no italics, no letter-spacing tricks. Reason: caps and italics damage word shape in Latin and do not exist in Devanagari; mixed treatment looks inconsistent between languages.
+- Numbers, IDs and phone numbers use mono with tabular figures and are never wrapped mid-number.
+- Line length 60 characters maximum (`--measure`). Left-aligned, never justified. Reason: justified text creates uneven gaps that hinder weak readers.
+
+## 3. Spacing, shape, tap targets
+- Scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 px (`--space-1..8`). Nothing outside the scale. Reason: predictable rhythm without per-screen decisions.
+- **Tap/click target: officer app 56px minimum height and width, admin 44px.** Gap between adjacent targets at least 12px (officer) or 8px (admin). Reason: gloves, shaky hands, old touchscreens, mouse-unfamiliar users; WCAG 2.5.8 asks 24px, we ask for more.
+- One radius, 4px. Borders 2px on controls and badges, 1px on dividers. No shadows; depth comes from borders and the `sunken` background. Reason: shadows blur on cheap screens and print as grey smears.
+- Focus ring: 3px `action` outline with 2px offset, on dark surfaces white. Always visible, never removed. Reason: keyboard and switch users, and officers who navigate by Tab in forms.
+
+## 4. Layout and navigation
+**Officer app** (simplest):
+- Single column, maximum width 720px, centred on desktop, full width on phone. No sidebar, no tabs, no dropdown menus, no modals except the confirm step for confirm/reject. Reason: every extra region is a choice the officer was not trained for.
+- Fixed header 64px: back button on the left (icon + "Back"), screen title, language switch on the right (icon + "हिंदी" or "English"). Never hidden. Reason: "Back" is the one escape; the language switch must work from the first screen.
+- Depth is at most four screens: My cases, Case, Item, Also appears in / Explanation. Breadcrumb line "My cases > Case 24/118" in plain text above the title. Reason: officers must always know how to get home.
+- Lists are one item per row, full-width rows, 56px minimum, each row ends with a chevron icon and is one target. No tables, no pagination controls under 50 rows (use "Show more").
+- Primary action sits at the bottom of the content, full width, not in a floating or sticky bar except on phone.
+
+**Admin panel**:
+- Left navigation (240px) with icon + label for each section: Upload, Matching, Review queue, Access requests, Users, Audit log, Settings, Network graph. Content area uses tables with 44px rows and sortable columns labelled in words.
+- Header shows user, jurisdiction, language switch, sign out. Breadcrumbs for depth above two.
+- Tables: header row sticky, number columns right aligned in mono, row actions in a single "Open" button, not icon clusters. Reason: reduces misclicks across many rows.
+- Wide screens use width; text blocks still obey the 60-character measure.
+
+## 5. One primary action
+- Each screen has exactly one primary button: solid `action` fill, white text 24px/600 (officer), always bottom of content, verb + object ("Show where it appears").
+- Secondary actions are outlined buttons with `ink` text. Destructive ones use `danger` and are never the primary except on the Reject confirm step.
+- Confirm/Reject: on the explanation screen both are shown at equal size, side by side on desktop and stacked on phone with Confirm first. If the officer's role cannot confirm, neither is shown; the line "Your role can look but not decide. Ask your supervisor." appears. Reason: no disabled-looking buttons that provoke "why can't I?".
+- Reason for the rule: an officer facing two equally loud buttons will hesitate or guess.
+
+## 6. Icons
+- Icon set: **Lucide** (ISC licence), bundled as inline SVG, 2px stroke, 24px (officer) or 20px (admin), `currentColor`.
+- **Every icon has a visible text label beside it. Icons are never alone.** The only exception is the close "x" inside a toast, which also carries an accessible name. Reason: icon meaning is learned, and a low-literacy officer cannot learn 40 pictograms.
+- Fixed vocabulary, one icon per meaning, defined in design-flows.md: Back = arrow-left; Case = folder; Person = user; Phone = phone; Bank account = landmark; Vehicle = car; Also appears in = link; Strong = check-circle; Possible = alert-triangle; Restricted = lock; Confirm = check; Reject = x; Help = circle-help; Language = languages.
+- Decorative icons are `aria-hidden`; the label provides the name.
+
+## 7. Plain language
+Rules (apply to English and Hindi; Hindi uses everyday words, not Sanskritised or transliterated English where a common word exists):
+- Sentences of 12 words or fewer. One idea per sentence. Active voice. Say who or what: "Same phone number in both cases".
+- Buttons are verb + object. Titles name the thing on screen. No questions as buttons.
+- Say what will happen before the officer clicks and what happened after.
+- Use the same word for the same thing everywhere. Do not rename a thing between screens.
+- Numbers show as counts ("2 other cases") never as percentages in the officer app.
+- No abbreviations except those printed on police forms the officer already uses (FIR, PS).
+
+Banned in the officer app (also avoid in admin labels where a plain word works):
+
+| Never write | Write instead (English) | Hindi |
+|---|---|---|
+| entity | person / phone number / bank account / vehicle (by type) | व्यक्ति / फ़ोन नंबर / बैंक खाता / वाहन |
+| SAME_AS, link edge, match | "also appears in", "same" | "इसके अलावा यहाँ भी है", "वही" |
+| confidence, score, threshold, tier, band | "Strong match", "Possible match" (details under "More detail") | "पक्का मिलान", "संभावित मिलान" |
+| resolve, merge, deduplicate | "Confirm they are the same" | "पुष्टि करें कि यह वही है" |
+| provenance, evidence node | "Where this came from" | "यह कहाँ से आया" |
+| jurisdiction (alone) | "another police area" | "दूसरा थाना क्षेत्र" |
+| error 403, forbidden, null, undefined, invalid, exception | "You do not have access", "Something is missing" | "आपको पहुँच नहीं है", "कुछ कमी है" |
+| query, ingest, parse, sync | "search", "upload", "read", "update" | "खोजें", "अपलोड", "पढ़ें", "अपडेट" |
+| fuzzy, phonetic, Jaro-Winkler | "Names sound alike" | "नाम मिलते-जुलते हैं" |
+
+Admin panel may use "link strength", "threshold", "matching run" because admins configure them; each is explained in one sentence next to its field. Never show raw enum values or IDs without a plain-language label.
+
+## 8. Link strength (not by colour alone)
+Three strengths, each shown with **colour + icon + words + border style + a 3-step bar**, so any one channel failing leaves the others:
+
+| Strength | Words (officer) | Icon | Border | Bar |
+|---|---|---|---|---|
+| High: linked automatically | "Strong match" | check-circle | solid 2px, `strong` | 3 of 3 filled |
+| Medium: needs a person | "Possible match. Please check." | alert-triangle | dashed 2px, `check` | 2 of 3 filled |
+| Low: not linked | not shown to officers; admin: "Weak. Not linked." | minus-circle | dotted 2px, `weak` | 1 of 3 filled |
+
+- Words always appear; the badge is never a coloured dot. Reason: screen readers, monochrome prints, colour-blind users.
+- Never show a percentage or decimal on the first view. Numbers and tier appear only after "More detail".
+- Admin may add the numeric score beside the words in the review queue and graph.
+
+## 9. Explanation panel
+- Order: (1) strength badge, (2) "Why we think so" reasons, (3) "Why it may be wrong" reasons, (4) "Where this came from", (5) one "More detail" disclosure (closed by default), (6) the action buttons.
+- Reasons are plain sentences, one per line, each with its evidence icon (check for support, alert for against) and its source line "Case 24/118, statement, page 2" in `ink-2` 16px.
+- If there is no evidence against, show "Nothing found against this link." Never omit the section. Reason: officers must see that the system looked.
+- "More detail" holds: numeric score, tier, matching rules fired, thresholds, raw values. Labels there may use admin terms, each explained.
+- Wording patterns and examples are in design-flows.md.
+
+## 10. Restricted (other-jurisdiction) content
+- A restricted link is a **card with `restricted` background, dashed 2px `restricted` border, lock icon, and the words "Another police area"**. Contents shown: the officer's own item (its type and value), "also appears in a case in another police area", and the button "Ask for access".
+- No case number, name, place, date, count of people, or strength. Reason: even those leak; the existence alone is what the officer may know.
+- Never greyed-out or blurred to hint at hidden text; there is no hidden text in the page at all. Reason: access is enforced by the API; the UI must not pretend to hold data it was not sent.
+- After the request: card shows "Request sent on 12 Mar. We will tell you when it is decided." and no button.
+- Access request form: reason field only (single field, required, 20-character minimum), button "Send request".
+
+## 11. Feedback, undo, errors
+- Every action gets visible feedback within 1 second: a message in the page (not a vanishing toast) with icon and words, e.g. "Saved: you confirmed this link". Messages stay until dismissed or the next action. Reason: a slow reader needs time; vanishing text is missed.
+- Confirm and Reject are reversible: after either, the page shows "You confirmed this link. [Undo]" for the session, and the audit log records both. Reject requires a second step ("Reject this link? Yes, reject / No, go back") because wrongly rejecting loses a lead. Confirm does not, but offers Undo.
+- Loading: a text line "Loading your cases..." with a spinner icon; no skeleton animation. Waiting over 10 seconds adds "This is taking long. Please wait or try again."
+- Errors say what happened, whether data is safe, and what to do: "We could not save. Nothing was changed. [Try again]". Never codes, never blame ("you entered an invalid value"), never a dead end; always a button.
+- Empty states say why and what next: "No cases yet. Ask your supervisor to add your cases."
+- Session timeout warns 2 minutes before, with a button "Stay signed in".
+- Destructive admin actions state the effect in the button ("Delete this user") and need a second confirm.
+
+## 12. Graph view (admin only)
+- Nodes are shapes with labels, never colour only: person = circle, phone = rounded square, bank account = diamond, vehicle = triangle, case = hexagon. Each label is visible text (min 14px), not hover-only.
+- Edges: solid heavy = strong, dashed = possible, dotted thin = weak, using the strength border styles. Restricted nodes are drawn as the `restricted` card shape with a lock and no label text beyond "Another police area".
+- A legend is always visible, with icons + words. Selecting a node opens the same explanation panel as the officer app, with admin detail.
+- Keyboard: Tab moves between nodes, Enter opens, and a "List view" toggle presents every node and edge as a table. Reason: graphs are inaccessible without a list alternative.
+- Cap 150 nodes on screen with the message "Showing the 150 closest. Narrow the search to see others." Reason: unreadable above that, and slow on admin PCs.
+- Layout is stable: moving the view never rearranges nodes. No physics bounce animation.
+
+## 13. Hindi and language rules
+- The language switch is on the first screen and every screen header, label "हिंदी" in English mode and "English" in Hindi mode, written in the target language so it can be found by someone who cannot read the current one. Choice persists per device.
+- **Never assume string length.** Hindi runs 20 to 40 percent longer. Buttons grow in height and wrap to two lines; never truncate with "...", never fixed-width labels, never clip. Reason: a truncated verb on a button is dangerous.
+- Line-height 1.75 for Hindi, 1.5 for English (`--leading-hi`). Headline minimum 1.3 only for single lines. Reason: matras above and below the line collide at tighter spacing.
+- No letter-spacing, no justified text, no uppercase transforms, no bold on conjuncts below 16px.
+- Numerals: **Western digits (0-9) in both languages** for case numbers, phone numbers, dates and counts. Reason: these must match the source documents and FIR numbers the officer reads elsewhere, and copy-paste into other systems. Dates written "12 Mar 2026" / "12 मार्च 2026".
+- All text comes from the i18n files in English and Hindi; a missing Hindi string fails CI and never falls back silently to English. Names of people are shown as stored, never translated; where a transliteration exists it is shown beneath, in `ink-2`.
+- Review Hindi screens with the real longest string, not lorem ipsum.
+
+## 14. Components (the complete list; add only with a written reason)
+Button (primary, secondary, danger), TextField, SearchField, Select (admin only), Checkbox, FileDrop (admin), Tabs (admin only), TopBar, SideNav (admin), Breadcrumb, ListRow, Table (admin), Badge/StrengthBadge, ReasonList, EvidenceSource, MoreDetail (disclosure), RestrictedCard, Message (info/success/error, in-page), ConfirmStep, EmptyState, LanguageSwitch, GraphCanvas + GraphLegend (admin), Pager ("Show more").
+Not in v1: toasts that vanish, tooltips (information hidden in hover is invisible on touch), carousels, modals other than ConfirmStep, drag and drop as the only way.
+
+## 15. Review checklist (applied to rendered screenshots; any fail blocks the merge)
+Screenshots required at 1280px wide desktop and 375px phone, in English and Hindi, with the longest real strings.
+1. No item from section 0 is present.
+2. Only tokens used; text sizes meet section 2 minimums; no text below 16px in officer app.
+3. Exactly one primary action; its label is verb + object and fits on screen without scrolling to find it.
+4. Every icon has a visible label beside it.
+5. Every strength shown uses colour + icon + words + border + bar; no percentage on a first view in the officer app.
+6. Restricted card shows no case-specific data; contains lock and "Another police area".
+7. No jargon from section 7; no raw enum or ID shown without a plain label.
+8. Targets measure 56px (officer) or 44px (admin) minimum with required gaps.
+9. Hindi layout: nothing truncated or clipped, matras visible, line-height respected.
+10. Contrast measured on the render for any new colour pair: body 7:1 officer, 4.5:1 admin, non-text 3:1.
+11. Focus ring visible on every interactive element by keyboard.
+12. Error, empty, loading and success states exist for the screen.
+13. Back and language switch visible and working; the officer can reach home in one click.
+14. Reject has a second step; Confirm and Reject have Undo.
+15. Page usable at 200 percent zoom and in grayscale (strength still readable).
