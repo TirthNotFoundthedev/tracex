@@ -111,10 +111,11 @@ Each card has one button; with several cards, the button on cards waiting for a 
 
 ### O6 Why linked
 The explanation panel (section 1) as the whole screen. Title: "Why these are linked" (strong) or "Please check this link" (possible). Buttons depend on role:
-- Role may decide, possible match: `[ * Confirm they are the same ]` `[ Reject this link ]`.
-- Role may decide, strong match: `[ Reject this link ]` only, with the line "This was linked automatically. You can reject it if it is wrong."
-- Role cannot decide (Officer, Investigating officer): no buttons; line "You can look at this link but not decide it. Ask your supervisor."
-- Link joins two police areas and the officer is a Supervisor, or a Senior officer not covering both: no buttons; line "This link joins two police areas. Only a senior officer can decide it." (Senior not covering both: "You do not cover both police areas.")
+- Possible match, Investigating officer or above with access to both cases (and, for a link across two areas, a Senior officer covering both): `[ * Confirm they are the same ]` `[ Reject this link ]`.
+- Strong (automatic) match: no Reject for anyone. Supervisor and above: `[ Undo this link ]` with the line "This was linked automatically. You can undo it if it is wrong." Others: no button.
+- Officer: no buttons; line "You can look at this link but not decide it. Ask your investigating officer or supervisor."
+- Investigating officer without access to both cases: no buttons; line "You do not have access to both cases."
+- Link joins two police areas and the officer is not a Senior officer: no buttons; line "This link joins two police areas. Only a senior officer can decide it." Senior officer not covering both: "You do not cover both police areas."
 Both buttons equal size. Confirm acts at once. Reject opens O7.
 
 ### O7 Reject check
@@ -122,13 +123,13 @@ Replaces the content (no modal):
 ```
 | Reject this link?                                |
 | The two records will no longer be shown          |
-| as the same. You can undo this.                  |
+| as the same.                  |
 | [ * No, go back ]      [ (x) Yes, reject ]       |
 ```
 "Yes, reject" uses the danger style; "No, go back" is primary here because the safe choice should be the easiest. Flow: Reject -> O7 -> Yes -> O8.
 
 ### O8 Link decided
-Message, stays on the page: "(check) You confirmed this link. The two records are now shown as the same." or "(x) You rejected this link." Buttons: `[ * Back to this case ]`, `[ Undo ]`. After Undo: "Your decision was undone. [Check this link again]". Every decision is written to the audit log by the backend; the officer is not told about the log.
+Message, stays on the page: "(check) You confirmed this link. The two records are now shown as the same." or "(x) You rejected this link." Buttons: `[ * Back to this case ]`, and `[ Undo ]` for Supervisor and above only. After Undo: "Your decision was undone. [Check this link again]". Every decision is written to the audit log by the backend; the officer is not told about the log.
 
 ### O9 Other police area (restricted card)
 ```
@@ -176,7 +177,7 @@ Title: "Find links between cases". Line: "Last run: 12 Mar 2026, 14:05. Found 6 
 
 ### A3 Review queue (possible matches)
 Title: "Links to check". Table, 44px rows, columns: Strength (badge, words + score), Item, Case A, Case B, Main reason, Waiting since. Sort labels in words. Filters: Type, Area, "Waiting more than 7 days". Row button `[Open]`.
-Open -> A3b: the explanation panel with admin detail open by default, buttons `[ * Confirm they are the same ]` `[ Reject this link ]`, then `[Next one]`. Reject needs the same second step (O7). Count shown: "Link 3 of 14".
+Open -> A3b: the explanation panel with admin detail open by default, buttons `[ * Confirm they are the same ]` `[ Reject this link ]`, then `[Next one]`. Reject needs the same second step (O7). Strong links show `[ Undo this link ]` instead of Reject. Count shown: "Link 3 of 14".
 
 ### A4 Access requests
 Title: "Access requests". Table: Requested by, For case (admin sees it), From area, Reason, Date, Status. Row: `[Open]`. Detail: reason text in full, and `[ * Approve ]` `[ Refuse ]`; Refuse has an optional "Reason for refusing". Approve needs second step: "Give [name] access to Case 31/207 for 30 days? [ * Yes, approve ] [No, go back]". Access end date field "Access ends": default 30 days.

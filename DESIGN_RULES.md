@@ -108,13 +108,15 @@ Admin panel may use "link strength", "threshold", "matching run" because admins 
 ## 7a. Roles in plain language
 Raw role codes are never shown in the officer app; admin shows the plain label with the code in "More detail" only.
 
-| Code | Label | What it can do | Line shown when it cannot decide |
+| Code | Label | What it can do | Line shown when a button is missing |
 |---|---|---|---|
-| JUNIOR | Officer | Look | "You can look at this link but not decide it. Ask your supervisor." |
-| INVESTIGATOR | Investigating officer | Look | same as above |
-| SUPERVISOR | Supervisor | Decide links inside own police area | If the two cases are in different areas: "This link joins two police areas. Only a senior officer can decide it." |
-| SENIOR | Senior officer | Decide links; for two areas, must cover both | If not covering both: "You do not cover both police areas." |
-| ADMIN | Administrator | Manages the system, no case access | Sees no case content anywhere |
+| JUNIOR | Officer | Look only | "You can look at this link but not decide it. Ask your investigating officer or supervisor." |
+| INVESTIGATOR | Investigating officer | Confirm or reject a possible match when both cases are theirs. Cannot undo. | Other cases: "You do not have access to both cases." After deciding: no Undo shown. |
+| SUPERVISOR | Supervisor | As above, plus "Undo this link" and reopen a rejected link, inside own police area | Link across two areas: "This link joins two police areas. Only a senior officer can decide it." |
+| SENIOR | Senior officer | All of the above; the only role that decides a link across two areas, and only when covering both | Not covering both: "You do not cover both police areas." |
+| ADMIN | Administrator | Manages the system, no case access | Sees counts and status only, no case content |
+
+A link made automatically (strong match) has no Reject button for anyone. Supervisor and above see "Undo this link"; others see no button.
 
 Reason: officers recognise ranks and duties, not system codes, and must learn why a button is missing.
 
@@ -146,7 +148,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 
 ## 11. Feedback, undo, errors
 - Every action gets visible feedback within 1 second: a message in the page (not a vanishing toast) with icon and words, e.g. "Saved: you confirmed this link". Messages stay until dismissed or the next action. Reason: a slow reader needs time; vanishing text is missed.
-- Confirm and Reject are reversible: after either, the page shows "You confirmed this link. [Undo]" for the session, and the audit log records both. Reject requires a second step ("Reject this link? Yes, reject / No, go back") because wrongly rejecting loses a lead. Confirm does not, but offers Undo.
+- Decisions are recorded in the audit log. Only Supervisor and above are offered Undo (section 7a): after Confirm or Reject they see "You confirmed this link. [Undo]"; Investigating officers see the message without Undo. Reject requires a second step ("Reject this link? Yes, reject / No, go back") because wrongly rejecting loses a lead. Confirm does not.
 - Loading: a text line "Loading your cases..." with a spinner icon; no skeleton animation. Waiting over 10 seconds adds "This is taking long. Please wait or try again."
 - Errors say what happened, whether data is safe, and what to do: "We could not save. Nothing was changed. [Try again]". Never codes, never blame ("you entered an invalid value"), never a dead end; always a button.
 - Empty states say why and what next: "No cases yet. Ask your supervisor to add your cases."
@@ -194,6 +196,6 @@ Screenshots required at 1280px wide desktop and 375px phone, in English and Hind
 11. Focus ring visible on every interactive element by keyboard.
 12. Error, empty, loading and success states exist for the screen.
 13. Back and language switch visible and working; the officer can reach home in one click.
-14. Reject has a second step; Confirm and Reject have Undo.
+14. Reject has a second step; Undo appears only for Supervisor and above; strong (automatic) links show "Undo this link", never Reject.
 15. Page usable at 200 percent zoom and in grayscale (strength still readable).
 16. On the first real screens, also verify what the specimen could not: real Noto fonts loaded (no system fallback), layout at 375px width, and the longest real Hindi strings (no clipping, no truncation).
