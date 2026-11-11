@@ -615,6 +615,7 @@
             <button class="btn" type="button" aria-pressed="true">
               <svg class="i"><use href="#check" /></svg>Rejected (3)
             </button>
+            <button class="btn" type="button" aria-pressed="false">Undone (2)</button>
           </div>
           <p>These links were rejected. A supervisor can reopen them.</p>
           <table class="qtable">
@@ -645,7 +646,7 @@
                 <td data-label="Case B"><span class="mono">40/009</span></td>
                 <td data-label="Rejected by">Ravi Kumar (Supervisor)</td>
                 <td data-label="Rejected on">9 Mar 2026</td>
-                <td data-label="Reason">No reason written.</td>
+                <td data-label="Reason">Same name, different people. Ages differ by 12 years.</td>
                 <td class="act"><button class="btn" type="button">Open</button></td>
               </tr>
             </tbody>
@@ -660,6 +661,29 @@
               ><svg class="i"><use href="#rotate-ccw" /></svg>Reopened</span
             >
             Matching runs do not change this link. Only a person can.
+          </p>
+          <p>
+            <label for="rfe"><strong>Why are you reopening it?</strong></label
+            ><br /><input
+              id="rfe"
+              type="text"
+              aria-invalid="true"
+              aria-describedby="ree"
+              style="
+                width: 100%;
+                min-height: var(--tap-min);
+                font: inherit;
+                border: var(--border-2) solid var(--color-danger);
+                border-radius: var(--radius);
+                padding: 0 var(--space-3);
+                box-sizing: border-box;
+              "
+            /><br /><span
+              id="ree"
+              class="msg"
+              style="display: inline-flex; margin-top: var(--space-2)"
+              ><svg class="i"><use href="#alert" /></svg>Please write your reason.</span
+            >
           </p>
           <div class="row">
             <button class="btn primary" type="button">
@@ -679,6 +703,7 @@
             <button class="btn" type="button" aria-pressed="true">
               <svg class="i"><use href="#check" /></svg>अस्वीकृत (3)
             </button>
+            <button class="btn" type="button" aria-pressed="false">वापस लिए गए (2)</button>
           </div>
           <p>ये लिंक अस्वीकार किए गए थे। सुपरवाइज़र इन्हें फिर से खोल सकते हैं।</p>
           <table class="qtable">
@@ -709,7 +734,7 @@
                 <td data-label="मामला B"><span class="mono">40/009</span></td>
                 <td data-label="किसने अस्वीकार किया">रवि कुमार (सुपरवाइज़र)</td>
                 <td data-label="अस्वीकार करने की तारीख">9 मार्च 2026</td>
-                <td data-label="कारण">कारण नहीं लिखा गया।</td>
+                <td data-label="कारण">नाम एक है, लोग अलग हैं। उम्र में 12 साल का अंतर है।</td>
                 <td class="act"><button class="btn" type="button">खोलें</button></td>
               </tr>
             </tbody>
@@ -725,12 +750,131 @@
             >
             मिलान चलाने से यह लिंक नहीं बदलता। केवल कोई व्यक्ति बदल सकता है।
           </p>
+          <p>
+            <label for="rfh"><strong>इसे फिर से क्यों खोल रहे हैं?</strong></label
+            ><br /><input
+              id="rfh"
+              type="text"
+              aria-invalid="true"
+              aria-describedby="reh"
+              style="
+                width: 100%;
+                min-height: var(--tap-min);
+                font: inherit;
+                border: var(--border-2) solid var(--color-danger);
+                border-radius: var(--radius);
+                padding: 0 var(--space-3);
+                box-sizing: border-box;
+              "
+            /><br /><span
+              id="reh"
+              class="msg"
+              style="display: inline-flex; margin-top: var(--space-2)"
+              ><svg class="i"><use href="#alert" /></svg>कृपया अपना कारण लिखें।</span
+            >
+          </p>
           <div class="row">
             <button class="btn primary" type="button">
               <svg class="i"><use href="#rotate-ccw" /></svg>हाँ, फिर से खोलें
             </button>
             <button class="btn" type="button">नहीं, वापस जाएँ</button>
           </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Review queue: Undone filter (admin, English)</h2>
+        <div class="queue" data-app="admin">
+          <div class="filter" role="group" aria-label="Show">
+            <strong>Show:</strong>
+            <button class="btn" type="button" aria-pressed="false">Waiting (14)</button>
+            <button class="btn" type="button" aria-pressed="false">Rejected (3)</button>
+            <button class="btn" type="button" aria-pressed="true">
+              <svg class="i"><use href="#check" /></svg>Undone (2)
+            </button>
+          </div>
+          <p>These links were undone. A supervisor can reopen them.</p>
+          <table class="qtable">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Case A</th>
+                <th>Case B</th>
+                <th>Undone by</th>
+                <th>Undone on</th>
+                <th>Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="Item"><span class="mono">98xxxx1234</span></td>
+                <td data-label="Case A"><span class="mono">24/118</span></td>
+                <td data-label="Case B"><span class="mono">31/207</span></td>
+                <td data-label="Undone by">Charu Singh (Supervisor)</td>
+                <td data-label="Undone on">12 Mar 2026</td>
+                <td data-label="Reason">Linked by mistake. Different phone owners.</td>
+                <td class="act"><button class="btn" type="button">Open</button></td>
+              </tr>
+              <tr>
+                <td data-label="Item">Mohd. Irfan</td>
+                <td data-label="Case A"><span class="mono">24/118</span></td>
+                <td data-label="Case B"><span class="mono">40/009</span></td>
+                <td data-label="Undone by">Charu Singh (Supervisor)</td>
+                <td data-label="Undone on">9 Mar 2026</td>
+                <td data-label="Reason">Number was reused by a new owner.</td>
+                <td class="act"><button class="btn" type="button">Open</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section lang="hi" style="line-height: var(--leading-hi)">
+        <h2>समीक्षा सूची: वापस लिए गए फ़िल्टर (एडमिन, हिंदी)</h2>
+        <div class="queue" data-app="admin">
+          <div class="filter" role="group" aria-label="दिखाएँ">
+            <strong>दिखाएँ:</strong>
+            <button class="btn" type="button" aria-pressed="false">प्रतीक्षा में (14)</button>
+            <button class="btn" type="button" aria-pressed="false">अस्वीकृत (3)</button>
+            <button class="btn" type="button" aria-pressed="true">
+              <svg class="i"><use href="#check" /></svg>वापस लिए गए (2)
+            </button>
+          </div>
+          <p>ये लिंक वापस लिए गए थे। सुपरवाइज़र इन्हें फिर से खोल सकते हैं।</p>
+          <table class="qtable">
+            <thead>
+              <tr>
+                <th>आइटम</th>
+                <th>मामला A</th>
+                <th>मामला B</th>
+                <th>किसने वापस लिया</th>
+                <th>वापस लेने की तारीख</th>
+                <th>कारण</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-label="आइटम"><span class="mono">98xxxx1234</span></td>
+                <td data-label="मामला A"><span class="mono">24/118</span></td>
+                <td data-label="मामला B"><span class="mono">31/207</span></td>
+                <td data-label="किसने वापस लिया">चारु सिंह (सुपरवाइज़र)</td>
+                <td data-label="वापस लेने की तारीख">12 मार्च 2026</td>
+                <td data-label="कारण">गलती से जुड़ गया। फ़ोन के मालिक अलग हैं।</td>
+                <td class="act"><button class="btn" type="button">खोलें</button></td>
+              </tr>
+              <tr>
+                <td data-label="आइटम">Mohd. Irfan</td>
+                <td data-label="मामला A"><span class="mono">24/118</span></td>
+                <td data-label="मामला B"><span class="mono">40/009</span></td>
+                <td data-label="किसने वापस लिया">चारु सिंह (सुपरवाइज़र)</td>
+                <td data-label="वापस लेने की तारीख">9 मार्च 2026</td>
+                <td data-label="कारण">नंबर नए मालिक को मिल गया था।</td>
+                <td class="act"><button class="btn" type="button">खोलें</button></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
