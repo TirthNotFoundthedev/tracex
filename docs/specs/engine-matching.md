@@ -132,7 +132,7 @@ All arithmetic is exact decimal. The rounding of each `c_i` is the only rounding
 
 Caps for PERSON and ORG pairs: T1 60, T2 55, T3 35. No single tier reaches 80, so no pile of evidence from one kind of check reaches High.
 
-**Bands** (defaults): **High ≥ 80**, **Medium 45–79.9**, **Low < 45**. Admin config `matching.thresholds`, stored by the API in Postgres; validation 70 ≤ high_min ≤ 100 and 30 ≤ medium_min ≤ high_min − 10. Each change gets a new `thresholds_version` (increasing integer) through the senior-approved `pending_change` flow (`api-access-control.md` §3.1). A run reads the current version once at start; the run record and every edge it touches carry it. A change takes effect at the next run: AUTO links now below high_min become SUGGESTED; CONFIRMED, REJECTED and UNDONE links are untouched. Weights, caps and flags are not admin-adjustable; changing them bumps the ruleset version.
+**Bands** (defaults): **High ≥ 80**, **Medium 45–79.9**, **Low < 45**. Admin config `matching.thresholds`, stored by the API in Postgres; validation 70 ≤ high_min ≤ 100 and 30 ≤ medium_min ≤ high_min − 10. Each change gets a new `thresholds_version` (increasing integer) through the senior-approved `pending_change` flow (`api-access-control.md` §3.2). A run reads the current version once at start; the run record and every edge it touches carry it. A change takes effect at the next run: AUTO links now below high_min become SUGGESTED; CONFIRMED, REJECTED and UNDONE links are untouched. Weights, caps and flags are not admin-adjustable; changing them bumps the ruleset version.
 
 **High rule: the only path to a link without human review.** A pair becomes AUTO only if every gate passes. Otherwise a pair at Medium or above becomes SUGGESTED and its failed gates are listed.
 
@@ -152,15 +152,17 @@ Identifier pairs need G1, G4, G5 and G6; ID_EXACT alone scores 100 and becomes A
 
 ## 6. SAME_AS edges, states, clusters, persistence
 
-**Edge.** A Neo4j relationship between the two untouched entity nodes; nothing is written onto the entities. Properties: `link_id` (random UUIDv4, never derived from entity, case or run ids); `entity_a_id` < `entity_b_id` (canonical pair; at most one SAME_AS edge per pair, ever); `entity_type`, `case_a`, `case_b`, `state`, `score`, `band`, `gates` {passed, failed[]}; `evidence` (the §7 payload); `ruleset_version`, `thresholds_version`, `match_run_id`; `created_at`, `updated_at`; `history[]` ({from, to, actor, at, reason_code, reason_text}). A later run updates the edge in place (score, evidence, versions; same `link_id`). An AUTO edge that no longer passes every gate is demoted to SUGGESTED. The engine never deletes an edge.
+**Edge.** A Neo4j relationship between the two untouched entity nodes; nothing is written onto the entities. Properties: `link_id` (random UUIDv4, never derived from entity, case or run ids); `entity_a_id` < `entity_b_id` (canonical pair; at most one SAME_AS edge per pair at any time); `entity_type`, `case_a`, `case_b`, `state`, `score`, `band`, `gates` {passed, failed[]}; `evidence` (the §7 payload); `ruleset_version`, `thresholds_version`, `match_run_id`; `created_at`, `updated_at`; `history[]` ({from, to, actor, at, reason_code, reason_text}). A later run updates the edge in place (score, evidence, versions; same `link_id`) under the rerun rules below. Apart from withdrawal, the engine never deletes an edge.
 
-**States and transitions.** Roles are the canonical roles of `api-access-control.md` §2.1. "Both ends ALLOW" means the actor has ALLOW on both end cases (§2.5 R3, §3). So a link whose ends are in different districts can be decided only by a SENIOR whose state covers both.
+**States and transitions.** Roles are the canonical roles of `api-access-control.md` §2.1. "Both ends ALLOW" means the actor has ALLOW on both end cases (§2.4 R3, §3). So a link whose ends are in different districts can be decided only by a SENIOR whose state covers both.
 
 | From → To | Who | Reason |
 |---|---|---|
 | (none) → AUTO | engine, all gates pass, any jurisdiction | – |
 | (none) → SUGGESTED | engine, Medium or a gate failed | – |
-| AUTO → SUGGESTED | engine: threshold change or lost evidence | system code |
+| AUTO → SUGGESTED | engine rerun: no longer passes every gate | `DEMOTED` |
+| SUGGESTED → AUTO | engine rerun: all AUTO gates now pass | `PROMOTED` |
+| SUGGESTED → (edge removed) | engine rerun: score below medium_min | `WITHDRAWN` |
 | SUGGESTED → CONFIRMED / REJECTED | INVESTIGATOR or above, both ends ALLOW | reject: required |
 | AUTO → CONFIRMED | INVESTIGATOR or above, both ends ALLOW | – |
 | AUTO → UNDONE, CONFIRMED → UNDONE | SUPERVISOR or above, both ends ALLOW | required |
@@ -168,11 +170,18 @@ Identifier pairs need G1, G4, G5 and G6; ID_EXACT alone scores 100 and becomes A
 
 **Illegal transitions.** Every other transition is illegal: the API returns 409 and nothing changes (e.g. REJECTED → CONFIRMED, CONFIRMED → REJECTED, AUTO → REJECTED). An AUTO link cannot be rejected, only undone; an INVESTIGATOR who thinks an AUTO link is wrong escalates to a SUPERVISOR. This is intended: one junior decision cannot remove a High link. Free-text reasons are stored only in the edge `history`, never in the audit log.
 
+**Rerun rules.** Each change below emits a transition record:
+- A rerun never changes CONFIRMED, REJECTED or UNDONE edges.
+- An AUTO edge that no longer passes every gate becomes SUGGESTED (`DEMOTED`); it is never demoted silently.
+- A SUGGESTED edge becomes AUTO only if all AUTO gates pass (`PROMOTED`).
+- A SUGGESTED edge whose score falls below medium_min is withdrawn: the edge is removed (`WITHDRAWN`) and the pair is **not** put on the block list.
+- A reopened edge (its history contains REJECTED or UNDONE) is never promoted or withdrawn: per the block-list rule, only a human ends it.
+
 **Block list.** The block list is the set of SAME_AS edges in REJECTED or UNDONE state, keyed by canonical pair; there is no second store. The engine never proposes a blocked pair again and never makes it AUTO. Only a reopen moves it out, and a reopened pair can end only in CONFIRMED by a human. Scores are never fed back into weights. Undo removes nothing: entities, provenance and the edge with its history remain.
 
-**Audit hand-off.** The engine never imports the API and never writes audit rows. Every engine call that creates or changes edges returns one transition record per transition, its own demotions included: `{link_id, from, to, actor ("engine" or user id), match_run_id, reason_code, at}`. The API writes the audit rows from these records.
+**Audit hand-off.** The engine never imports the API and never writes audit rows. Every engine call that creates or changes edges returns one transition record per transition, its own demotions included: `{link_id, from, to, actor ("engine" or user id), match_run_id, reason_code, at}` (`to` is null for WITHDRAWN). The API writes the audit rows from these records.
 
-**Run record** (the engine returns it; the API persists it): `match_run_id` (random), `started_at`, `finished_at`, `triggered_by` (user id or `system`), `input_case_ids`, `ruleset_version`, `thresholds_version`, counts by resulting state and by band (Low pairs counted, not stored), `oversized_block` count, `status` (RUNNING / SUCCEEDED / FAILED), `error_code`.
+**Run record** (the engine returns it; the API persists it): `match_run_id` (random), `started_at`, `finished_at`, `triggered_by` (user id of whoever started the run), `input_case_ids`, `ruleset_version`, `thresholds_version`, counts by resulting state and by band (Low pairs counted, not stored), `oversized_block` count, `status` (RUNNING / SUCCEEDED / FAILED), `error_code`.
 
 **Identity clusters**
 - C1. A cluster is a connected component of **active** edges (AUTO, CONFIRMED) of one entity type. Membership is derived on read and never stored. The engine exposes no cluster id. Any cluster id the API returns is random and not derived from member ids.
@@ -204,12 +213,12 @@ Identifier pairs need G1, G4, G5 and G6; ID_EXACT alone scores 100 and becomes A
   ],
   "against": [],
   "clamp_adjustment": { "value": 0.0, "template_key": "match.adjust.clamp" },
-  "history": [ { "from": null, "to": "AUTO", "actor": "engine", "at": "2026-11-20T10:00:00Z", "reason_code": null, "reason_text": null } ]
+  "history": [ { "from": null, "to": "AUTO", "at": "2026-11-20T10:00:00Z", "reason_code": null } ]
 }
 ```
-Other shapes: **modifier** `{ "code": "SHARED" | "HUB" | "MULTI_USER", "factor": 0.2, "template_key": "match.modifier.trap_identifier" }`; **`against` item** = a support item plus `"severity": "soft" | "hard" | "veto"`, with a negative `contribution`; **failed gate** `{ "gate": "G2", "template_key": "match.gate.no_anchor" }`. The payload carries no English text; the client renders every line from `template_key` + `params`.
+Other shapes: **modifier** `{ "code": "SHARED" | "HUB" | "MULTI_USER", "factor": 0.2, "template_key": "match.modifier.trap_identifier" }`; **`against` item** = a support item plus `"severity": "soft" | "hard" | "veto"`, with a negative `contribution`; **failed gate** `{ "gate": "G2", "template_key": "match.gate.no_anchor" }`. The payload carries no English text; the client renders every line from `template_key` + `params`. Payload `history` entries carry only `from`, `to`, `at` and `reason_code`; `actor` and `reason_text` stay on the edge and are never in the explanation payload. The **cited-line set** of a link (what an access grant exposes) is the union of `records[].source` and every `items[].sources`.
 
-**Invariant:** Σ `support[].subtotal` + Σ `against[].contribution` + `clamp_adjustment.value` = `score`, where `subtotal` = `raw` + `cap_adjustment.value`, by exact decimal equality. Masking identifier values, and returning 404 for a link the viewer may not fully see, are the API's job (`api-access-control.md` §2.5 R2, §4).
+**Invariant:** Σ `support[].subtotal` + Σ `against[].contribution` + `clamp_adjustment.value` = `score`, where `subtotal` = `raw` + `cap_adjustment.value`, by exact decimal equality. Masking identifier values, and returning 404 for a link the viewer may not fully see, are the API's job (`api-access-control.md` §2.4 R2, §4).
 
 ## 8. Acceptance criteria
 
@@ -234,7 +243,7 @@ Comparator outputs (name_sim, flags, k) are fixtures, so scoring tests do not de
 | AC-15 | AC-05 pair REJECTED by an INVESTIGATOR; next run adds a shared owned phone (score would pass every gate) | No new edge, no state change, no transition record; pair stays REJECTED |
 | AC-16 | AC-01 person link UNDONE by a SUPERVISOR with reason | State UNDONE, history 2 entries; entities and phone link unchanged; cluster splits; payload still retrievable; one transition record |
 | AC-17 | "मोहम्मद इरफ़ान" (Devanagari, CASE-AA) vs "Mohd Irfan" (CASE-AB), both `owns` 9000051234 | name_sim 1.0 → 30.0 + 45.0 = **75.0 Medium** SUGGESTED |
-| AC-18 | high_min set to 90 (thresholds_version 2). Rerun AC-01; separately, rerun AC-01 after its person link was CONFIRMED. | AUTO person link → SUGGESTED with transition record `reason_code THRESHOLD_CHANGED`, edge `thresholds_version` 2; phone links stay AUTO. A CONFIRMED link is untouched, with no record. Setting high_min 65 fails validation. |
+| AC-18 | high_min set to 90 (thresholds_version 2). Rerun AC-01; separately, rerun AC-01 after its person link was CONFIRMED. | AUTO person link → SUGGESTED with transition record `reason_code DEMOTED`, edge `thresholds_version` 2; phone links stay AUTO. A CONFIRMED link is untouched, with no record. Setting high_min 65 fails validation. |
 | AC-19 | AC-02 but one vehicle entity has extraction confidence 0.5 | Score 100, G5 fails → **SUGGESTED** |
 | AC-20 | Every edge in AC-01…AC-27 | Invariant (§7) holds by decimal equality. Every item has ≥1 source, all in the two end cases. Every `how_*` param is an attribution code. No English in the payload. |
 | AC-21 | ORG "Shree Balaji Traders" vs "Shri Balaji Trading Co", both `owns` a/c 5010000066602, same locality | Score ≥ 80 possible but G7 → **SUGGESTED** only |
