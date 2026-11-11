@@ -129,7 +129,7 @@ Replaces the content (no modal):
 "Yes, reject" uses the danger style; "No, go back" is primary here because the safe choice should be the easiest. Flow: Reject -> O7 -> Yes -> O8.
 
 ### O8 Link decided
-Message, stays on the page: "(check) You confirmed this link. The two records are now shown as the same." or "(x) You rejected this link." Buttons: `[ * Back to this case ]`, and `[ Undo ]` for Supervisor and above only. After Undo: "Your decision was undone. [Check this link again]". Every decision is written to the audit log by the backend; the officer is not told about the log.
+Message, stays on the page: "(check) You confirmed this link. The two records are now shown as the same." or "(x) You rejected this link. If this was a mistake, ask your supervisor." Buttons: `[ * Back to this case ]`, and after a Confirm only, `[ Undo ]` for Supervisor and above. After Undo: "Your decision was undone. [Check this link again]". There is no Undo after a Reject: reopening a rejected link happens only in the admin panel review queue (A3, Rejected filter; D34), never in the officer app. Every decision is written to the audit log by the backend; the officer is not told about the log.
 
 ### O9 Other police area (restricted card)
 ```
@@ -178,6 +178,99 @@ Title: "Find links between cases". Line: "Last run: 12 Mar 2026, 14:05. Found 6 
 ### A3 Review queue (possible matches)
 Title: "Links to check". Table, 44px rows, columns: Strength (badge, words + score), Item, Case A, Case B, Main reason, Waiting since. Sort labels in words. Filters: Type, Area, "Waiting more than 7 days". Row button `[Open]`.
 Open -> A3b: the explanation panel with admin detail open by default, buttons `[ * Confirm they are the same ]` `[ Reject this link ]`, then `[Next one]`. Reject needs the same second step (O7). Strong links show `[ Undo this link ]` instead of Reject. Count shown: "Link 3 of 14".
+
+#### A3c Rejected filter and Reopen (D34)
+Reopening a rejected link is done here and nowhere else. The officer app never lists a rejected link and has no Reopen button (a rejected link is not a connection, so there is not even a locked card for it).
+
+**Where the filter sits.** Directly under the page title, above the Type / Area filters, as a two-choice status switch with the label "Show":
+```
+Show:  [ (check) Waiting (14) ]  [ Rejected (3) ]
+```
+It is a pair of buttons, 44px high, 8px apart. The chosen one has a solid 2px `action` border, bold text and a check icon; the other has a `line` border and no icon, so the choice is readable in grayscale. Default is "Waiting". Both counts are always visible. The choice is kept in the page address so Back returns to it. Type and Area filters apply to both choices; "Waiting more than 7 days" is hidden under Rejected.
+
+**Counts.** Counts include only links the viewer may see (access spec: rows the viewer may not see do not exist for them). A count never reveals a hidden link.
+
+**Rejected table.** Line above it: "These links were rejected. A supervisor can reopen them." Columns: Item, Case A, Case B, Rejected by (name, then the plain role label from DESIGN_RULES 7a), Rejected on ("12 Mar 2026"), Reason (wraps, never cut with "..."; full text in Open), `[Open]`. Default sort: Rejected on, newest first. No strength badge (the link is no longer a link). "Show more" after 50 rows. If the rejecter wrote no reason the cell says "No reason written."
+
+**Open on a rejected link (A3d).** The explanation panel as it stood when rejected, admin detail open, headed by a message with the history (never hidden in More detail):
+```
+| (x) Rejected by Meena Rao (Investigating officer) on 12 Mar 2026 |
+|     Reason: Different people. Ages differ by 12 years.            |
+| Why we think so / Why it may be wrong / Where this came from      |
+| [ * (rotate-ccw) Reopen this link ]   [ Back to the list ]        |
+```
+`Reopen this link` is the one primary button, shown only to a viewer who holds the right (table below). Nothing else on this screen changes the link.
+
+**Reopen confirmation (second step).** Replaces the content, no modal, same pattern as O7:
+```
+| Reopen this link?                                                 |
+| It goes back to "Links to check". A person must then confirm      |
+| or reject it. Matching runs will not change it.                   |
+| Why are you reopening it? (not required)                          |
+| [ ______________________________ ]                                |
+| [ * Yes, reopen ]            [ No, go back ]                      |
+```
+"Yes, reopen" is primary here because reopening loses nothing: the link only returns to the queue and can be rejected again. "No, go back" is outlined. A reason, if written, is kept in the link history, not in the audit log (access spec). If the API makes the reason required, the label drops "(not required)" and an empty field shows "Please write your reason. [Fix]".
+
+**After reopen.** The message stays on the page: "(check) You reopened this link. It is back in 'Links to check'." with `[ * Open it ]` and `[ Back to the list ]`. The link:
+- leaves the Rejected filter at once; Rejected count goes down by 1, Waiting count up by 1;
+- appears under Waiting as a Possible match (dashed `check` border, alert-triangle, "Possible match. Please check.") with a second tag "(rotate-ccw) Reopened" beside the badge, so it is not mistaken for a new link;
+- in A3b shows "Reopened by Charu Singh on 14 Mar 2026. Earlier it was rejected by Meena Rao on 12 Mar 2026." and "Matching runs do not change this link. Only a person can." (D37: a reopened link is never changed by a rerun, so its strength stays as it was);
+- takes the normal decisions again: `[ * Confirm they are the same ]` `[ Reject this link ]` (Reject with its second step, O7), for roles that may decide it.
+There is no Undo for a reopen; to reverse it a supervisor rejects the link again in the normal way.
+
+**Who can reopen.** Access spec: Reopen a REJECTED / UNDONE link is allowed for SUPERVISOR and above; a link whose ends are in different districts is decided only by a SENIOR covering both ends (D32). Rejected links are not connections, so no stub is shown for them.
+| Viewer | Rejected filter | Reopen |
+|---|---|---|
+| Supervisor, both cases in own area | rows listed, full detail | button shown |
+| Supervisor, link joins two areas | row not listed; if opened by address: "This link joins two police areas. Only a senior officer can decide it." | no button |
+| Senior officer covering both ends | rows listed, full detail | button shown |
+| Senior officer not covering both | row not listed; if opened by address: "You do not cover both police areas." | no button |
+| Administrator (D29) | counts only (below) | none |
+| Investigating officer, Officer | not part of the admin panel; if reached: "Only a supervisor can reopen a link." | none |
+A missing button always comes with its line (DESIGN_RULES 5), never a greyed button.
+
+**Administrator view (D29).** The filter shows both counts. In place of the table: a message "You can see how many links are rejected. Case details are for officers with access." and a counts-only summary: Waiting, Rejected, Reopened this month. No `[Open]`, no case numbers, no names.
+
+**Empty state.** "No rejected links. Links that officers reject will appear here." If filters hide everything: "Nothing found. Check the filters or try fewer words." with `[Clear filters]`.
+
+**Problem states.** Reopen failed: "We could not reopen it. Nothing was changed. [Try again]". Someone already acted (conflict): "Someone already changed this link. [Show the list]". Access removed meanwhile: "You do not have access to reopen this link. [Back to the list]". Loading: "Loading..." with spinner.
+
+**Strings (English / Hindi).** Western digits in both. `{n}`, `{name}`, `{date}`, `{role}` are filled by the app. The keys go into the shared i18n files, both languages together, when the screen is built; this spec does not add them. Hindi needs native-speaker review before release.
+| Key | English | Hindi |
+|---|---|---|
+| queue.show | Show | दिखाएँ |
+| queue.filter.waiting | Waiting ({n}) | प्रतीक्षा में ({n}) |
+| queue.filter.rejected | Rejected ({n}) | अस्वीकृत ({n}) |
+| queue.rejected.intro | These links were rejected. A supervisor can reopen them. | ये लिंक अस्वीकार किए गए थे। सुपरवाइज़र इन्हें फिर से खोल सकते हैं। |
+| queue.col.rejectedBy | Rejected by | किसने अस्वीकार किया |
+| queue.col.rejectedOn | Rejected on | अस्वीकार करने की तारीख |
+| queue.col.reason | Reason | कारण |
+| queue.reason.none | No reason written. | कारण नहीं लिखा गया। |
+| queue.rejected.history | Rejected by {name} ({role}) on {date} | {name} ({role}) ने {date} को अस्वीकार किया |
+| queue.reopen.button | Reopen this link | इस लिंक को फिर से खोलें |
+| queue.reopen.title | Reopen this link? | इस लिंक को फिर से खोलें? |
+| queue.reopen.body | It goes back to "Links to check". A person must then confirm or reject it. Matching runs will not change it. | यह "जाँचने वाले लिंक" में वापस जाएगा। फिर किसी व्यक्ति को इसे पक्का या अस्वीकार करना होगा। मिलान चलाने से यह नहीं बदलेगा। |
+| queue.reopen.reasonLabel | Why are you reopening it? (not required) | इसे फिर से क्यों खोल रहे हैं? (ज़रूरी नहीं) |
+| queue.reopen.yes | Yes, reopen | हाँ, फिर से खोलें |
+| queue.reopen.no | No, go back | नहीं, वापस जाएँ |
+| queue.reopen.done | You reopened this link. It is back in "Links to check". | आपने यह लिंक फिर से खोल दिया। यह अब "जाँचने वाले लिंक" में है। |
+| queue.reopen.openIt | Open it | इसे खोलें |
+| queue.backToList | Back to the list | सूची पर वापस जाएँ |
+| queue.tag.reopened | Reopened | फिर से खोला गया |
+| queue.reopened.history | Reopened by {name} on {date}. Earlier it was rejected by {name2} on {date2}. | {name} ने {date} को फिर से खोला। पहले इसे {name2} ने {date2} को अस्वीकार किया था। |
+| queue.reopened.rerun | Matching runs do not change this link. Only a person can. | मिलान चलाने से यह लिंक नहीं बदलता। केवल कोई व्यक्ति बदल सकता है। |
+| queue.empty.rejected | No rejected links. Links that officers reject will appear here. | कोई अस्वीकृत लिंक नहीं है। अधिकारी जो लिंक अस्वीकार करेंगे, वे यहाँ दिखेंगे। |
+| queue.empty.filtered | Nothing found. Check the filters or try fewer words. | कुछ नहीं मिला। फ़िल्टर जाँचें या कम शब्द लिखें। |
+| queue.clearFilters | Clear filters | फ़िल्टर हटाएँ |
+| queue.noRight.role | Only a supervisor can reopen a link. | केवल सुपरवाइज़र लिंक को फिर से खोल सकते हैं। |
+| queue.noRight.twoAreas | This link joins two police areas. Only a senior officer can decide it. | यह लिंक दो थाना क्षेत्रों को जोड़ता है। इसका फ़ैसला केवल वरिष्ठ अधिकारी कर सकते हैं। |
+| queue.noRight.notBoth | You do not cover both police areas. | आप दोनों थाना क्षेत्रों को कवर नहीं करते। |
+| queue.admin.counts | You can see how many links are rejected. Case details are for officers with access. | आप देख सकते हैं कि कितने लिंक अस्वीकृत हैं। मामले का ब्योरा केवल पहुँच वाले अधिकारियों के लिए है। |
+| queue.error.reopen | We could not reopen it. Nothing was changed. | हम इसे फिर से नहीं खोल सके। कुछ भी बदला नहीं गया। |
+| queue.error.conflict | Someone already changed this link. | किसी ने यह लिंक पहले ही बदल दिया है। |
+| queue.error.denied | You do not have access to reopen this link. | आपको इस लिंक को फिर से खोलने की पहुँच नहीं है। |
+| officer.rejected.mistake | You rejected this link. If this was a mistake, ask your supervisor. | आपने यह लिंक अस्वीकार किया। अगर यह ग़लती थी, तो अपने सुपरवाइज़र से कहें। |
 
 ### A4 Access requests
 Title: "Access requests". Table: Requested by, For case (admin sees it), From area, Reason, Date, Status. Row: `[Open]`. Detail: reason text in full, and `[ * Approve ]` `[ Refuse ]`; Refuse has an optional "Reason for refusing". Approve needs second step: "Give [name] access to Case 31/207 for 30 days? [ * Yes, approve ] [No, go back]". Access end date field "Access ends": default 30 days.

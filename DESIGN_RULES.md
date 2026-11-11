@@ -112,7 +112,7 @@ Raw role codes are never shown in the officer app; admin shows the plain label w
 |---|---|---|---|
 | JUNIOR | Officer | Look only | "You can look at this link but not decide it. Ask your investigating officer or supervisor." |
 | INVESTIGATOR | Investigating officer | Confirm or reject a possible match when both cases are theirs. Cannot undo. | Other cases: "You do not have access to both cases." After deciding: no Undo shown. |
-| SUPERVISOR | Supervisor | As above, plus "Undo this link" and reopen a rejected link, inside own police area | Link across two areas: "This link joins two police areas. Only a senior officer can decide it." |
+| SUPERVISOR | Supervisor | As above, plus "Undo this link" and, in the admin panel only, reopen a rejected link, inside own police area | Link across two areas: "This link joins two police areas. Only a senior officer can decide it." |
 | SENIOR | Senior officer | All of the above; the only role that decides a link across two areas, and only when covering both | Not covering both: "You do not cover both police areas." |
 | ADMIN | Administrator | Manages the system, no case access | Sees counts and status only, no case content |
 
@@ -148,7 +148,9 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 
 ## 11. Feedback, undo, errors
 - Every action gets visible feedback within 1 second: a message in the page (not a vanishing toast) with icon and words, e.g. "Saved: you confirmed this link". Messages stay until dismissed or the next action. Reason: a slow reader needs time; vanishing text is missed.
-- Decisions are recorded in the audit log. Only Supervisor and above are offered Undo (section 7a): after Confirm or Reject they see "You confirmed this link. [Undo]"; Investigating officers see the message without Undo. Reject requires a second step ("Reject this link? Yes, reject / No, go back") because wrongly rejecting loses a lead. Confirm does not.
+- Decisions are recorded in the audit log. Only Supervisor and above are offered Undo (section 7a): after Confirm they see "You confirmed this link. [Undo]"; Investigating officers see the message without Undo. Reject requires a second step ("Reject this link? Yes, reject / No, go back") because wrongly rejecting loses a lead; Confirm does not. There is no Undo after Reject in the officer app: a rejected link is reopened only in the admin panel review queue (Rejected filter, Supervisor and above, with its own confirm step; D34). Reason: one place to reverse a rejection keeps the officer app simple, and a rejected link is not a connection, so the officer app has nothing to show for it.
+- Admin status filter (for example Waiting / Rejected): a two-button switch; the chosen button is marked by border weight, bold text and a check icon, never by colour alone; both buttons show their counts.
+- Admin tables at 375px: each row becomes a stacked block of label and value lines, with no sideways scroll. Reason: hidden columns would hide who rejected a link, when and why.
 - Loading: a text line "Loading your cases..." with a spinner icon; no skeleton animation. Waiting over 10 seconds adds "This is taking long. Please wait or try again."
 - Errors say what happened, whether data is safe, and what to do: "We could not save. Nothing was changed. [Try again]". Never codes, never blame ("you entered an invalid value"), never a dead end; always a button.
 - Empty states say why and what next: "No cases yet. Ask your supervisor to add your cases."
@@ -196,6 +198,6 @@ Screenshots required at 1280px wide desktop and 375px phone, in English and Hind
 11. Focus ring visible on every interactive element by keyboard.
 12. Error, empty, loading and success states exist for the screen.
 13. Back and language switch visible and working; the officer can reach home in one click.
-14. Reject has a second step; Undo appears only for Supervisor and above; strong (automatic) links show "Undo this link", never Reject.
+14. Reject has a second step; Undo (after Confirm only) appears only for Supervisor and above; Reopen exists only in the admin Rejected filter, with a second step; strong (automatic) links show "Undo this link", never Reject.
 15. Page usable at 200 percent zoom and in grayscale (strength still readable).
-16. On the first real screens, also verify what the specimen could not: real Noto fonts loaded (no system fallback), layout at 375px width, and the longest real Hindi strings (no clipping, no truncation).
+16. On the first real screens, also verify what the specimen could not: real Noto fonts loaded (no system fallback), layout at 375px width, and the longest real Hindi strings (no clipping, no truncation). **Ticked for the specimen** [x], from Edge headless renders of `docs/design/specimen.html` at true 375px and 1280px viewports (evidence in `docs/design/screenshots/`): Noto Sans 400/600/700, Noto Sans Devanagari 400/600/700 and Noto Sans Mono report status "loaded" and are the first family used; page scroll width equals viewport width (no horizontal scroll); no element extends past the right edge; every button and summary measures at least 56px (officer) or 44px (admin queue); long Hindi buttons wrap to two lines, none clipped. Fixed on the way: case numbers and the "खोलें" button wrapped mid-word in the narrow table (now no-wrap, wider admin container). Must be repeated on the real app screens.
