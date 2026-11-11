@@ -3,20 +3,20 @@
 Owner: Khan (Backend Lead). Status: DRAFT, revised after Security Reviewer findings. Task P1.3. Encoded as table-driven tests in `backend/tests/`. Companion: `api-access-control.md` (role names, relations, R-rules are defined there).
 
 ## 1. Purpose
-Show who knew what, and when. Every significant action and every access decision (allowed, redacted, denied) is recorded. The log is append-only and tamper-evident: a Postgres table where UPDATE, DELETE and TRUNCATE are blocked, rows are hash-chained, and the head is anchored outside the database. It stores ids and facts, never personal values. The log itself must not leak: readers see a row only through the cases they may see (section 7).
+Show who knew what, and when. Every significant action and every access decision (allowed, redacted, denied) is recorded. The log is append-only and tamper-evident: a Postgres table where UPDATE, DELETE and TRUNCATE are blocked, rows are hash-chained, and the head is anchored outside the database. It stores ids and facts, never personal values. The log itself must not leak: a reader sees a row only under the row-level rule of section 7, and never learns that other rows exist.
 
 ## 2. Row schema: table `audit_log`
-Class: **A** actor and event (visible on any row the reader may see); **S** side (visible per case the reader has ALLOW on); **J** joint (link-level or two-sided: visible only with ALLOW on every case in `refs`); **P** private (never returned by the API).
+Class (used by section 7 when a row is shown but references a case the reader cannot see): **A** actor and event; **S** side, tied to one case in `refs`; **J** joint, tied to the link or request as a whole; **P** private, never returned by the API.
 
 | Column | Type | Class | Meaning |
 |---|---|---|---|
-| `seq` | bigint, primary key | A | Contiguous from 1, previous + 1, assigned in the append step |
+| `seq` | bigint, primary key | P | Contiguous from 1, previous + 1, assigned in the append step. Readers get an opaque `row_ref` (HMAC of `seq` and reader id, server key) and an opaque paging cursor; `seq` is never returned, so gaps reveal nothing |
 | `event_id` | uuid, unique | P | Random |
 | `occurred_at` | timestamptz | A | Database clock, UTC. Client times ignored |
 | `event_type`, `outcome` | text | A | Section 3; `SUCCESS`, `DENIED`, `FAILED` |
 | `actor_kind`, `actor_user_id`, `actor_role`, `actor_district_id` | text, uuid | A | `USER`, `SYSTEM`, `ANONYMOUS`; role and district as at the event |
 | `reason_code` | text, null | A | Policy rule (`R2_NOT_VISIBLE`, `MATRIX_DENY`, `GRANT_ACTIVE`, ...) |
-| `refs` | jsonb | S | Every case the row references: `[{case_id, district_id}]`, including both ends of a link or the far case of a request. Empty for system events |
+| `refs` | jsonb | S | Every case the row references: `[{case_id, district_id}]`, including both ends of a link or the far case of a request. Empty for system events and for R2_NOT_VISIBLE denials (see W3) |
 | `target_type`, `target_id` | text | S for `CASE`, `ENTITY`, `DOCUMENT`; J for `LINK`, `STUB`, `ACCESS_REQUEST`, `GRANT`; A otherwise | Target type: `CASE`, `ENTITY`, `LINK`, `STUB`, `DOCUMENT`, `USER`, `ACCESS_REQUEST`, `GRANT`, `BATCH`, `RUN`, `SETTING`, `CHANGE`, `AUDIT`, `UNRESOLVED` |
 | `detail` | jsonb | per key | Only keys listed in section 3; keys marked `*` are class J, others S (or A if no case is involved); unknown keys rejected |
 | `session_id`, `request_id`, `client_ip` | uuid, inet | P | Kept for forensics through database access only |
@@ -30,7 +30,7 @@ The row commits in the same transaction as the action unless noted. Detail keys 
 |---|---|---|---|
 | AUDIT_CHAIN_STARTED | Once, by migration | none | `schema_version` |
 | AUTH_LOGIN_SUCCESS / _LOGOUT / _REFRESHED | Login, logout, refresh rotated | USER | none |
-| AUTH_LOGIN_FAILED | Login rejected or throttled | none | `claimed_username` (section 6), `throttled` |
+| AUTH_LOGIN_FAILED | Login rejected or throttled | none | `claimed_username` (raw only if it equals an existing username, section 6), `throttled` |
 | AUTH_TOKEN_REJECTED | Token missing, malformed, expired, bad signature, stale `ver`, dead `sid` | none | `failure`, `claimed_sub` |
 | AUTH_REFRESH_REUSED | A rotated refresh token is presented again; `sid` revoked | USER | none |
 | CASE_LISTED | Case list returned | none | `case_ids` (max 500) |
@@ -44,6 +44,7 @@ The row commits in the same transaction as the action unless noted. Detail keys 
 | SOURCE_LINES_VIEWED | Source lines returned | DOCUMENT | `line_from`, `line_to` |
 | SEARCH_RUN | Search executed | none | `entity_ids` returned (max 500), `entity_type_filter` |
 | ACCESS_DENIED | Any request refused by policy, including 404 for hidden ids, 403 for role | as attempted | `action`, `http_status` |
+| LINKS_LISTED | Link-list response returned | none | `link_ids*`, `stub_ids*` |
 | LINK_AUTO_CREATED / LINK_SUGGESTED | API records an engine transition (create) | LINK | `run_id*`, `band*`, `score*`, `entity_ids*` |
 | LINK_DEMOTED | API records an engine demotion (AUTO to SUGGESTED, threshold change or lost evidence) | LINK | `run_id*`, `previous_state*`, `new_state*`, `cause` |
 | LINK_CONFIRMED / _REJECTED / _UNDONE / _REOPENED | Officer decides | LINK | `previous_state*`, `new_state*` |
@@ -63,7 +64,7 @@ Write rules:
 |---|---|
 | W1 | Reads and actions are audited before data leaves the API. If the append fails, the request fails (500) with no data. Fail closed. |
 | W2 | Successful state changes: audit row and change commit or roll back together. |
-| W3 | ACCESS_DENIED and AUTH_* rows are appended in their own transaction after the business transaction has ended, so they persist though the action rolled back. A request never opens a W3 append while holding the append lock. A denial on an existing hidden target records its real `target_id` and `refs`; for an unknown id, `UNRESOLVED` with the string (section 6). |
+| W3 | ACCESS_DENIED and AUTH_* rows are appended in their own transaction after the business transaction has ended, so they persist though the action rolled back. A request never opens a W3 append while holding the append lock. An R2_NOT_VISIBLE denial is stored identically whether the id exists or not: `target_type` UNRESOLVED, `target_id` the string supplied (section 6), `refs` empty. The resolved target is kept in a private column (`resolved_target`, class P) for forensics through the database only. |
 | W4 | `reason_code` is set on every ACCESS_DENIED and on view events with `via_grant` true. |
 | W5 | One function, `audit.append`, writes; no code path updates or deletes. |
 | W6 | Every route declares its audit event; the route-inventory test fails a route that has none. |
@@ -101,20 +102,24 @@ Anchor: the API appends `{seq, row_hash, at}` as one line to an append-only file
 | Search terms | `entity_ids` returned, type filter |
 | Free text: link decision reasons, access-request reasons | Their own access-controlled tables; the log holds ids |
 | Request or response bodies, file contents, stack traces, database errors | `file_sha256`, `http_status`, codes |
-| Raw attacker or reader strings | `claimed_username`, `claimed_sub` and an UNRESOLVED `target_id` hold the raw string only if it matches the expected syntax (uuid, or username `[a-z0-9._-]{3,32}`); otherwise `hmac:<16 hex>` of a keyed hash (key from environment). `filter_keys` lists filter names only, never values |
+| Raw attacker or reader strings | `claimed_username` holds the raw string only if it equals an existing username; `claimed_sub` and an UNRESOLVED `target_id` only if they are a well-formed uuid; otherwise `hmac:<16 hex>` of a keyed hash (key from environment). `filter_keys` lists filter names only, never values |
 
 ## 7. Who can read the log, and how reading is logged
-Row visibility, then field visibility. The API never returns `P` columns, hashes or nonces.
+JUNIOR and INVESTIGATOR: 403, ACCESS_DENIED. SUPERVISOR, SENIOR and ADMIN read under one **row-level rule**. A row exists for the reader only if:
+| | Condition |
+|---|---|
+| (a) | the reader is the actor; or |
+| (b) | the actor is in the reader's chain of command (SUPERVISOR or SENIOR: actor district inside their scope or coverage), including the actor's denied probes; or |
+| (c) | `refs` is non-empty and the reader has ALLOW on **every** case in `refs`; or |
+| (d) | the row is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN or SENIOR |
 
-| Reader | Rows shown | Rows not shown |
-|---|---|---|
-| JUNIOR, INVESTIGATOR | none: 403, ACCESS_DENIED | all |
-| SUPERVISOR, SENIOR (scope or coverage) | (a) rows with at least one `refs` case they have ALLOW on; (b) rows whose actor is in their chain of command (actor district inside scope or coverage), including denied probes into other districts; (c) SENIOR only: system events | Everything else is **omitted** (no placeholder) |
-| ADMIN | System events (empty `refs`) in full; every case-bound row as a **redacted** row | none omitted |
+Any other row does not exist for that reader: no placeholder, no gap, no count, no paging effect. There are no partial views of other people's actions. For a row shown under (a) or (b) that references a case the reader cannot see, the hidden `refs` entries, every S field of those cases and every J field are **dropped from the response** (keys absent, not null). Rows shown under (c) or (d) are complete. The API never returns P columns, hashes, nonces or `seq`.
 
-Field rule for a shown row: class A fields always; class S fields only for cases the reader has ALLOW on (`refs` entries for other cases, and S keys of those cases, are null); class J fields only if the reader has ALLOW on **every** case in `refs`, else null. A redacted row for ADMIN, or a row shown only by chain of command, therefore carries class A fields only. Example: charu reading LINK_AUTO_CREATED for L-3 (Rivergate to Lakeside) sees time, event type, actor and her own case; no link id, score, band, run, far case or entity ids.
+Example: charu (SUPERVISOR, Rivergate). L-3 joins C-101 (Rivergate) to C-301 (Lakeside). The rows LINK_AUTO_CREATED (engine), LINK_VIEWED (gita), LINK_CONFIRMED (meena) and ACCESS_REQUEST_CREATED (gita) do not exist for her: she lacks ALLOW on C-301 and none of the actors is hers. She learns nothing of the far officers, the far district, or the link's state or timing. She does see bharat's own STUB_VIEWED row for E-4 with `refs` [C-101] and no `stub_ids`, because bharat is in her chain of command.
 
-Reader views have gaps in `seq` by design; they are not for verification (section 4). Pagination by `seq`; no export. Every page returned writes AUDIT_VIEWED first (W1) with filter names, range and count, and is not part of the page it logs. Case or target ids used as filters match against rows the reader may see only.
+**Filters, sorting and paging** run only over the rows and fields the reader can see, after the rule above. A filter on a value the reader cannot see (a hidden case id, a guessed link id, an officer outside their scope) returns exactly what a filter on a non-existent value returns: same empty page, same `result_count`, same cursor. Sort keys are visible fields only.
+
+Pagination uses an opaque cursor; no export. Every page returned writes AUDIT_VIEWED first (W1) with filter names, `result_count` and whether any field was dropped, and is not part of the page it logs.
 
 ## 8. Acceptance cases
 Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a superuser connection in the test database only.
@@ -139,9 +144,9 @@ Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a sup
 | U16 | Startup with a broken chain in the last 1000 rows | Not ready |
 | U17 | bharat views E-1 | ENTITY_VIEWED: actor, role, district, E-1, `refs` [C-101], `via_grant` false |
 | U18 | Entity detail with stubs for L-1 and L-3 | STUB_VIEWED with both `stub_ids`; `refs` lists C-101, C-201, C-301 |
-| U19 | bharat GETs `/links/L-1` | 404; ACCESS_DENIED: real `target_id` L-1, `refs` [C-101, C-201], `reason_code` R2_NOT_VISIBLE |
-| U20 | Random uuid | 404; ACCESS_DENIED, `UNRESOLVED`, the string |
-| U21 | A phone number put in an id path; a password typed as username | Stored as `hmac:...`; raw string absent |
+| U19 | bharat GETs `/links/L-1` | 404; ACCESS_DENIED: `target_type` UNRESOLVED, `target_id` the string, empty `refs`, `reason_code` R2_NOT_VISIBLE; `resolved_target` L-1 (private) |
+| U20 | Random uuid | 404; row identical in shape to U19; `resolved_target` null |
+| U21 | A phone number put in an id path; a lowercase password typed as username; an existing username with a wrong password | `hmac:...` for the first two, raw string absent; the existing username is stored raw |
 | U22 | asha confirms L-2 | 403; ACCESS_DENIED `http_status` 403 |
 | U23 | Denied action inside a rolled-back transaction | ACCESS_DENIED row persists (W3) |
 | U24 | Wrong password; 6th attempt throttled | AUTH_LOGIN_FAILED (`throttled` true on the 6th); no password in any column |
@@ -155,18 +160,18 @@ Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a sup
 | U32 | `detail` key not in section 3; `refs` missing a case named in `detail` | Insert rejected (W7) |
 | U33 | After the seeded scenario, scan all columns | No seeded phone number, name or line text |
 | U34 | Client sends `occurred_at`, `actor_user_id` in a body | Ignored |
-| U35 | charu reads rows for L-3 (LINK_AUTO_CREATED, LINK_VIEWED, ACCESS_REQUEST_CREATED) | Row shown via her case; link id, score, band, run, far case, entity ids null; no hashes |
-| U36 | deepak reads L-3 rows | Same: Eastmark side and joint fields null |
-| U37 | charu reads bharat's denied probe of L-1 | Row shown (chain of command): actor, time, ACCESS_DENIED, reason; `refs` shows only C-101; far case null |
-| U38 | farid reads the same probe | Shown via C-201: C-201 visible; actor visible; link id, C-101 null |
-| U39 | farid reads rows about C-101 only | Omitted entirely |
-| U40 | hari reads audit | System events full; case-bound rows class A only; no hashes |
-| U41 | asha reads audit | 403; ACCESS_DENIED |
-| U42 | Read a page, then the next | Second page includes the first page's AUDIT_VIEWED |
-| U43 | meena verifies; charu verifies | OK; 403 |
+| U35 | Seeded L-3 activity: engine creates L-3, gita views, meena confirms, gita requests access. charu reads audit | None of these rows appear; page, `result_count` and cursor equal those of a database that never had them; no gita, meena, Lakeside or L-3 state or time anywhere in the response |
+| U36 | deepak reads the same | Same: C-301 is outside his coverage, so none of the rows exist for him; his own actions (a) appear |
+| U37 | charu reads bharat's denied probes of L-1 and of a random uuid | Both shown under (b), identical shape: ACCESS_DENIED, `reason_code` R2_NOT_VISIBLE, `target_id` the string supplied, empty `refs` |
+| U38 | farid reads audit after U37 and after bharat's access request for L-1 | Neither the probe nor the request row appears (bharat is not his; `refs` include C-101). His own ACCESS_REQUEST_APPROVED appears under (a) with the C-101 entry and `grant_id` dropped |
+| U39 | deepak reads LINK_AUTO_CREATED for L-1 (C-101 and C-201, both in coverage) | Shown in full under (c) |
+| U40 | charu reads bharat's STUB_VIEWED for E-1 | Shown under (b); `refs` contains only C-101; `stub_ids` key absent (not null) |
+| U41 | charu filters by `case_id` C-301, by C-999, by actor gita, by a non-existent user, by L-3's id; sorts by each visible field | All results identical to the non-existent value: same empty page, count and cursor |
+| U42 | hari reads audit | System events and hari's own rows only; no case-bound rows, no hashes |
+| U43 | asha reads audit | 403; ACCESS_DENIED |
+| U44 | Read a page, then the next | Second page includes the first page's AUDIT_VIEWED; no `seq` in any response; two readers get different `row_ref` for the same row |
+| U45 | meena verifies; charu verifies | OK; 403 |
+| U46 | Link-list response | LINKS_LISTED with `link_ids` and `stub_ids`; route inventory fails a route without an event |
 
 ## 9. Out of scope
 Export, retention or purge (rows live as long as the database), streaming to external systems, external signing keys.
-
-## Open questions for Fable
-1. Anchor interval 60 seconds and one flat file are assumed enough for a prototype. Recommend: accept.

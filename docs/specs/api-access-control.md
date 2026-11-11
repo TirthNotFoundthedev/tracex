@@ -55,10 +55,10 @@ Cell = `own case / own jurisdiction / other jurisdiction`. A = ALLOW, R = REDACT
 | Run matching | D/D/D | D/D/D | D/D/D | D/D/D | A/A/A |
 | Propose a change (users, assignments, thresholds) | D/D/D | D/D/D | D/D/D | D/D/D | A/A/A |
 | Approve / deny a pending change | D/D/D | D/D/D | D/D/D | A/A/D (subject in coverage) | D/D/D |
-| View audit log (rows by case relation) | D/D/D | D/D/D | A/A/D | A/A/D | R/R/R |
+| View audit log (rows by case relation) | D/D/D | D/D/D | A/A/D | A/A/D | D/D/D |
 | Verify audit chain | D/D/D | D/D/D | D/D/D | A/A/A | D/D/D |
 
-Notes: "Request access" on an own case is DENY (nothing to request). System-wide rows have equal columns. ADMIN audit: system events (no case reference) in full, case-bound rows redacted (audit spec section 7). Rejected and undone links are not connections: no stub.
+Notes: "Request access" on an own case is DENY (nothing to request). System-wide rows have equal columns. Audit reads follow one row-level rule (audit spec section 7): rows the reader may not see do not exist for them; ADMIN reads system events only. Rejected and undone links are not connections: no stub.
 
 ### 3.1 Link states: who may change them
 | From -> To | Role (both end cases must be ALLOW for the caller by their own scope, R3) | Reason |
@@ -184,6 +184,3 @@ Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 RE
 
 ## 8. Out of scope
 Case management, FIR storage, SSO, per-field permissions, export, MFA, password reset or credential changes, citizen access.
-
-## Open questions for Fable
-1. One stub per hidden link makes the count of hidden links on one entity visible, a consequence of your one-link-per-request ruling. Recommend: accept for the MVP.
