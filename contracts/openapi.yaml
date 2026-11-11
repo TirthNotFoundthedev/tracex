@@ -30,10 +30,9 @@ info:
     carries `X-Request-Id` or any per-request value: the 404 for a hidden id must be byte-identical to the 404 for a
     random id. Correlation lives in the private `request_id` audit column.
 
-    **Paging.** List operations take `limit` and an opaque `cursor`. Every cursor is signed (HMAC, server key) and bound
-    to the reader and the filters it was issued for. A cursor presented by another reader, with different filters or
-    after tampering answers `422 VALIDATION_FAILED` exactly like a malformed one. Counts (`total`, queue sizes) count
-    items the caller may see (ALLOW) only.
+    **Paging.** List operations take `limit` and an opaque `cursor`. Every cursor is encrypted (authenticated encryption, server key), bound to the reader and the filters it was issued for, and expires after 15 minutes. It carries the visible sort key and an opaque row reference as position, never a sequence number or an id. A cursor presented by another reader, with different filters, expired or altered answers `422 VALIDATION_FAILED` exactly like a malformed one. Counts (`total`, queue sizes) count items the caller may see (ALLOW) only.
+
+    **Masking.** PHONE and ACCOUNT values are masked on the server unless the caller may read source lines of that case (access spec section 4.1). A masked value appears nowhere in the response; `masked` is true on any object where a value was masked.
 
     **Caching.** Every response carrying case data sends `Cache-Control: no-store`.
 
@@ -46,22 +45,31 @@ servers:
   - url: /
     description: Same origin as the apps; local compose maps it to port 8000.
 tags:
-  - { name: auth, description: "Login, refresh rotation, logout." }
-  - { name: cases, description: "Cases, entities, search, source lines." }
-  - { name: links, description: "SAME_AS links, decisions, explanations, review queue." }
-  - { name: graph, description: "Per-viewer graph neighbours, identity clusters, paths." }
-  - { name: access, description: "Stubs, access requests, grants." }
-  - { name: ingest, description: "Uploads and matching runs (ADMIN)." }
-  - { name: admin, description: "Users, roles, jurisdictions, thresholds, pending changes." }
-  - { name: audit, description: "Audit log read and chain verification." }
-  - { name: system, description: "Health and readiness." }
+  - name: auth
+    description: Login, refresh rotation, logout.
+  - name: cases
+    description: Cases, entities, search, source lines.
+  - name: links
+    description: SAME_AS links, decisions, explanations, review queue.
+  - name: graph
+    description: Per-viewer graph neighbours, identity clusters, paths.
+  - name: access
+    description: Stubs, access requests, grants.
+  - name: ingest
+    description: Uploads and matching runs (ADMIN).
+  - name: admin
+    description: Users, roles, jurisdictions, thresholds, pending changes.
+  - name: audit
+    description: Audit log read and chain verification.
+  - name: system
+    description: Health and readiness.
 security:
   - bearerAuth: []
 paths:
-  # ---------------------------------------------------------------- system
   /health:
     get:
-      tags: [system]
+      tags:
+        - system
       operationId: getHealth
       summary: Liveness
       security: []
@@ -74,10 +82,12 @@ paths:
           description: Process is up.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/HealthStatus" }
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
   /ready:
     get:
-      tags: [system]
+      tags:
+        - system
       operationId: getReady
       summary: Readiness (database, graph store, audit chain startup check)
       security: []
@@ -90,16 +100,18 @@ paths:
           description: Ready.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/HealthStatus" }
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
         "503":
           description: Not ready. Body is the fixed `NOT_READY` error.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-  # ---------------------------------------------------------------- auth
+              schema:
+                $ref: "#/components/schemas/Error"
   /auth/login:
     post:
-      tags: [auth]
+      tags:
+        - auth
       operationId: login
       summary: Sign in with a seeded username and password
       description: |
@@ -115,20 +127,27 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LoginRequest" }
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
           description: Signed in.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/TokenPair" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /auth/refresh:
     post:
-      tags: [auth]
+      tags:
+        - auth
       operationId: refreshToken
       summary: Rotate a refresh token
       description: |
@@ -142,19 +161,25 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/RefreshRequest" }
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
       responses:
         "200":
           description: New token pair.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/TokenPair" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /auth/logout:
     post:
-      tags: [auth]
+      tags:
+        - auth
       operationId: logout
       summary: End the current session
       description: Marks the session dead in the database; the access token stops working at once.
@@ -162,12 +187,16 @@ paths:
       x-jurisdiction: not applicable
       x-audit-event: AUTH_LOGOUT
       responses:
-        "204": { description: "Signed out." }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { $ref: "#/components/responses/ServerError" }
+        "204":
+          description: Signed out.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /me:
     get:
-      tags: [auth]
+      tags:
+        - auth
       operationId: getMe
       summary: The signed-in user, read from the database
       x-required-role: any authenticated user
@@ -179,13 +208,16 @@ paths:
           description: The caller.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/User" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { $ref: "#/components/responses/ServerError" }
-  # ---------------------------------------------------------------- cases
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /cases:
     get:
-      tags: [cases]
+      tags:
+        - cases
       operationId: listCases
       summary: Cases the caller may see (own cases and own jurisdiction)
       description: |
@@ -195,28 +227,37 @@ paths:
       x-jurisdiction: own case A / own jurisdiction A / other jurisdiction D (rows outside scope do not exist). ADMIN 404.
       x-audit-event: CASE_LISTED
       parameters:
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
         - name: case_number
           in: query
           description: Prefix match on the case number (officer app search).
-          schema: { type: string, maxLength: 64 }
+          schema:
+            type: string
+            maxLength: 64
         - name: district_id
           in: query
-          schema: { $ref: "#/components/schemas/Uuid" }
+          schema:
+            $ref: "#/components/schemas/Uuid"
       responses:
         "200":
           description: A page of cases.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/CasePage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/CasePage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /cases/{case_id}/entities:
     get:
-      tags: [cases]
+      tags:
+        - cases
       operationId: listCaseEntities
       summary: A case and its entities (people, phones, accounts, vehicles)
       description: |
@@ -227,50 +268,58 @@ paths:
       x-jurisdiction: own case A / own jurisdiction A / other jurisdiction D. Hidden case and ADMIN answer 404.
       x-audit-event: CASE_ENTITIES_VIEWED
       parameters:
-        - { $ref: "#/components/parameters/CaseId" }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+        - $ref: "#/components/parameters/CaseId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
         - name: type
           in: query
-          schema: { $ref: "#/components/schemas/EntityType" }
+          schema:
+            $ref: "#/components/schemas/EntityType"
       responses:
         "200":
           description: The case and a page of its entities.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/CaseEntitiesPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/CaseEntitiesPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /entities/{entity_id}:
     get:
-      tags: [cases]
+      tags:
+        - cases
       operationId: getEntity
       summary: One entity with its visible links and stubs
-      description: |
-        `links` are ALLOW links (at most 50, newest first; page the rest with `GET /links?entity_id=`). `stubs` are one
-        per hidden link, same shape whatever the link state, ordered by `stub_id`, after the visible items. A stub never
-        carries far-side fields. Under a grant the far entity shows only the granted link: no stubs, no counts, no other
-        links.
+      description: "`links` are ALLOW links (at most 50, newest first; page the rest with `GET /links?entity_id=`). `stubs` are one per hidden link, same shape whatever the link state, ordered by `stub_id`, after the visible items. A stub never carries far-side fields. Under a grant (`via_grant` true) the far entity shows only the granted link: `link_count` 1, `has_hidden_connection` false, `needs_review` false, `stubs` empty, provenance only for the cited lines."
       x-required-role: JUNIOR (all roles except ADMIN)
       x-jurisdiction: own case A / own jurisdiction A / other jurisdiction D; far entity under an active grant A for that one link only. Hidden entity and ADMIN answer 404.
       x-audit-event: ENTITY_VIEWED
       x-audit-note: A response that shows stubs also writes STUB_VIEWED (one row per response). `via_grant` is true when access came from a grant.
       parameters:
-        - { $ref: "#/components/parameters/EntityId" }
+        - $ref: "#/components/parameters/EntityId"
       responses:
         "200":
           description: The entity.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/EntityDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/EntityDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /search/entities:
     get:
-      tags: [cases]
+      tags:
+        - cases
       operationId: searchEntities
       summary: Find entities by value
       description: |
@@ -283,25 +332,35 @@ paths:
         - name: q
           in: query
           required: true
-          schema: { type: string, minLength: 2, maxLength: 100 }
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
         - name: type
           in: query
-          schema: { $ref: "#/components/schemas/EntityType" }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            $ref: "#/components/schemas/EntityType"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: Matching entities.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/EntityPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/EntityPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /documents/{document_id}/lines:
     get:
-      tags: [cases]
+      tags:
+        - cases
       operationId: getSourceLines
       summary: Source lines of a document
       description: |
@@ -317,36 +376,46 @@ paths:
         - name: document_id
           in: path
           required: true
-          schema: { type: string, minLength: 1, maxLength: 64 }
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
         - name: line_from
           in: query
           required: true
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
         - name: line_to
           in: query
           required: true
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: The requested lines (at most 200).
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/SourceLines" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
-  # ---------------------------------------------------------------- links
+              schema:
+                $ref: "#/components/schemas/SourceLines"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /links:
     get:
-      tags: [links]
+      tags:
+        - links
       operationId: listLinks
       summary: Links the caller may see, plus stubs for those they may not
-      description: |
-        ALLOW links first, then stubs ordered by `stub_id`. Stubs appear only for links with an end on a visible entity
-        of the caller. `total` counts ALLOW links only. Never lists rejected or undone links unless `state` asks for
-        them. For decisions work use `GET /review-queue`.
+      description: "ALLOW links first, then stubs ordered by `stub_id`. Stubs appear only for links with an end on a visible entity of the caller. **The stub set never depends on `state` or `entity_type`**: those filters narrow the visible links only, so stub counts cannot reveal the state of a hidden link. `total` counts ALLOW links only. Rejected and undone links are listed only when `state` asks for them. For decision work use `GET /review-queue`."
       x-required-role: JUNIOR (all roles except ADMIN)
       x-jurisdiction: both ends own case or own jurisdiction A; one end hidden R (stub); ADMIN 404
       x-audit-event: LINKS_LISTED
@@ -355,28 +424,37 @@ paths:
         - name: entity_id
           in: query
           description: Only links touching this entity (must be visible, else 404).
-          schema: { $ref: "#/components/schemas/Id" }
+          schema:
+            $ref: "#/components/schemas/Id"
         - name: state
           in: query
-          schema: { $ref: "#/components/schemas/LinkState" }
+          schema:
+            $ref: "#/components/schemas/LinkState"
         - name: entity_type
           in: query
-          schema: { $ref: "#/components/schemas/EntityType" }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            $ref: "#/components/schemas/EntityType"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of links and stubs.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LinkPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/LinkPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /links/{link_id}:
     get:
-      tags: [links]
+      tags:
+        - links
       operationId: getLink
       summary: One link in full
       description: |
@@ -387,19 +465,24 @@ paths:
       x-jurisdiction: both ends A (own case or own jurisdiction); either end other jurisdiction R -> 404 by id (use the stub); active grant on this link A read-only
       x-audit-event: LINK_VIEWED
       parameters:
-        - { $ref: "#/components/parameters/LinkId" }
+        - $ref: "#/components/parameters/LinkId"
       responses:
         "200":
           description: The link.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LinkDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/LinkDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /links/{link_id}/explanation:
     get:
-      tags: [links]
+      tags:
+        - links
       operationId: getLinkExplanation
       summary: Why the link exists (explanation payload)
       description: |
@@ -410,19 +493,24 @@ paths:
       x-jurisdiction: both ends A; either end other jurisdiction R -> 404 by id; active grant on this link A
       x-audit-event: EXPLANATION_VIEWED
       parameters:
-        - { $ref: "#/components/parameters/LinkId" }
+        - $ref: "#/components/parameters/LinkId"
       responses:
         "200":
           description: The explanation.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Explanation" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/Explanation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /links/{link_id}/confirm:
     post:
-      tags: [links]
+      tags:
+        - links
       operationId: confirmLink
       summary: Confirm a SUGGESTED or AUTO link
       description: |
@@ -434,27 +522,36 @@ paths:
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends; other jurisdiction -> 404 (hidden end); grant -> 403
       x-audit-event: LINK_CONFIRMED
       parameters:
-        - { $ref: "#/components/parameters/LinkId" }
+        - $ref: "#/components/parameters/LinkId"
       requestBody:
         required: false
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/ConfirmLinkRequest" }
+            schema:
+              $ref: "#/components/schemas/ConfirmLinkRequest"
       responses:
         "200":
           description: The link after the decision.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LinkDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/LinkDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /links/{link_id}/reject:
     post:
-      tags: [links]
+      tags:
+        - links
       operationId: rejectLink
       summary: Reject a SUGGESTED link
       description: |
@@ -465,27 +562,36 @@ paths:
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends; hidden end -> 404; grant -> 403
       x-audit-event: LINK_REJECTED
       parameters:
-        - { $ref: "#/components/parameters/LinkId" }
+        - $ref: "#/components/parameters/LinkId"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LinkReasonRequest" }
+            schema:
+              $ref: "#/components/schemas/LinkReasonRequest"
       responses:
         "200":
           description: The link after the decision.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LinkDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/LinkDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /links/{link_id}/undo:
     post:
-      tags: [links]
+      tags:
+        - links
       operationId: undoLink
       summary: Undo an AUTO or CONFIRMED link
       description: |
@@ -495,65 +601,76 @@ paths:
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends (A18); hidden end -> 404; grant -> 403
       x-audit-event: LINK_UNDONE
       parameters:
-        - { $ref: "#/components/parameters/LinkId" }
+        - $ref: "#/components/parameters/LinkId"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LinkReasonRequest" }
+            schema:
+              $ref: "#/components/schemas/LinkReasonRequest"
       responses:
         "200":
           description: The link after the decision.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LinkDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/LinkDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /links/{link_id}/reopen:
     post:
-      tags: [links]
+      tags:
+        - links
       operationId: reopenLink
       summary: Reopen a REJECTED or UNDONE link as SUGGESTED
-      description: |
-        REJECTED -> SUGGESTED and UNDONE -> SUGGESTED with a required reason (D34: surfaced in the admin panel review
-        queue under the Rejected filter). A reopened pair can end only in CONFIRMED by a human; a rerun never promotes
-        or withdraws it.
+      description: "REJECTED -> SUGGESTED and UNDONE -> SUGGESTED with a required reason (D34: surfaced in the admin panel review queue under the Rejected filter). A reopened pair is ended only by a human (CONFIRMED, or REJECTED again); it never becomes AUTO and a rerun never withdraws it."
       x-required-role: SUPERVISOR
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends; hidden end -> 404; grant -> 403
       x-audit-event: LINK_REOPENED
       parameters:
-        - { $ref: "#/components/parameters/LinkId" }
+        - $ref: "#/components/parameters/LinkId"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LinkReasonRequest" }
+            schema:
+              $ref: "#/components/schemas/LinkReasonRequest"
       responses:
         "200":
           description: The link after the decision.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LinkDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/LinkDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /review-queue:
     get:
-      tags: [links]
+      tags:
+        - links
       operationId: listReviewQueue
       summary: Links awaiting or open to a human decision
-      description: |
-        ALLOW items only; a stub never appears here and queue sizes count ALLOW items only. `state` defaults to
-        SUGGESTED. `REJECTED` and `UNDONE` list decided links so a SUPERVISOR or SENIOR can reopen them (D34). `AUTO`
-        lists strong links open to undo. Filters (`district_id`, `entity_type`, `waiting_days_min`) only narrow.
-        Each item carries the main reason (highest-contribution support item) as a template key plus params.
+      description: ALLOW items only; a stub never appears here and queue sizes count ALLOW items only. `state` defaults to SUGGESTED (Waiting). `REJECTED` and `UNDONE` list decided links so a SUPERVISOR or SENIOR can reopen them (D34). Filters (`district_id`, `entity_type`, `waiting_days_min`) only narrow. Each item carries the main reason (highest-contribution support item) as a template key plus params. ADMIN answers 404.
       x-required-role: JUNIOR (all roles except ADMIN); decisions need INVESTIGATOR or SUPERVISOR as stated on each action
       x-jurisdiction: both ends own case or own jurisdiction A; any hidden end excluded; ADMIN 404
       x-audit-event: REVIEW_QUEUE_VIEWED
@@ -562,74 +679,111 @@ paths:
           in: query
           schema:
             type: string
-            enum: [SUGGESTED, AUTO, REJECTED, UNDONE]
+            enum:
+              - SUGGESTED
+              - REJECTED
+              - UNDONE
             default: SUGGESTED
+          description: SUGGESTED is Waiting, REJECTED and UNDONE are the decided links open to reopen (D34, D43).
         - name: entity_type
           in: query
-          schema: { $ref: "#/components/schemas/EntityType" }
+          schema:
+            $ref: "#/components/schemas/EntityType"
         - name: district_id
           in: query
-          schema: { $ref: "#/components/schemas/Uuid" }
+          schema:
+            $ref: "#/components/schemas/Uuid"
         - name: waiting_days_min
           in: query
           description: Only links waiting at least this many days.
-          schema: { type: integer, minimum: 1, maximum: 365 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
         - name: sort
           in: query
           schema:
             type: string
-            enum: [waiting_since, score, entity_type]
+            enum:
+              - waiting_since
+              - score
+              - entity_type
             default: waiting_since
         - name: order
           in: query
-          schema: { type: string, enum: [asc, desc], default: asc }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of queue items.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ReviewQueuePage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
-  # ---------------------------------------------------------------- graph
+              schema:
+                $ref: "#/components/schemas/ReviewQueuePage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /entities/{entity_id}/graph:
     get:
-      tags: [graph]
+      tags:
+        - graph
       operationId: getEntityGraph
       summary: Per-viewer graph neighbours of an entity
       description: |
         Nodes and edges within `depth` hops over ALLOW links, capped at `limit` nodes (default 150, nearest first;
         `truncated` says so). A hidden link is an unlabelled leaf stub with no far-side edges. Degree counts ALLOW
         edges only.
+        Traversal runs over ALLOW edges only and is pruned at the first hidden edge; it is never a filter applied afterwards, so an entity reachable only through a hidden link does not appear. `truncated` is computed after pruning.
       x-required-role: JUNIOR (all roles except ADMIN)
       x-jurisdiction: entity and each edge A by own case or own jurisdiction; hidden edge R (leaf stub); ADMIN 404
       x-audit-event: GRAPH_VIEWED
       x-audit-note: A response with stubs also writes STUB_VIEWED.
       parameters:
-        - { $ref: "#/components/parameters/EntityId" }
+        - $ref: "#/components/parameters/EntityId"
         - name: depth
           in: query
-          schema: { type: integer, minimum: 1, maximum: 3, default: 1 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3
+            default: 1
         - name: limit
           in: query
-          schema: { type: integer, minimum: 1, maximum: 150, default: 150 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 150
+            default: 150
       responses:
         "200":
           description: The neighbourhood.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/GraphResponse" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/GraphResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /entities/{entity_id}/cluster:
     get:
-      tags: [graph]
+      tags:
+        - graph
       operationId: getEntityCluster
       summary: The identity cluster of an entity, as this viewer may see it
       description: |
@@ -638,55 +792,75 @@ paths:
         becomes a stub; members beyond it are not listed. No implied links are drawn. `cluster_id` is a fresh random
         handle for this response only: it is not derived from member ids, is not stable between calls and cannot be
         fetched.
+        Membership is computed by traversal over ALLOW active edges pruned at the first hidden edge, never filtered afterwards.
       x-required-role: JUNIOR (all roles except ADMIN)
       x-jurisdiction: member entities and links A by own case or own jurisdiction; hidden segment R (stub); ADMIN 404
       x-audit-event: GRAPH_VIEWED
       x-audit-note: A response with stubs also writes STUB_VIEWED.
       parameters:
-        - { $ref: "#/components/parameters/EntityId" }
+        - $ref: "#/components/parameters/EntityId"
       responses:
         "200":
           description: The cluster for this viewer.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ClusterResponse" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/ClusterResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /entities/{entity_id}/paths:
     get:
-      tags: [graph]
+      tags:
+        - graph
       operationId: getEntityPaths
       summary: Paths of active links leading out of an entity, as this viewer may see them
       description: |
         Each path is a list of segments over active links, up to `max_hops`. A segment is VISIBLE (link and far entity)
         or STUB; a stub ends its path: nothing beyond a hidden segment is listed. Path ids are random per response.
+        Paths are built over ALLOW edges and end at the first hidden segment.
       x-required-role: JUNIOR (all roles except ADMIN)
       x-jurisdiction: segments A by own case or own jurisdiction; hidden segment R (terminal stub); ADMIN 404
       x-audit-event: GRAPH_VIEWED
       x-audit-note: A response with stubs also writes STUB_VIEWED.
       parameters:
-        - { $ref: "#/components/parameters/EntityId" }
+        - $ref: "#/components/parameters/EntityId"
         - name: max_hops
           in: query
-          schema: { type: integer, minimum: 1, maximum: 4, default: 3 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4
+            default: 3
         - name: limit
           in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
       responses:
         "200":
           description: The paths for this viewer.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PathsResponse" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
-  # ---------------------------------------------------------------- access
+              schema:
+                $ref: "#/components/schemas/PathsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /stubs/{stub_id}:
     get:
-      tags: [access]
+      tags:
+        - access
       operationId: getStub
       summary: One stub (a hidden connection) and the caller's request status for it
       description: |
@@ -696,19 +870,24 @@ paths:
       x-jurisdiction: the stub's near entity is own case or own jurisdiction; far side never shown
       x-audit-event: STUB_VIEWED
       parameters:
-        - { $ref: "#/components/parameters/StubId" }
+        - $ref: "#/components/parameters/StubId"
       responses:
         "200":
           description: The stub.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Stub" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/Stub"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /access-requests:
     post:
-      tags: [access]
+      tags:
+        - access
       operationId: createAccessRequest
       summary: Ask for access through one stub
       description: |
@@ -723,21 +902,30 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CreateAccessRequest" }
+            schema:
+              $ref: "#/components/schemas/CreateAccessRequest"
       responses:
         "201":
           description: Request created, status PENDING.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccessRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AccessRequestMine"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
     get:
-      tags: [access]
+      tags:
+        - access
       operationId: listAccessRequests
       summary: Requests the caller made, or may decide
       description: |
@@ -747,72 +935,96 @@ paths:
         outside that authority do not exist for the caller.
       x-required-role: JUNIOR for scope=mine; SUPERVISOR for scope=to_decide
       x-jurisdiction: "mine: own requests; to_decide: far case in own district (SUPERVISOR) or coverage (SENIOR). ADMIN 404."
-      x-audit-event: STUB_VIEWED
-      x-audit-note: Every item shows a near-side stub, so a response writes STUB_VIEWED once.
+      x-audit-event: ACCESS_REQUEST_VIEWED
+      x-audit-note: Writes `request_ids`, `stub_ids`, `near_entity_ids`; replaces STUB_VIEWED on these routes.
       parameters:
         - name: scope
           in: query
           required: true
-          schema: { type: string, enum: [mine, to_decide] }
+          schema:
+            type: string
+            enum:
+              - mine
+              - to_decide
         - name: status
           in: query
-          schema: { $ref: "#/components/schemas/AccessRequestStatus" }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            $ref: "#/components/schemas/AccessRequestStatus"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of requests.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccessRequestPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AccessRequestPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /access-requests/{request_id}:
     get:
-      tags: [access]
+      tags:
+        - access
       operationId: getAccessRequest
       summary: One access request
       description: Visible to the requester and to an approver with authority over the far case; 404 for everyone else.
       x-required-role: JUNIOR (requester) or SUPERVISOR (approver)
       x-jurisdiction: "requester: own request; approver: far case in own district (SUPERVISOR) or coverage (SENIOR). Others 404."
-      x-audit-event: STUB_VIEWED
+      x-audit-event: ACCESS_REQUEST_VIEWED
       parameters:
-        - { $ref: "#/components/parameters/RequestId" }
+        - $ref: "#/components/parameters/RequestId"
       responses:
         "200":
           description: The request.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccessRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AccessRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+      x-audit-note: Writes `request_ids`, `stub_ids`, `near_entity_ids`; replaces STUB_VIEWED on these routes.
   /access-requests/{request_id}/withdraw:
     post:
-      tags: [access]
+      tags:
+        - access
       operationId: withdrawAccessRequest
       summary: Withdraw the caller's own PENDING request
       x-required-role: JUNIOR (the requester)
       x-jurisdiction: own request only
       x-audit-event: ACCESS_REQUEST_WITHDRAWN
       parameters:
-        - { $ref: "#/components/parameters/RequestId" }
+        - $ref: "#/components/parameters/RequestId"
       responses:
         "200":
           description: The request, now WITHDRAWN.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccessRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AccessRequestMine"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /access-requests/{request_id}/approve:
     post:
-      tags: [access]
+      tags:
+        - access
       operationId: approveAccessRequest
       summary: Approve a request and create the grant
       description: |
@@ -824,27 +1036,36 @@ paths:
       x-jurisdiction: far case in own district A (SUPERVISOR) or in coverage (SENIOR); otherwise 404
       x-audit-event: ACCESS_REQUEST_APPROVED
       parameters:
-        - { $ref: "#/components/parameters/RequestId" }
+        - $ref: "#/components/parameters/RequestId"
       requestBody:
         required: false
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/ApproveAccessRequest" }
+            schema:
+              $ref: "#/components/schemas/ApproveAccessRequest"
       responses:
         "200":
           description: The approved request with its grant.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccessRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AccessRequestToDecide"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /access-requests/{request_id}/deny:
     post:
-      tags: [access]
+      tags:
+        - access
       operationId: denyAccessRequest
       summary: Deny a request
       description: The optional note is shown to the requester; it is stored on the request, never in the audit log.
@@ -852,27 +1073,36 @@ paths:
       x-jurisdiction: far case in own district A (SUPERVISOR) or in coverage (SENIOR); otherwise 404
       x-audit-event: ACCESS_REQUEST_REJECTED
       parameters:
-        - { $ref: "#/components/parameters/RequestId" }
+        - $ref: "#/components/parameters/RequestId"
       requestBody:
         required: false
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/DenyAccessRequest" }
+            schema:
+              $ref: "#/components/schemas/DenyAccessRequest"
       responses:
         "200":
           description: The request, now DENIED.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccessRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AccessRequestToDecide"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /grants:
     get:
-      tags: [access]
+      tags:
+        - access
       operationId: listGrants
       summary: Grants the caller holds, or has authority over
       description: |
@@ -880,101 +1110,129 @@ paths:
         approving SUPERVISOR or SENIOR). A grant outside those two views does not exist for the caller.
       x-required-role: JUNIOR for scope=held; SUPERVISOR for scope=authority
       x-jurisdiction: "held: own grants; authority: far case in own district (SUPERVISOR) or coverage (SENIOR). ADMIN 404."
-      x-audit-event: NONE
-      x-audit-note: Gap in the audit spec (no grant-read event); returns grant metadata, no case data. See NEEDS in the PR.
+      x-audit-event: GRANT_VIEWED
+      x-audit-note: Writes `grant_ids`; refs are both ends of each link.
       parameters:
         - name: scope
           in: query
           required: true
-          schema: { type: string, enum: [held, authority] }
+          schema:
+            type: string
+            enum:
+              - held
+              - authority
         - name: status
           in: query
-          schema: { $ref: "#/components/schemas/GrantStatus" }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            $ref: "#/components/schemas/GrantStatus"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of grants.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/GrantPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/GrantPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /grants/{grant_id}:
     get:
-      tags: [access]
+      tags:
+        - access
       operationId: getGrant
       summary: One grant
       description: The holder and an authority over the far case see it; anyone else gets 404.
       x-required-role: JUNIOR (holder) or SUPERVISOR (authority)
       x-jurisdiction: "holder: own grant; authority: far case in own district or coverage; others 404"
-      x-audit-event: NONE
-      x-audit-note: Gap in the audit spec (no grant-read event); returns grant metadata, no case data. See NEEDS in the PR.
+      x-audit-event: GRANT_VIEWED
+      x-audit-note: Writes `grant_ids`; refs are both ends of each link.
       parameters:
-        - { $ref: "#/components/parameters/GrantId" }
+        - $ref: "#/components/parameters/GrantId"
       responses:
         "200":
           description: The grant.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Grant" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/Grant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /grants/{grant_id}/revoke:
     post:
-      tags: [access]
+      tags:
+        - access
       operationId: revokeGrant
       summary: Revoke an ACTIVE grant (effective on the holder's next request)
       x-required-role: SUPERVISOR
       x-jurisdiction: far case in own district A (SUPERVISOR) or in coverage (SENIOR); otherwise 404
       x-audit-event: ACCESS_GRANT_REVOKED
       parameters:
-        - { $ref: "#/components/parameters/GrantId" }
+        - $ref: "#/components/parameters/GrantId"
       responses:
         "200":
           description: The grant, now REVOKED.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Grant" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
-  # ---------------------------------------------------------------- ingest
+              schema:
+                $ref: "#/components/schemas/GrantAuthority"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /uploads:
     post:
-      tags: [ingest]
+      tags:
+        - ingest
       operationId: uploadFiles
       summary: Upload case material
-      description: |
-        One batch per file. The response carries batch ids and file facts only: no case ids, no content, no totals
-        about case data. Parsing runs after the response (status moves WAITING, READING, DONE, FAILED).
+      description: "One batch per file. `case_number` is unique per district, so the pair (`district_id`, `case_number`) names the case. The response is identical for a new and an existing case: batch ids and file facts only, no case id, title or created flag, no different status or error. Accepted residual: an ADMIN can learn that a case number exists in a district they name (also through `input_case_count` and a proposal's 422). Parsing runs after the response (status moves WAITING, READING, DONE, FAILED)."
       x-required-role: ADMIN
       x-jurisdiction: system-wide (A/A/A); the response never reveals case data
       x-audit-event: DATA_UPLOADED
-      x-audit-note: One row per accepted file, with `file_sha256`, `byte_count`, `document_count`.
+      x-audit-note: One row per accepted file, with `file_sha256`, `byte_count`, `document_count`; `refs` holds the target case.
       requestBody:
         required: true
         content:
           multipart/form-data:
-            schema: { $ref: "#/components/schemas/UploadRequest" }
+            schema:
+              $ref: "#/components/schemas/UploadRequest"
       responses:
         "202":
           description: Accepted, one batch per file.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/UploadResponse" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
     get:
-      tags: [ingest]
+      tags:
+        - ingest
       operationId: listUploads
       summary: Upload batches and their status
       x-required-role: ADMIN
@@ -982,21 +1240,27 @@ paths:
       x-audit-event: NONE
       x-audit-note: System metadata (file name, hash, status); no case data. Uploads are audited when accepted.
       parameters:
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of batches.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/UploadBatchPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/UploadBatchPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /uploads/{batch_id}:
     get:
-      tags: [ingest]
+      tags:
+        - ingest
       operationId: getUpload
       summary: One upload batch
       x-required-role: ADMIN
@@ -1004,42 +1268,59 @@ paths:
       x-audit-event: NONE
       x-audit-note: System metadata; no case data.
       parameters:
-        - { $ref: "#/components/parameters/BatchId" }
+        - $ref: "#/components/parameters/BatchId"
       responses:
         "200":
           description: The batch.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/UploadBatch" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/UploadBatch"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /matching/runs:
     post:
-      tags: [ingest]
+      tags:
+        - ingest
       operationId: startMatchingRun
       summary: Start a matching run over all cases
-      description: |
-        Runs are batch and jurisdiction-blind. The run reads `thresholds_version` once at start. The engine returns
-        transition records; the API writes the link rows and the audit rows (LINK_AUTO_CREATED, LINK_SUGGESTED,
-        LINK_DEMOTED, with a SYSTEM actor). 409 `RUN_IN_PROGRESS` if one is already running.
+      description: Runs are batch and jurisdiction-blind, over every loaded case or the optional `cases` scope. The run reads `thresholds_version` once at start. The engine returns transition records; the API writes the link rows and the audit rows (LINK_AUTO_CREATED, LINK_SUGGESTED, LINK_DEMOTED, LINK_PROMOTED, LINK_WITHDRAWN, SYSTEM actor). A WITHDRAWN link keeps its row in state WITHDRAWN (never deleted, never readable, not block-listed). 409 `RUN_IN_PROGRESS` if one is already running.
       x-required-role: ADMIN
       x-jurisdiction: system-wide (A/A/A); the response carries system-wide totals only
       x-audit-event: MATCHING_RUN_STARTED
-      x-audit-note: MATCHING_RUN_COMPLETED is written by the system when the run ends, with system-wide `auto_count` and `suggested_count`.
+      x-audit-note: MATCHING_RUN_COMPLETED is written by the system when the run ends, with system-wide `auto_count` and `suggested_count`. Each transition record is audited as stated above.
       responses:
         "202":
           description: Run started.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/MatchRun" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/MatchRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRunRequest"
     get:
-      tags: [ingest]
+      tags:
+        - ingest
       operationId: listMatchingRuns
       summary: Matching runs, newest first
       x-required-role: ADMIN
@@ -1047,21 +1328,27 @@ paths:
       x-audit-event: NONE
       x-audit-note: System-wide counts, no case data. Runs are audited at start and end.
       parameters:
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of runs.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/MatchRunPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/MatchRunPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /matching/runs/{run_id}:
     get:
-      tags: [ingest]
+      tags:
+        - ingest
       operationId: getMatchingRun
       summary: One matching run
       x-required-role: ADMIN
@@ -1069,21 +1356,26 @@ paths:
       x-audit-event: NONE
       x-audit-note: System-wide counts, no case data.
       parameters:
-        - { $ref: "#/components/parameters/RunId" }
+        - $ref: "#/components/parameters/RunId"
       responses:
         "200":
           description: The run.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/MatchRun" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
-  # ---------------------------------------------------------------- admin
+              schema:
+                $ref: "#/components/schemas/MatchRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /jurisdictions:
     get:
-      tags: [admin]
+      tags:
+        - admin
       operationId: listJurisdictions
       summary: States and their districts
       x-required-role: any authenticated user
@@ -1095,12 +1387,16 @@ paths:
           description: All states with districts.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/JurisdictionList" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/JurisdictionList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /roles:
     get:
-      tags: [admin]
+      tags:
+        - admin
       operationId: listRoles
       summary: The five roles with i18n keys for their names and descriptions
       x-required-role: any authenticated user
@@ -1112,12 +1408,16 @@ paths:
           description: The roles.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/RoleList" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/RoleList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /users:
     get:
-      tags: [admin]
+      tags:
+        - admin
       operationId: listUsers
       summary: Users the caller may see
       description: |
@@ -1130,25 +1430,33 @@ paths:
       parameters:
         - name: role
           in: query
-          schema: { $ref: "#/components/schemas/Role" }
+          schema:
+            $ref: "#/components/schemas/Role"
         - name: active
           in: query
-          schema: { type: boolean }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of users.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/UserPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/UserPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /users/{user_id}:
     get:
-      tags: [admin]
+      tags:
+        - admin
       operationId: getUser
       summary: One user
       x-required-role: SENIOR or ADMIN
@@ -1156,20 +1464,26 @@ paths:
       x-audit-event: NONE
       x-audit-note: Account metadata; no case data.
       parameters:
-        - { $ref: "#/components/parameters/UserId" }
+        - $ref: "#/components/parameters/UserId"
       responses:
         "200":
           description: The user.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/User" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /thresholds:
     get:
-      tags: [admin]
+      tags:
+        - admin
       operationId: getThresholds
       summary: Current match thresholds (0 to 100 scale)
       description: "Bands: High at or above `high_min`, Medium from `medium_min`, Low below it (never stored). Changes go through `POST /pending-changes` with kind THRESHOLDS and need a SENIOR with all-state coverage."
@@ -1182,19 +1496,25 @@ paths:
           description: Current thresholds.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Thresholds" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/Thresholds"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /pending-changes:
     post:
-      tags: [admin]
+      tags:
+        - admin
       operationId: proposeChange
       summary: Propose a change to users, roles, jurisdictions, assignments or thresholds
       description: |
         Nothing applies until a SENIOR approves. The server records `old_value` itself and computes `change_hash`
         (SHA-256 of the canonical content). Thresholds: 70 <= high_min <= 100 and 30 <= medium_min <= high_min - 10.
         Case assignments name the case by `case_number`; an unknown number answers the same 422 as an invalid one.
+        USER_CREATE makes an account with no usable password; a login for it fails exactly like a wrong password. No route sets or resets a password.
       x-required-role: ADMIN
       x-jurisdiction: system-wide (A/A/A); the proposal exposes no case data
       x-audit-event: CHANGE_PROPOSED
@@ -1202,72 +1522,94 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/ProposeChangeRequest" }
+            schema:
+              $ref: "#/components/schemas/ProposeChangeRequest"
       responses:
         "201":
           description: Proposal recorded, state PENDING.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PendingChange" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/PendingChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
     get:
-      tags: [admin]
+      tags:
+        - admin
       operationId: listPendingChanges
       summary: Pending changes the caller proposed or may decide
       description: |
         ADMIN sees changes they proposed. A SENIOR sees changes whose subject jurisdiction (old and new) lies in their
         coverage; threshold changes only to a SENIOR with all-state coverage. Others do not exist for the caller.
       x-required-role: SENIOR or ADMIN
-      x-jurisdiction: "ADMIN: own proposals. SENIOR: subject inside coverage (thresholds: all-state coverage)."
-      x-audit-event: NONE
-      x-audit-note: Change metadata holds ids, roles and settings only; no case data. Gap noted in the PR.
+      x-jurisdiction: "ADMIN: own proposals. SENIOR: changes whose every touched jurisdiction is inside coverage (all-state coverage for thresholds, ADMIN subjects, role changes to or from SENIOR or ADMIN)."
+      x-audit-event: CHANGE_VIEWED
+      x-audit-note: Writes `change_ids`; refs are the case of any assignment change.
       parameters:
         - name: state
           in: query
-          schema: { $ref: "#/components/schemas/ChangeState" }
+          schema:
+            $ref: "#/components/schemas/ChangeState"
         - name: kind
           in: query
-          schema: { $ref: "#/components/schemas/ChangeKind" }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            $ref: "#/components/schemas/ChangeKind"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of changes.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PendingChangePage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/PendingChangePage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /pending-changes/{change_id}:
     get:
-      tags: [admin]
+      tags:
+        - admin
       operationId: getPendingChange
       summary: One pending change
       x-required-role: SENIOR or ADMIN
-      x-jurisdiction: "ADMIN: own proposals. SENIOR: subject inside coverage. Others 404."
-      x-audit-event: NONE
-      x-audit-note: Change metadata; no case data.
+      x-jurisdiction: "ADMIN: own proposals. SENIOR: every touched jurisdiction inside coverage. Others 404."
+      x-audit-event: CHANGE_VIEWED
+      x-audit-note: Writes `change_ids`; refs are the case of any assignment change.
       parameters:
-        - { $ref: "#/components/parameters/ChangeId" }
+        - $ref: "#/components/parameters/ChangeId"
       responses:
         "200":
           description: The change.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PendingChange" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/PendingChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /pending-changes/{change_id}/approve:
     post:
-      tags: [admin]
+      tags:
+        - admin
       operationId: approveChange
       summary: Approve a pending change and apply it
       description: |
@@ -1277,53 +1619,68 @@ paths:
         proposer and not the subject (403). Applying a change that alters a user's role, jurisdiction, assignment or
         active flag bumps that user's `authz_version`: old tokens 401, refresh tokens revoked, grants closed.
       x-required-role: SENIOR
-      x-jurisdiction: SENIOR whose coverage includes the subject's jurisdiction (old and new); thresholds need all-state coverage; outside coverage -> 404
+      x-jurisdiction: "SENIOR whose coverage includes every jurisdiction the change touches, old and new (an assignment change also the district of the case; USER_CREATE and USER_JURISDICTION: new coverage a subset of the approver's); an ADMIN subject, a role change to or from SENIOR or ADMIN, and thresholds need all-state coverage; otherwise 404"
       x-audit-event: CHANGE_APPROVED
       x-audit-note: When applied, also USER_CREATED / USER_ENABLED / USER_DISABLED / ASSIGNMENT_CHANGED, and ACCESS_GRANT_CLOSED (cause ROLE_CHANGE) for closed grants.
       parameters:
-        - { $ref: "#/components/parameters/ChangeId" }
+        - $ref: "#/components/parameters/ChangeId"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/ApproveChangeRequest" }
+            schema:
+              $ref: "#/components/schemas/ApproveChangeRequest"
       responses:
         "200":
           description: The change, now APPROVED and applied.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PendingChange" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/PendingChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /pending-changes/{change_id}/deny:
     post:
-      tags: [admin]
+      tags:
+        - admin
       operationId: denyChange
       summary: Deny a pending change
       x-required-role: SENIOR
-      x-jurisdiction: SENIOR whose coverage includes the subject's jurisdiction; thresholds need all-state coverage; outside coverage -> 404
+      x-jurisdiction: "SENIOR whose coverage includes every jurisdiction the change touches, old and new (an assignment change also the district of the case; USER_CREATE and USER_JURISDICTION: new coverage a subset of the approver's); an ADMIN subject, a role change to or from SENIOR or ADMIN, and thresholds need all-state coverage; otherwise 404"
       x-audit-event: CHANGE_DENIED
       parameters:
-        - { $ref: "#/components/parameters/ChangeId" }
+        - $ref: "#/components/parameters/ChangeId"
       responses:
         "200":
           description: The change, now DENIED.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PendingChange" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/ServerError" }
-  # ---------------------------------------------------------------- audit
+              schema:
+                $ref: "#/components/schemas/PendingChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /audit:
     get:
-      tags: [audit]
+      tags:
+        - audit
       operationId: listAudit
       summary: Read the audit log under the row-level rule
       description: |
@@ -1334,9 +1691,7 @@ paths:
         coverage), including the actor's denied probes; or
         (c) `refs` is non-empty and the reader has ALLOW on every case in `refs`, judged by **case-level access**
         (own case, own jurisdiction or coverage); a grant never counts; or
-        (d) the row **references no cases** (`refs` empty) and is a system event (AUTH_*, DATA_UPLOADED,
-        MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN or SENIOR. Rule (d) never admits a row that
-        references a case.
+        (d) the row **references no cases** (`refs` empty) and is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN, or a SENIOR for whom every user and district the row names (target, subject, old and new values; an actor without a jurisdiction, such as ADMIN or SYSTEM, does not count) lies inside their coverage. An all-state SENIOR sees every such row. Rule (d) never admits a row that references a case.
 
         Rows that fail the rule do not exist for the reader: no placeholder, no gap, no count. For a row shown under (a)
         or (b) that references a case the reader cannot see, hidden `refs` entries, every field owned by those cases
@@ -1355,47 +1710,79 @@ paths:
       parameters:
         - name: event_type
           in: query
-          schema: { $ref: "#/components/schemas/AuditEventType" }
+          schema:
+            $ref: "#/components/schemas/AuditEventType"
         - name: outcome
           in: query
-          schema: { type: string, enum: [SUCCESS, DENIED, FAILED] }
+          schema:
+            type: string
+            enum:
+              - SUCCESS
+              - DENIED
+              - FAILED
         - name: actor_user_id
           in: query
-          schema: { $ref: "#/components/schemas/Uuid" }
+          schema:
+            $ref: "#/components/schemas/Uuid"
         - name: case_id
           in: query
-          schema: { type: string, maxLength: 64 }
+          schema:
+            type: string
+            maxLength: 64
         - name: target_id
           in: query
-          schema: { type: string, maxLength: 128 }
+          schema:
+            type: string
+            maxLength: 128
         - name: occurred_from
           in: query
-          schema: { type: string, format: date-time }
+          schema:
+            type: string
+            format: date-time
         - name: occurred_to
           in: query
-          schema: { type: string, format: date-time }
+          schema:
+            type: string
+            format: date-time
         - name: sort
           in: query
           description: Visible fields only.
-          schema: { type: string, enum: [occurred_at, event_type, outcome], default: occurred_at }
+          schema:
+            type: string
+            enum:
+              - occurred_at
+              - event_type
+              - outcome
+            default: occurred_at
         - name: order
           in: query
-          schema: { type: string, enum: [asc, desc], default: desc }
-        - { $ref: "#/components/parameters/Limit" }
-        - { $ref: "#/components/parameters/Cursor" }
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
       responses:
         "200":
           description: A page of audit rows the reader may see.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AuditPage" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "422": { $ref: "#/components/responses/Unprocessable" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AuditPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /audit/verify:
     post:
-      tags: [audit]
+      tags:
+        - audit
       operationId: verifyAuditChain
       summary: Verify the audit hash chain against the external anchor
       description: |
@@ -1409,10 +1796,39 @@ paths:
           description: Verification result.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AuditVerifyResult" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "500": { $ref: "#/components/responses/ServerError" }
+              schema:
+                $ref: "#/components/schemas/AuditVerifyResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /stats/links:
+    get:
+      tags:
+        - ingest
+      operationId: getLinkTotals
+      summary: System-wide link totals by state (ADMIN only)
+      description: One object of totals. No parameters, no breakdown by state-of-case, district, case, entity type or officer, no time series, no list. Officer roles get 404; they keep ALLOW-only counts. `/review-queue` stays 404 for ADMIN.
+      x-required-role: ADMIN
+      x-jurisdiction: system-wide totals only (A/A/A); no case data
+      x-audit-event: NONE
+      x-audit-note: System-wide counts, no case data (ruling N2).
+      responses:
+        "200":
+          description: Totals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkTotals"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+          description: Any non-ADMIN caller.
+        "500":
+          $ref: "#/components/responses/ServerError"
 components:
   securitySchemes:
     bearerAuth:
@@ -1424,115 +1840,151 @@ components:
     Limit:
       name: limit
       in: query
-      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
     Cursor:
       name: cursor
       in: query
-      description: Opaque paging cursor from a previous response. Signed and bound to the reader and filters; any mismatch is 422 `VALIDATION_FAILED`.
-      schema: { $ref: "#/components/schemas/Cursor" }
+      description: Opaque paging cursor from a previous response. Encrypted, bound to the reader and filters, expires after 15 minutes; any mismatch is 422 `VALIDATION_FAILED`.
+      schema:
+        $ref: "#/components/schemas/Cursor"
     CaseId:
       name: case_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Id" }
+      schema:
+        $ref: "#/components/schemas/Id"
     EntityId:
       name: entity_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Id" }
+      schema:
+        $ref: "#/components/schemas/Id"
     LinkId:
       name: link_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
     StubId:
       name: stub_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
     RequestId:
       name: request_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
     GrantId:
       name: grant_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
     BatchId:
       name: batch_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
     RunId:
       name: run_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
     UserId:
       name: user_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
     ChangeId:
       name: change_id
       in: path
       required: true
-      schema: { $ref: "#/components/schemas/Uuid" }
+      schema:
+        $ref: "#/components/schemas/Uuid"
   responses:
     Unauthorized:
       description: Missing, malformed, expired or badly signed token, stale `ver`, dead session, or bad credentials. Audited (AUTH_TOKEN_REJECTED or AUTH_LOGIN_FAILED).
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { code: UNAUTHENTICATED, message_key: error.unauthenticated }
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: UNAUTHENTICATED
+            message_key: error.unauthenticated
     Forbidden:
       description: The caller can see the thing but their role does not permit the action. Audited (ACCESS_DENIED). Never used to hide that something exists.
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { code: FORBIDDEN, message_key: error.forbidden }
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: FORBIDDEN
+            message_key: error.forbidden
     NotFound:
       description: Unknown or not visible to the caller. Body and headers are identical for both. Audited (ACCESS_DENIED, target UNRESOLVED, no case reference).
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { code: NOT_FOUND, message_key: error.not_found }
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: NOT_FOUND
+            message_key: error.not_found
     Conflict:
       description: The state does not allow it (invalid transition, stale hash, cooldown, last approver, run in progress).
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { code: INVALID_TRANSITION, message_key: error.invalid_transition }
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: INVALID_TRANSITION
+            message_key: error.invalid_transition
     Unprocessable:
       description: Input invalid, including a bad or foreign cursor.
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
+          schema:
+            $ref: "#/components/schemas/Error"
           example:
             code: VALIDATION_FAILED
             message_key: error.validation_failed
             field_errors:
-              - { field: reason, code: too_short }
+              - field: reason
+                code: too_short
     TooManyRequests:
       description: Login throttled (5 failures per username string and IP in 15 minutes), applied whether or not the username exists.
       headers:
         Retry-After:
           description: Seconds until sign-in may be tried again.
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { code: TOO_MANY_REQUESTS, message_key: error.too_many_requests }
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: TOO_MANY_REQUESTS
+            message_key: error.too_many_requests
     ServerError:
       description: "Includes failure to append the audit row (fail closed): no data is returned."
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { code: INTERNAL, message_key: error.internal }
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: INTERNAL
+            message_key: error.internal
   schemas:
-    # ---- primitives
     Uuid:
       type: string
       format: uuid
@@ -1543,20 +1995,38 @@ components:
       description: Case or entity id as issued by the API (a UUID or the seeded id such as `C-101`). Opaque to clients.
     Cursor:
       type: string
-      pattern: "^[A-Za-z0-9_-]{16,1024}$"
-      description: Opaque signed token. Do not parse.
+      pattern: ^[A-Za-z0-9_-]{16,1024}$
+      description: Opaque encrypted token. Do not parse; it carries no sequence number or id.
     Role:
       type: string
-      enum: [JUNIOR, INVESTIGATOR, SUPERVISOR, SENIOR, ADMIN]
+      enum:
+        - JUNIOR
+        - INVESTIGATOR
+        - SUPERVISOR
+        - SENIOR
+        - ADMIN
     EntityType:
       type: string
-      enum: [PERSON, ORG, PHONE, ACCOUNT, VEHICLE]
+      enum:
+        - PERSON
+        - ORG
+        - PHONE
+        - ACCOUNT
+        - VEHICLE
     LinkState:
       type: string
-      enum: [AUTO, SUGGESTED, CONFIRMED, REJECTED, UNDONE]
+      enum:
+        - AUTO
+        - SUGGESTED
+        - CONFIRMED
+        - REJECTED
+        - UNDONE
     Band:
       type: string
-      enum: [HIGH, MEDIUM, LOW]
+      enum:
+        - HIGH
+        - MEDIUM
+        - LOW
     ErrorCode:
       type: string
       enum:
@@ -1579,12 +2049,15 @@ components:
     Error:
       type: object
       additionalProperties: false
-      required: [code, message_key]
+      required:
+        - code
+        - message_key
       properties:
-        code: { $ref: "#/components/schemas/ErrorCode" }
+        code:
+          $ref: "#/components/schemas/ErrorCode"
         message_key:
           type: string
-          pattern: "^error\\.[a-z_]+$"
+          pattern: ^error\.[a-z_]+$
           description: i18n key; the client owns the wording. Fixed per code.
         field_errors:
           type: array
@@ -1592,621 +2065,986 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [field, code]
+            required:
+              - field
+              - code
             properties:
-              field: { type: string }
-              code: { type: string, pattern: "^[a-z_]+$" }
+              field:
+                type: string
+              code:
+                type: string
+                pattern: ^[a-z_]+$
     HealthStatus:
       type: object
       additionalProperties: false
-      required: [status]
+      required:
+        - status
       properties:
-        status: { type: string, enum: [ok] }
-    # ---- auth and users
+        status:
+          type: string
+          enum:
+            - ok
     LoginRequest:
       type: object
       additionalProperties: false
-      required: [username, password]
+      required:
+        - username
+        - password
       properties:
-        username: { type: string, minLength: 1, maxLength: 64 }
-        password: { type: string, minLength: 1, maxLength: 256, format: password, writeOnly: true }
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+          format: password
+          writeOnly: true
     RefreshRequest:
       type: object
       additionalProperties: false
-      required: [refresh_token]
+      required:
+        - refresh_token
       properties:
-        refresh_token: { type: string, minLength: 16, maxLength: 2048 }
+        refresh_token:
+          type: string
+          minLength: 16
+          maxLength: 2048
     TokenPair:
       type: object
       additionalProperties: false
-      required: [access_token, refresh_token, token_type, expires_in, refresh_expires_in, user]
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in
+        - refresh_expires_in
+        - user
       properties:
-        access_token: { type: string }
-        refresh_token: { type: string }
-        token_type: { type: string, enum: [Bearer] }
-        expires_in: { type: integer, const: 900, description: "Seconds (15 minutes)." }
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_in:
+          type: integer
+          const: 900
+          description: Seconds (15 minutes).
         refresh_expires_in:
-          { type: integer, description: "Seconds left of the 8 hour absolute lifetime." }
-        user: { $ref: "#/components/schemas/User" }
+          type: integer
+          description: Seconds left of the 8 hour absolute lifetime.
+        user:
+          $ref: "#/components/schemas/User"
     Coverage:
       type: object
       additionalProperties: false
-      required: [state_ids, district_ids]
+      required:
+        - state_ids
+        - district_ids
       description: SENIOR coverage set. Seeded; one SENIOR covers all states.
       properties:
-        all_states: { type: boolean, description: "True for the central desk." }
+        all_states:
+          type: boolean
+          description: True for the central desk.
         state_ids:
           type: array
-          items: { $ref: "#/components/schemas/Uuid" }
+          items:
+            $ref: "#/components/schemas/Uuid"
         district_ids:
           type: array
-          items: { $ref: "#/components/schemas/Uuid" }
+          items:
+            $ref: "#/components/schemas/Uuid"
     User:
       type: object
       additionalProperties: false
-      required: [user_id, username, display_name, role, active]
+      required:
+        - user_id
+        - username
+        - display_name
+        - role
+        - active
       properties:
-        user_id: { $ref: "#/components/schemas/Uuid" }
-        username: { type: string }
-        display_name: { type: string }
-        role: { $ref: "#/components/schemas/Role" }
+        user_id:
+          $ref: "#/components/schemas/Uuid"
+        username:
+          type: string
+        display_name:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
         district_id:
-          oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }]
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
           description: One district for JUNIOR to SUPERVISOR; null for SENIOR and ADMIN.
         coverage:
-          oneOf: [{ $ref: "#/components/schemas/Coverage" }, { type: "null" }]
+          oneOf:
+            - $ref: "#/components/schemas/Coverage"
+            - type: "null"
           description: SENIOR only.
-        active: { type: boolean }
+        active:
+          type: boolean
         assignment_count:
-          {
-            type: integer,
-            minimum: 0,
-            description: "Number of assigned cases; ids are never shown here.",
-          }
+          type: integer
+          minimum: 0
+          description: Number of assigned cases; ids are never shown here.
     UserPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/User" }
+              items:
+                $ref: "#/components/schemas/User"
     RoleInfo:
       type: object
       additionalProperties: false
-      required: [role, name_key, description_key, scope]
+      required:
+        - role
+        - name_key
+        - description_key
+        - scope
       properties:
-        role: { $ref: "#/components/schemas/Role" }
-        name_key: { type: string, pattern: "^role\\.[a-z_]+\\.name$" }
-        description_key: { type: string, pattern: "^role\\.[a-z_]+\\.description$" }
-        scope: { type: string, enum: [DISTRICT, COVERAGE, NONE] }
+        role:
+          $ref: "#/components/schemas/Role"
+        name_key:
+          type: string
+          pattern: ^role\.[a-z_]+\.name$
+        description_key:
+          type: string
+          pattern: ^role\.[a-z_]+\.description$
+        scope:
+          type: string
+          enum:
+            - DISTRICT
+            - COVERAGE
+            - NONE
     RoleList:
       type: object
       additionalProperties: false
-      required: [items]
+      required:
+        - items
       properties:
         items:
           type: array
-          items: { $ref: "#/components/schemas/RoleInfo" }
+          items:
+            $ref: "#/components/schemas/RoleInfo"
     District:
       type: object
       additionalProperties: false
-      required: [district_id, name]
+      required:
+        - district_id
+        - name
       properties:
-        district_id: { $ref: "#/components/schemas/Uuid" }
-        name: { type: string }
+        district_id:
+          $ref: "#/components/schemas/Uuid"
+        name:
+          type: string
     State:
       type: object
       additionalProperties: false
-      required: [state_id, name, districts]
+      required:
+        - state_id
+        - name
+        - districts
       properties:
-        state_id: { $ref: "#/components/schemas/Uuid" }
-        name: { type: string }
+        state_id:
+          $ref: "#/components/schemas/Uuid"
+        name:
+          type: string
         districts:
           type: array
-          items: { $ref: "#/components/schemas/District" }
+          items:
+            $ref: "#/components/schemas/District"
     JurisdictionList:
       type: object
       additionalProperties: false
-      required: [items]
+      required:
+        - items
       properties:
         items:
           type: array
-          items: { $ref: "#/components/schemas/State" }
-    # ---- paging
+          items:
+            $ref: "#/components/schemas/State"
     PageBase:
       type: object
-      required: [next_cursor]
+      required:
+        - next_cursor
       properties:
         next_cursor:
-          oneOf: [{ $ref: "#/components/schemas/Cursor" }, { type: "null" }]
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
           description: Null on the last page and on every empty page.
         total:
           type: integer
           minimum: 0
           description: Counts items the caller may see (ALLOW) only.
-    # ---- cases and entities
     CaseRef:
       type: object
       additionalProperties: false
-      required: [case_id, case_number, district_id]
+      required:
+        - case_id
+        - case_number
+        - district_id
       properties:
-        case_id: { $ref: "#/components/schemas/Id" }
-        case_number: { type: string }
-        title: { type: string }
-        district_id: { $ref: "#/components/schemas/Uuid" }
+        case_id:
+          $ref: "#/components/schemas/Id"
+        case_number:
+          type: string
+        title:
+          type: string
+        district_id:
+          $ref: "#/components/schemas/Uuid"
     CaseSummary:
       allOf:
-        - { $ref: "#/components/schemas/CaseRef" }
+        - $ref: "#/components/schemas/CaseRef"
         - type: object
-          required: [opened_on, linked_item_count]
+          required:
+            - opened_on
+            - linked_item_count
           properties:
-            opened_on: { type: string, format: date }
+            opened_on:
+              type: string
+              format: date
             linked_item_count:
               type: integer
               minimum: 0
               description: Entities of this case that appear in other cases through ALLOW links.
             is_assigned:
-              { type: boolean, description: "True when the caller is assigned to the case." }
+              type: boolean
+              description: True when the caller is assigned to the case.
     CasePage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/CaseSummary" }
+              items:
+                $ref: "#/components/schemas/CaseSummary"
     EntitySummary:
       type: object
       additionalProperties: false
       required:
-        [
-          entity_id,
-          case_id,
-          type,
-          display_value,
-          masked,
-          link_count,
-          has_hidden_connection,
-          needs_review,
-        ]
+        - entity_id
+        - case_id
+        - type
+        - display_value
+        - masked
+        - link_count
+        - has_hidden_connection
+        - needs_review
+        - via_grant
       properties:
-        entity_id: { $ref: "#/components/schemas/Id" }
-        case_id: { $ref: "#/components/schemas/Id" }
-        type: { $ref: "#/components/schemas/EntityType" }
+        entity_id:
+          $ref: "#/components/schemas/Id"
+        case_id:
+          $ref: "#/components/schemas/Id"
+        type:
+          $ref: "#/components/schemas/EntityType"
         display_value:
           type: string
           description: Name, number or registration as stored, or its masked form when `masked` is true.
-        masked: { type: boolean }
-        link_count: { type: integer, minimum: 0, description: "ALLOW links only." }
+        masked:
+          type: boolean
+          description: True when any value in this object (`display_value`, a fact) was masked; the full value then appears nowhere in the response.
+        link_count:
+          type: integer
+          minimum: 0
+          description: ALLOW links only.
         has_hidden_connection:
-          { type: boolean, description: "True when at least one stub exists for this entity." }
+          type: boolean
+          description: True when at least one stub exists for this entity.
         needs_review:
-          { type: boolean, description: "An ALLOW SUGGESTED link waits on this entity." }
+          type: boolean
+          description: An ALLOW SUGGESTED link waits on this entity.
+        via_grant:
+          type: boolean
+          description: True when the caller reaches this entity only through a grant.
+      allOf:
+        - if:
+            properties:
+              via_grant:
+                const: true
+            required:
+              - via_grant
+          then:
+            properties:
+              link_count:
+                const: 1
+              has_hidden_connection:
+                const: false
+              needs_review:
+                const: false
     EntityPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/EntitySummary" }
+              items:
+                $ref: "#/components/schemas/EntitySummary"
     CaseEntitiesPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [case, items]
+          required:
+            - case
+            - items
           properties:
-            case: { $ref: "#/components/schemas/CaseSummary" }
+            case:
+              $ref: "#/components/schemas/CaseSummary"
             counts_by_type:
               type: object
               description: Entity count per type for the group headings.
-              additionalProperties: { type: integer, minimum: 0 }
+              additionalProperties:
+                type: integer
+                minimum: 0
             items:
               type: array
-              items: { $ref: "#/components/schemas/EntitySummary" }
+              items:
+                $ref: "#/components/schemas/EntitySummary"
     Provenance:
       type: object
       additionalProperties: false
-      required: [case_id, document_id, line]
+      required:
+        - case_id
+        - document_id
+        - line
       description: Where an entity came from. Pointers only; line text comes from the source-lines route under its own rule.
       properties:
-        case_id: { $ref: "#/components/schemas/Id" }
-        document_id: { type: string }
-        line: { type: integer, minimum: 1 }
-        page: { type: [integer, "null"], minimum: 1 }
-        document_type: { type: [string, "null"] }
+        case_id:
+          $ref: "#/components/schemas/Id"
+        document_id:
+          type: string
+        line:
+          type: integer
+          minimum: 1
+        page:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        document_type:
+          type:
+            - string
+            - "null"
     EntityFact:
       type: object
       additionalProperties: false
-      required: [key, value]
+      required:
+        - key
+        - value
       properties:
         key:
-          {
-            type: string,
-            pattern: "^[a-z_]+$",
-            description: "i18n key suffix for the label (for example `age`, `address`).",
-          }
-        value: { type: string }
+          type: string
+          pattern: ^[a-z_]+$
+          description: i18n key suffix for the label (for example `age`, `address`).
+        value:
+          type: string
     EntityDetail:
       allOf:
-        - { $ref: "#/components/schemas/EntitySummary" }
+        - $ref: "#/components/schemas/EntitySummary"
         - type: object
-          required: [case, facts, provenance, links, stubs, via_grant]
+          required:
+            - case
+            - facts
+            - provenance
+            - links
+            - stubs
+            - via_grant
           properties:
-            case: { $ref: "#/components/schemas/CaseRef" }
+            case:
+              $ref: "#/components/schemas/CaseRef"
             facts:
               type: array
-              items: { $ref: "#/components/schemas/EntityFact" }
+              items:
+                $ref: "#/components/schemas/EntityFact"
             provenance:
               type: array
-              items: { $ref: "#/components/schemas/Provenance" }
+              items:
+                $ref: "#/components/schemas/Provenance"
             links:
               type: array
               maxItems: 50
-              items: { $ref: "#/components/schemas/LinkSummary" }
+              items:
+                $ref: "#/components/schemas/LinkSummary"
             stubs:
               type: array
-              items: { $ref: "#/components/schemas/Stub" }
+              items:
+                $ref: "#/components/schemas/Stub"
             via_grant:
-              {
-                type: boolean,
-                description: "True when the caller sees this entity only through a grant.",
-              }
+              type: boolean
+              description: True when the caller sees this entity only through a grant.
     SourceLine:
       type: object
       additionalProperties: false
-      required: [line, text]
+      required:
+        - line
+        - text
       properties:
-        line: { type: integer, minimum: 1 }
-        page: { type: [integer, "null"], minimum: 1 }
-        text: { type: string }
+        line:
+          type: integer
+          minimum: 1
+        page:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        text:
+          type: string
     SourceLines:
       type: object
       additionalProperties: false
-      required: [document_id, case_id, document_type, lines, via_grant]
+      required:
+        - document_id
+        - case_id
+        - document_type
+        - lines
+        - via_grant
       properties:
-        document_id: { type: string }
-        case_id: { $ref: "#/components/schemas/Id" }
-        document_type: { type: string }
+        document_id:
+          type: string
+        case_id:
+          $ref: "#/components/schemas/Id"
+        document_type:
+          type: string
         lines:
           type: array
           maxItems: 200
-          items: { $ref: "#/components/schemas/SourceLine" }
-        via_grant: { type: boolean }
-    # ---- links
+          items:
+            $ref: "#/components/schemas/SourceLine"
+        via_grant:
+          type: boolean
     LinkEnd:
       type: object
       additionalProperties: false
-      required: [entity, case]
+      required:
+        - entity
+        - case
       properties:
-        entity: { $ref: "#/components/schemas/EntitySummary" }
-        case: { $ref: "#/components/schemas/CaseRef" }
+        entity:
+          $ref: "#/components/schemas/EntitySummary"
+        case:
+          $ref: "#/components/schemas/CaseRef"
     MainReason:
       type: object
       additionalProperties: false
-      required: [template_key, params]
+      required:
+        - template_key
+        - params
       description: The highest-contribution support item of the explanation; the client renders it like any explanation line.
       properties:
-        template_key: { type: string, pattern: "^match\\.evidence\\.[a-z_]+$" }
-        params: { type: object }
+        template_key:
+          type: string
+          pattern: ^match\.evidence\.[a-z_]+$
+        params:
+          type: object
+        masked:
+          type: boolean
+          description: True when a param value was masked.
     LinkSummary:
       type: object
       additionalProperties: false
-      required: [link_id, entity_type, state, band, score, ends, main_reason, updated_at]
+      required:
+        - link_id
+        - entity_type
+        - state
+        - band
+        - score
+        - ends
+        - main_reason
+        - updated_at
       properties:
-        link_id: { $ref: "#/components/schemas/Uuid" }
-        entity_type: { $ref: "#/components/schemas/EntityType" }
-        state: { $ref: "#/components/schemas/LinkState" }
-        band: { $ref: "#/components/schemas/Band" }
-        score: { type: number, minimum: 0, maximum: 100 }
+        link_id:
+          $ref: "#/components/schemas/Uuid"
+        entity_type:
+          $ref: "#/components/schemas/EntityType"
+        state:
+          $ref: "#/components/schemas/LinkState"
+        band:
+          $ref: "#/components/schemas/Band"
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
         ends:
           type: array
           minItems: 2
           maxItems: 2
-          items: { $ref: "#/components/schemas/LinkEnd" }
-        main_reason: { $ref: "#/components/schemas/MainReason" }
-        updated_at: { type: string, format: date-time }
+          items:
+            $ref: "#/components/schemas/LinkEnd"
+        main_reason:
+          $ref: "#/components/schemas/MainReason"
+        updated_at:
+          type: string
+          format: date-time
     AllowedAction:
       type: string
-      enum: [CONFIRM, REJECT, UNDO, REOPEN]
+      enum:
+        - CONFIRM
+        - REJECT
+        - UNDO
+        - REOPEN
     DecisionBlock:
       type: string
-      description: |
-        Why no decision is open to this caller, as a code the app maps to its sentence (design O6).
-        ROLE_VIEW_ONLY: "role below the needed one. CROSS_AREA_SENIOR_ONLY: the link joins two areas and the caller is"
-        not a SENIOR. COVERAGE_INCOMPLETE: a SENIOR who does not cover both ends. GRANT_READ_ONLY: access is by grant,
-        which never qualifies. STATE_FINAL: no transition is legal from the current state for this role.
+      description: "Why no decision is open to this caller, as a code the app maps to its sentence (design O6). ROLE_VIEW_ONLY: role below the needed one. CROSS_AREA_SENIOR_ONLY: the link joins two areas and the caller is not a SENIOR. COVERAGE_INCOMPLETE: a SENIOR who does not cover both ends. GRANT_READ_ONLY: access is by grant, which never qualifies. STATE_FINAL: no transition is legal from the current state for this role."
       enum:
-        [ROLE_VIEW_ONLY, CROSS_AREA_SENIOR_ONLY, COVERAGE_INCOMPLETE, GRANT_READ_ONLY, STATE_FINAL]
+        - ROLE_VIEW_ONLY
+        - CROSS_AREA_SENIOR_ONLY
+        - COVERAGE_INCOMPLETE
+        - GRANT_READ_ONLY
+        - STATE_FINAL
     HistoryEntry:
       type: object
       additionalProperties: false
-      required: [from, to, at, actor_kind, reason_code]
+      required:
+        - from
+        - to
+        - at
+        - actor_kind
+        - reason_code
       properties:
-        from: { oneOf: [{ $ref: "#/components/schemas/LinkState" }, { type: "null" }] }
-        to: { oneOf: [{ $ref: "#/components/schemas/LinkState" }, { type: "null" }] }
-        at: { type: string, format: date-time }
-        actor_kind: { type: string, enum: [ENGINE, USER] }
-        actor_user_id: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
-        reason_code: { type: [string, "null"], pattern: "^[A-Z_]+$" }
+        from:
+          oneOf:
+            - $ref: "#/components/schemas/LinkState"
+            - type: "null"
+        to:
+          oneOf:
+            - $ref: "#/components/schemas/LinkState"
+            - type: "null"
+        at:
+          type: string
+          format: date-time
+        actor_kind:
+          type: string
+          enum:
+            - ENGINE
+            - USER
+        actor_user_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        reason_code:
+          type:
+            - string
+            - "null"
+          pattern: ^[A-Z_]+$
         reason_text:
-          {
-            type: [string, "null"],
-            maxLength: 1000,
-            description: "Free text from the deciding officer; shown only to callers with ALLOW on both ends.",
-          }
+          type:
+            - string
+            - "null"
+          maxLength: 1000
+          description: Free text from the deciding officer. Shown only to callers with ALLOW on both ends by their own scope; never under a grant.
     LinkDetail:
       allOf:
-        - { $ref: "#/components/schemas/LinkSummary" }
+        - $ref: "#/components/schemas/LinkSummary"
         - type: object
           required:
-            [thresholds_version, ruleset_version, created_at, history, allowed_actions, via_grant]
+            - thresholds_version
+            - ruleset_version
+            - created_at
+            - history
+            - allowed_actions
+            - via_grant
           properties:
-            thresholds_version: { type: integer, minimum: 1 }
-            ruleset_version: { type: string }
-            created_at: { type: string, format: date-time }
+            thresholds_version:
+              type: integer
+              minimum: 1
+            ruleset_version:
+              type: string
+            created_at:
+              type: string
+              format: date-time
             history:
               type: array
-              items: { $ref: "#/components/schemas/HistoryEntry" }
+              items:
+                oneOf:
+                  - $ref: "#/components/schemas/HistoryEntry"
+                  - $ref: "#/components/schemas/HistoryEntryGranted"
             allowed_actions:
               type: array
-              items: { $ref: "#/components/schemas/AllowedAction" }
+              items:
+                $ref: "#/components/schemas/AllowedAction"
             decision_block:
-              oneOf: [{ $ref: "#/components/schemas/DecisionBlock" }, { type: "null" }]
-            via_grant: { type: boolean }
+              oneOf:
+                - $ref: "#/components/schemas/DecisionBlock"
+                - type: "null"
+            via_grant:
+              type: boolean
+          allOf:
+            - if:
+                properties:
+                  via_grant:
+                    const: true
+                required:
+                  - via_grant
+              then:
+                properties:
+                  history:
+                    items:
+                      $ref: "#/components/schemas/HistoryEntryGranted"
     LinkPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items, stubs]
+          required:
+            - items
+            - stubs
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/LinkSummary" }
+              items:
+                $ref: "#/components/schemas/LinkSummary"
             stubs:
               type: array
               description: After the visible items, ordered by `stub_id`.
-              items: { $ref: "#/components/schemas/Stub" }
+              items:
+                $ref: "#/components/schemas/Stub"
     ReviewQueueItem:
       allOf:
-        - { $ref: "#/components/schemas/LinkSummary" }
+        - $ref: "#/components/schemas/LinkSummary"
         - type: object
-          required: [waiting_since, allowed_actions]
+          required:
+            - waiting_since
+            - allowed_actions
           properties:
-            waiting_since: { type: string, format: date-time }
+            waiting_since:
+              type: string
+              format: date-time
             allowed_actions:
               type: array
-              items: { $ref: "#/components/schemas/AllowedAction" }
+              items:
+                $ref: "#/components/schemas/AllowedAction"
     ReviewQueuePage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/ReviewQueueItem" }
+              items:
+                $ref: "#/components/schemas/ReviewQueueItem"
     ConfirmLinkRequest:
       type: object
       additionalProperties: false
       properties:
-        expected_state: { $ref: "#/components/schemas/LinkState" }
+        expected_state:
+          $ref: "#/components/schemas/LinkState"
     LinkReasonRequest:
       type: object
       additionalProperties: false
-      required: [reason]
+      required:
+        - reason
       properties:
         reason:
-          {
-            type: string,
-            minLength: 3,
-            maxLength: 1000,
-            description: "Stored on the link history only; never in the audit log.",
-          }
+          type: string
+          minLength: 3
+          maxLength: 1000
+          description: Stored on the link history only; never in the audit log.
         expected_state:
           $ref: "#/components/schemas/LinkState"
     Explanation:
-      $ref: "explanation.schema.json"
-    # ---- stubs, requests, grants
+      $ref: explanation.schema.json
     AccessRequestStatus:
       type: string
-      enum: [PENDING, APPROVED, DENIED, WITHDRAWN, EXPIRED]
+      enum:
+        - PENDING
+        - APPROVED
+        - DENIED
+        - WITHDRAWN
+        - EXPIRED
     StubRequestState:
       type: string
-      enum: [NONE, PENDING, DENIED, EXPIRED]
+      enum:
+        - NONE
+        - PENDING
+        - DENIED
+        - EXPIRED
     Stub:
       type: object
       additionalProperties: false
-      required: [redacted, stub_id, near_entity_id, connection_exists, access_request, message_key]
+      required:
+        - redacted
+        - stub_id
+        - near_entity_id
+        - connection_exists
+        - access_request
+        - message_key
       description: |
         One hidden link, same shape whatever its state. It never carries a far case id, number, title, district or
         officer; a far entity id, type, name or value; or a link id, state, score, band, tier, signals, evidence count,
         creation time or run id.
       properties:
-        redacted: { type: boolean, const: true }
-        stub_id: { $ref: "#/components/schemas/Uuid" }
-        near_entity_id: { $ref: "#/components/schemas/Id" }
-        connection_exists: { type: boolean, const: true }
+        redacted:
+          type: boolean
+          const: true
+        stub_id:
+          $ref: "#/components/schemas/Uuid"
+        near_entity_id:
+          $ref: "#/components/schemas/Id"
+        connection_exists:
+          type: boolean
+          const: true
         access_request:
           type: object
           additionalProperties: false
-          required: [status]
+          required:
+            - status
           properties:
-            status: { $ref: "#/components/schemas/StubRequestState" }
-            requested_at: { type: [string, "null"], format: date-time }
-        message_key: { type: string, const: access.stub.connection_exists }
+            status:
+              $ref: "#/components/schemas/StubRequestState"
+            requested_at:
+              type:
+                - string
+                - "null"
+              format: date-time
+        message_key:
+          type: string
+          const: access.stub.connection_exists
     CreateAccessRequest:
       type: object
       additionalProperties: false
-      required: [stub_id, reason]
+      required:
+        - stub_id
+        - reason
       properties:
-        stub_id: { $ref: "#/components/schemas/Uuid" }
+        stub_id:
+          $ref: "#/components/schemas/Uuid"
         reason:
-          {
-            type: string,
-            minLength: 10,
-            maxLength: 500,
-            description: "No personal data. Stored on the request only.",
-          }
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: No personal data. Stored on the request only.
     ApproveAccessRequest:
       type: object
       additionalProperties: false
       properties:
-        duration_days: { type: integer, enum: [7, 30, 90], default: 30 }
+        duration_days:
+          type: integer
+          enum:
+            - 7
+            - 30
+            - 90
+          default: 30
     DenyAccessRequest:
       type: object
       additionalProperties: false
       properties:
-        note: { type: string, minLength: 1, maxLength: 500 }
+        note:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Shown to the requester. Must carry no case detail (names, numbers, places); the UI says so. Stored on the request, never in the audit log.
     GrantStatus:
       type: string
-      enum: [ACTIVE, EXPIRED, REVOKED]
+      enum:
+        - ACTIVE
+        - EXPIRED
+        - REVOKED
     GrantCloseCause:
       type: string
-      enum: [MANUAL, ROLE_CHANGE, LINK_CLOSED, EVIDENCE_CHANGED, TIME]
+      enum:
+        - MANUAL
+        - ROLE_CHANGE
+        - LINK_CLOSED
+        - EVIDENCE_CHANGED
+        - TIME
     Grant:
-      type: object
-      additionalProperties: false
-      required: [grant_id, request_id, status, starts_at, expires_at]
-      description: |
-        Read-only, for one link and its far case. The holder sees `link_id` and `far_entity_id`; an authority over the
-        far case sees `holder` and `far_case_id`. Neither view shows the other side's fields.
-      properties:
-        grant_id: { $ref: "#/components/schemas/Uuid" }
-        request_id: { $ref: "#/components/schemas/Uuid" }
-        status: { $ref: "#/components/schemas/GrantStatus" }
-        starts_at: { type: string, format: date-time }
-        expires_at: { type: string, format: date-time }
-        closed_at: { type: [string, "null"], format: date-time }
-        close_cause: { oneOf: [{ $ref: "#/components/schemas/GrantCloseCause" }, { type: "null" }] }
-        link_id: { $ref: "#/components/schemas/Uuid" }
-        far_entity_id: { $ref: "#/components/schemas/Id" }
-        holder: { $ref: "#/components/schemas/UserRef" }
-        far_case_id: { $ref: "#/components/schemas/Id" }
+      oneOf:
+        - $ref: "#/components/schemas/GrantHeld"
+        - $ref: "#/components/schemas/GrantAuthority"
+      discriminator:
+        propertyName: view
+        mapping:
+          HELD: "#/components/schemas/GrantHeld"
+          AUTHORITY: "#/components/schemas/GrantAuthority"
     GrantPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/Grant" }
+              items:
+                $ref: "#/components/schemas/Grant"
     UserRef:
       type: object
       additionalProperties: false
-      required: [user_id, display_name, role]
+      required:
+        - user_id
+        - display_name
+        - role
       properties:
-        user_id: { $ref: "#/components/schemas/Uuid" }
-        display_name: { type: string }
-        role: { $ref: "#/components/schemas/Role" }
+        user_id:
+          $ref: "#/components/schemas/Uuid"
+        display_name:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
     AccessRequest:
-      type: object
-      additionalProperties: false
-      required: [request_id, status, requested_at, expires_at, stub]
-      description: |
-        The requester sees their own request with the stub. An approver additionally sees `requester` and `reason`,
-        and a stub of the near side. `far_case_id` is shown to the approver only (it is their own case).
-      properties:
-        request_id: { $ref: "#/components/schemas/Uuid" }
-        status: { $ref: "#/components/schemas/AccessRequestStatus" }
-        requested_at: { type: string, format: date-time }
-        expires_at:
-          { type: string, format: date-time, description: "Seven days after the request." }
-        decided_at: { type: [string, "null"], format: date-time }
-        decision_note: { type: [string, "null"], maxLength: 500 }
-        reason: { type: string }
-        requester: { $ref: "#/components/schemas/UserRef" }
-        far_case_id: { $ref: "#/components/schemas/Id" }
-        stub: { $ref: "#/components/schemas/Stub" }
-        grant: { oneOf: [{ $ref: "#/components/schemas/Grant" }, { type: "null" }] }
+      oneOf:
+        - $ref: "#/components/schemas/AccessRequestMine"
+        - $ref: "#/components/schemas/AccessRequestToDecide"
+      discriminator:
+        propertyName: view
+        mapping:
+          MINE: "#/components/schemas/AccessRequestMine"
+          TO_DECIDE: "#/components/schemas/AccessRequestToDecide"
     AccessRequestPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/AccessRequest" }
-    # ---- graph
+              items:
+                $ref: "#/components/schemas/AccessRequest"
     GraphNode:
       type: object
       additionalProperties: false
-      required: [entity, degree, distance]
+      required:
+        - entity
+        - degree
+        - distance
       properties:
-        entity: { $ref: "#/components/schemas/EntitySummary" }
-        degree: { type: integer, minimum: 0, description: "ALLOW edges only." }
-        distance: { type: integer, minimum: 0 }
+        entity:
+          $ref: "#/components/schemas/EntitySummary"
+        degree:
+          type: integer
+          minimum: 0
+          description: ALLOW edges only.
+        distance:
+          type: integer
+          minimum: 0
     GraphEdge:
       type: object
       additionalProperties: false
-      required: [link_id, state, band, from_entity_id, to_entity_id]
+      required:
+        - link_id
+        - state
+        - band
+        - from_entity_id
+        - to_entity_id
       properties:
-        link_id: { $ref: "#/components/schemas/Uuid" }
-        state: { $ref: "#/components/schemas/LinkState" }
-        band: { $ref: "#/components/schemas/Band" }
-        from_entity_id: { $ref: "#/components/schemas/Id" }
-        to_entity_id: { $ref: "#/components/schemas/Id" }
+        link_id:
+          $ref: "#/components/schemas/Uuid"
+        state:
+          $ref: "#/components/schemas/LinkState"
+        band:
+          $ref: "#/components/schemas/Band"
+        from_entity_id:
+          $ref: "#/components/schemas/Id"
+        to_entity_id:
+          $ref: "#/components/schemas/Id"
     GraphResponse:
       type: object
       additionalProperties: false
-      required: [center_entity_id, nodes, edges, stubs, truncated]
+      required:
+        - center_entity_id
+        - nodes
+        - edges
+        - stubs
+        - truncated
       properties:
-        center_entity_id: { $ref: "#/components/schemas/Id" }
+        center_entity_id:
+          $ref: "#/components/schemas/Id"
         nodes:
           type: array
-          items: { $ref: "#/components/schemas/GraphNode" }
+          items:
+            $ref: "#/components/schemas/GraphNode"
         edges:
           type: array
-          items: { $ref: "#/components/schemas/GraphEdge" }
+          items:
+            $ref: "#/components/schemas/GraphEdge"
         stubs:
           type: array
           description: Unlabelled leaves with no far-side edges.
-          items: { $ref: "#/components/schemas/Stub" }
-        truncated: { type: boolean }
+          items:
+            $ref: "#/components/schemas/Stub"
+        truncated:
+          type: boolean
     ClusterResponse:
       type: object
       additionalProperties: false
-      required: [cluster_id, entity_type, members, links, stubs]
+      required:
+        - cluster_id
+        - entity_type
+        - members
+        - links
+        - stubs
       properties:
-        cluster_id: { $ref: "#/components/schemas/Uuid" }
-        entity_type: { $ref: "#/components/schemas/EntityType" }
+        cluster_id:
+          $ref: "#/components/schemas/Uuid"
+        entity_type:
+          $ref: "#/components/schemas/EntityType"
         members:
           type: array
-          items: { $ref: "#/components/schemas/EntitySummary" }
+          items:
+            $ref: "#/components/schemas/EntitySummary"
         links:
           type: array
-          items: { $ref: "#/components/schemas/LinkSummary" }
+          items:
+            $ref: "#/components/schemas/LinkSummary"
         stubs:
           type: array
-          items: { $ref: "#/components/schemas/Stub" }
+          items:
+            $ref: "#/components/schemas/Stub"
         most_connected_entity_id:
-          oneOf: [{ $ref: "#/components/schemas/Id" }, { type: "null" }]
+          oneOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
           description: Stretch indicator (PLAN C1); a visible member with the most ALLOW links, or null.
     PathSegmentVisible:
       type: object
       additionalProperties: false
-      required: [kind, link, entity]
+      required:
+        - kind
+        - link
+        - entity
       properties:
-        kind: { type: string, const: VISIBLE }
-        link: { $ref: "#/components/schemas/LinkSummary" }
-        entity: { $ref: "#/components/schemas/EntitySummary" }
+        kind:
+          type: string
+          const: VISIBLE
+        link:
+          $ref: "#/components/schemas/LinkSummary"
+        entity:
+          $ref: "#/components/schemas/EntitySummary"
     PathSegmentStub:
       type: object
       additionalProperties: false
-      required: [kind, stub]
+      required:
+        - kind
+        - stub
       properties:
-        kind: { type: string, const: STUB }
-        stub: { $ref: "#/components/schemas/Stub" }
+        kind:
+          type: string
+          const: STUB
+        stub:
+          $ref: "#/components/schemas/Stub"
     PathSegment:
       oneOf:
-        - { $ref: "#/components/schemas/PathSegmentVisible" }
-        - { $ref: "#/components/schemas/PathSegmentStub" }
+        - $ref: "#/components/schemas/PathSegmentVisible"
+        - $ref: "#/components/schemas/PathSegmentStub"
       discriminator:
         propertyName: kind
         mapping:
@@ -2215,286 +3053,469 @@ components:
     Path:
       type: object
       additionalProperties: false
-      required: [path_id, segments]
+      required:
+        - path_id
+        - segments
       properties:
-        path_id: { $ref: "#/components/schemas/Uuid" }
+        path_id:
+          $ref: "#/components/schemas/Uuid"
         segments:
           type: array
           minItems: 1
-          items: { $ref: "#/components/schemas/PathSegment" }
+          items:
+            $ref: "#/components/schemas/PathSegment"
     PathsResponse:
       type: object
       additionalProperties: false
-      required: [origin_entity_id, paths]
+      required:
+        - origin_entity_id
+        - paths
       properties:
-        origin_entity_id: { $ref: "#/components/schemas/Id" }
+        origin_entity_id:
+          $ref: "#/components/schemas/Id"
         paths:
           type: array
-          items: { $ref: "#/components/schemas/Path" }
-    # ---- ingest
+          items:
+            $ref: "#/components/schemas/Path"
     UploadRequest:
       type: object
       additionalProperties: false
-      required: [case_number, district_id, files]
+      required:
+        - case_number
+        - district_id
+        - files
       properties:
         case_number:
-          {
-            type: string,
-            minLength: 1,
-            maxLength: 64,
-            description: "An existing or new case number; the ADMIN cannot list cases.",
-          }
-        district_id: { $ref: "#/components/schemas/Uuid" }
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: An existing or new case number; the ADMIN cannot list cases.
+        district_id:
+          $ref: "#/components/schemas/Uuid"
         files:
           type: array
           minItems: 1
           maxItems: 20
-          items: { type: string, format: binary }
+          items:
+            type: string
+            format: binary
           description: PDF, Word, Excel, text or images.
     BatchStatus:
       type: string
-      enum: [WAITING, READING, DONE, FAILED]
+      enum:
+        - WAITING
+        - READING
+        - DONE
+        - FAILED
     UploadBatch:
       type: object
       additionalProperties: false
-      required: [batch_id, file_name, file_sha256, byte_count, status, created_at]
+      required:
+        - batch_id
+        - file_name
+        - file_sha256
+        - byte_count
+        - status
+        - created_at
       properties:
-        batch_id: { $ref: "#/components/schemas/Uuid" }
-        file_name: { type: string }
-        file_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
-        byte_count: { type: integer, minimum: 0 }
-        document_count: { type: integer, minimum: 0 }
-        status: { $ref: "#/components/schemas/BatchStatus" }
+        batch_id:
+          $ref: "#/components/schemas/Uuid"
+        file_name:
+          type: string
+        file_sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        byte_count:
+          type: integer
+          minimum: 0
+        document_count:
+          type: integer
+          minimum: 0
+        status:
+          $ref: "#/components/schemas/BatchStatus"
         error_code:
-          {
-            type: [string, "null"],
-            pattern: "^[A-Z_]+$",
-            description: "Reason code for FAILED; the app renders it in words.",
-          }
-        created_at: { type: string, format: date-time }
+          type:
+            - string
+            - "null"
+          pattern: ^[A-Z_]+$
+          description: Reason code for FAILED; the app renders it in words.
+        created_at:
+          type: string
+          format: date-time
     UploadResponse:
       type: object
       additionalProperties: false
-      required: [batches]
+      required:
+        - batches
       properties:
         batches:
           type: array
-          items: { $ref: "#/components/schemas/UploadBatch" }
+          items:
+            $ref: "#/components/schemas/UploadBatch"
     UploadBatchPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/UploadBatch" }
+              items:
+                $ref: "#/components/schemas/UploadBatch"
     RunStatus:
       type: string
-      enum: [RUNNING, SUCCEEDED, FAILED]
+      enum:
+        - RUNNING
+        - SUCCEEDED
+        - FAILED
     MatchRun:
       type: object
       additionalProperties: false
       required:
-        [
-          run_id,
-          status,
-          started_at,
-          triggered_by,
-          input_case_count,
-          ruleset_version,
-          thresholds_version,
-          counts_by_state,
-          counts_by_band,
-          oversized_block_count,
-        ]
+        - run_id
+        - status
+        - started_at
+        - triggered_by
+        - input_case_count
+        - ruleset_version
+        - thresholds_version
+        - counts_by_state
+        - counts_by_band
+        - oversized_block_count
       description: |
         The engine's run record as the API persists it. `input_case_ids` stay in the database; the response gives a
         count, so an ADMIN learns nothing about individual cases.
       properties:
-        run_id: { $ref: "#/components/schemas/Uuid" }
-        status: { $ref: "#/components/schemas/RunStatus" }
-        started_at: { type: string, format: date-time }
-        finished_at: { type: [string, "null"], format: date-time }
-        triggered_by: { $ref: "#/components/schemas/Uuid" }
-        input_case_count: { type: integer, minimum: 0 }
-        ruleset_version: { type: string }
-        thresholds_version: { type: integer, minimum: 1 }
+        run_id:
+          $ref: "#/components/schemas/Uuid"
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        triggered_by:
+          $ref: "#/components/schemas/Uuid"
+        input_case_count:
+          type: integer
+          minimum: 0
+        ruleset_version:
+          type: string
+        thresholds_version:
+          type: integer
+          minimum: 1
         counts_by_state:
           type: object
           additionalProperties: false
           properties:
-            AUTO: { type: integer, minimum: 0 }
-            SUGGESTED: { type: integer, minimum: 0 }
-            PROMOTED: { type: integer, minimum: 0 }
-            DEMOTED: { type: integer, minimum: 0 }
-            WITHDRAWN: { type: integer, minimum: 0 }
+            AUTO:
+              type: integer
+              minimum: 0
+            SUGGESTED:
+              type: integer
+              minimum: 0
+            PROMOTED:
+              type: integer
+              minimum: 0
+            DEMOTED:
+              type: integer
+              minimum: 0
+            WITHDRAWN:
+              type: integer
+              minimum: 0
         counts_by_band:
           type: object
           additionalProperties: false
           description: Low pairs are counted, not stored.
           properties:
-            HIGH: { type: integer, minimum: 0 }
-            MEDIUM: { type: integer, minimum: 0 }
-            LOW: { type: integer, minimum: 0 }
-        oversized_block_count: { type: integer, minimum: 0 }
-        error_code: { type: [string, "null"], pattern: "^[A-Z_]+$" }
+            HIGH:
+              type: integer
+              minimum: 0
+            MEDIUM:
+              type: integer
+              minimum: 0
+            LOW:
+              type: integer
+              minimum: 0
+        oversized_block_count:
+          type: integer
+          minimum: 0
+        error_code:
+          type:
+            - string
+            - "null"
+          pattern: ^[A-Z_]+$
     MatchRunPage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/MatchRun" }
-    # ---- admin: thresholds and pending changes
+              items:
+                $ref: "#/components/schemas/MatchRun"
     Thresholds:
       type: object
       additionalProperties: false
-      required: [high_min, medium_min, thresholds_version, effective_at]
+      required:
+        - high_min
+        - medium_min
+        - thresholds_version
+        - effective_at
       properties:
-        high_min: { type: number, minimum: 70, maximum: 100 }
-        medium_min: { type: number, minimum: 30, maximum: 90 }
-        thresholds_version: { type: integer, minimum: 1 }
-        effective_at: { type: string, format: date-time }
+        high_min:
+          type: number
+          minimum: 70
+          maximum: 100
+        medium_min:
+          type: number
+          minimum: 30
+          maximum: 90
+        thresholds_version:
+          type: integer
+          minimum: 1
+        effective_at:
+          type: string
+          format: date-time
     ChangeKind:
       type: string
       enum:
-        [
-          USER_CREATE,
-          USER_ENABLE,
-          USER_DISABLE,
-          USER_ROLE,
-          USER_JURISDICTION,
-          ASSIGNMENT_ADD,
-          ASSIGNMENT_REMOVE,
-          THRESHOLDS,
-        ]
+        - USER_CREATE
+        - USER_ENABLE
+        - USER_DISABLE
+        - USER_ROLE
+        - USER_JURISDICTION
+        - ASSIGNMENT_ADD
+        - ASSIGNMENT_REMOVE
+        - THRESHOLDS
     ChangeState:
       type: string
-      enum: [PENDING, APPROVED, DENIED]
+      enum:
+        - PENDING
+        - APPROVED
+        - DENIED
     ProposeUserCreate:
       type: object
       additionalProperties: false
-      required: [kind, new_value]
+      required:
+        - kind
+        - new_value
       properties:
-        kind: { type: string, const: USER_CREATE }
+        kind:
+          type: string
+          const: USER_CREATE
         new_value:
           type: object
           additionalProperties: false
-          required: [username, display_name, role]
+          required:
+            - username
+            - display_name
+            - role
           properties:
-            username: { type: string, minLength: 3, maxLength: 64, pattern: "^[a-z0-9._-]+$" }
-            display_name: { type: string, minLength: 1, maxLength: 120 }
-            role: { $ref: "#/components/schemas/Role" }
-            district_id: { $ref: "#/components/schemas/Uuid" }
-            coverage: { $ref: "#/components/schemas/Coverage" }
+            username:
+              type: string
+              minLength: 3
+              maxLength: 64
+              pattern: ^[a-z0-9._-]+$
+            display_name:
+              type: string
+              minLength: 1
+              maxLength: 120
+            role:
+              $ref: "#/components/schemas/Role"
+            district_id:
+              $ref: "#/components/schemas/Uuid"
+            coverage:
+              $ref: "#/components/schemas/Coverage"
     ProposeUserActive:
       type: object
       additionalProperties: false
-      required: [kind, subject_user_id]
+      required:
+        - kind
+        - subject_user_id
       properties:
-        kind: { type: string, enum: [USER_ENABLE, USER_DISABLE] }
-        subject_user_id: { $ref: "#/components/schemas/Uuid" }
+        kind:
+          type: string
+          enum:
+            - USER_ENABLE
+            - USER_DISABLE
+        subject_user_id:
+          $ref: "#/components/schemas/Uuid"
     ProposeUserRole:
       type: object
       additionalProperties: false
-      required: [kind, subject_user_id, new_value]
+      required:
+        - kind
+        - subject_user_id
+        - new_value
       properties:
-        kind: { type: string, const: USER_ROLE }
-        subject_user_id: { $ref: "#/components/schemas/Uuid" }
+        kind:
+          type: string
+          const: USER_ROLE
+        subject_user_id:
+          $ref: "#/components/schemas/Uuid"
         new_value:
           type: object
           additionalProperties: false
-          required: [role]
+          required:
+            - role
           properties:
-            role: { $ref: "#/components/schemas/Role" }
+            role:
+              $ref: "#/components/schemas/Role"
     ProposeUserJurisdiction:
       type: object
       additionalProperties: false
-      required: [kind, subject_user_id, new_value]
+      required:
+        - kind
+        - subject_user_id
+        - new_value
       properties:
-        kind: { type: string, const: USER_JURISDICTION }
-        subject_user_id: { $ref: "#/components/schemas/Uuid" }
+        kind:
+          type: string
+          const: USER_JURISDICTION
+        subject_user_id:
+          $ref: "#/components/schemas/Uuid"
         new_value:
           type: object
           additionalProperties: false
           properties:
-            district_id: { $ref: "#/components/schemas/Uuid" }
-            coverage: { $ref: "#/components/schemas/Coverage" }
+            district_id:
+              $ref: "#/components/schemas/Uuid"
+            coverage:
+              $ref: "#/components/schemas/Coverage"
     ProposeAssignment:
       type: object
       additionalProperties: false
-      required: [kind, subject_user_id, new_value]
+      required:
+        - kind
+        - subject_user_id
+        - new_value
       properties:
-        kind: { type: string, enum: [ASSIGNMENT_ADD, ASSIGNMENT_REMOVE] }
-        subject_user_id: { $ref: "#/components/schemas/Uuid" }
+        kind:
+          type: string
+          enum:
+            - ASSIGNMENT_ADD
+            - ASSIGNMENT_REMOVE
+        subject_user_id:
+          $ref: "#/components/schemas/Uuid"
         new_value:
           type: object
           additionalProperties: false
-          required: [case_number]
+          required:
+            - case_number
           properties:
-            case_number: { type: string, minLength: 1, maxLength: 64 }
+            case_number:
+              type: string
+              minLength: 1
+              maxLength: 64
     ProposeThresholds:
       type: object
       additionalProperties: false
-      required: [kind, new_value]
+      required:
+        - kind
+        - new_value
       properties:
-        kind: { type: string, const: THRESHOLDS }
+        kind:
+          type: string
+          const: THRESHOLDS
         new_value:
           type: object
           additionalProperties: false
-          required: [high_min, medium_min]
+          required:
+            - high_min
+            - medium_min
           properties:
-            high_min: { type: number, minimum: 70, maximum: 100 }
-            medium_min: { type: number, minimum: 30, maximum: 90 }
+            high_min:
+              type: number
+              minimum: 70
+              maximum: 100
+            medium_min:
+              type: number
+              minimum: 30
+              maximum: 90
     ProposeChangeRequest:
       oneOf:
-        - { $ref: "#/components/schemas/ProposeUserCreate" }
-        - { $ref: "#/components/schemas/ProposeUserActive" }
-        - { $ref: "#/components/schemas/ProposeUserRole" }
-        - { $ref: "#/components/schemas/ProposeUserJurisdiction" }
-        - { $ref: "#/components/schemas/ProposeAssignment" }
-        - { $ref: "#/components/schemas/ProposeThresholds" }
+        - $ref: "#/components/schemas/ProposeUserCreate"
+        - $ref: "#/components/schemas/ProposeUserActive"
+        - $ref: "#/components/schemas/ProposeUserRole"
+        - $ref: "#/components/schemas/ProposeUserJurisdiction"
+        - $ref: "#/components/schemas/ProposeAssignment"
+        - $ref: "#/components/schemas/ProposeThresholds"
     PendingChange:
       type: object
       additionalProperties: false
-      required: [change_id, kind, state, old_value, new_value, proposer, change_hash, proposed_at]
+      required:
+        - change_id
+        - kind
+        - state
+        - old_value
+        - new_value
+        - proposer
+        - change_hash
+        - proposed_at
       properties:
-        change_id: { $ref: "#/components/schemas/Uuid" }
-        kind: { $ref: "#/components/schemas/ChangeKind" }
-        state: { $ref: "#/components/schemas/ChangeState" }
-        subject: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
+        change_id:
+          $ref: "#/components/schemas/Uuid"
+        kind:
+          $ref: "#/components/schemas/ChangeKind"
+        state:
+          $ref: "#/components/schemas/ChangeState"
+        subject:
+          oneOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
         old_value:
-          { type: [object, "null"], description: "Recorded by the server at proposal time." }
-        new_value: { type: object }
-        proposer: { $ref: "#/components/schemas/UserRef" }
-        decider: { oneOf: [{ $ref: "#/components/schemas/UserRef" }, { type: "null" }] }
+          type:
+            - object
+            - "null"
+          description: Recorded by the server at proposal time.
+        new_value:
+          type: object
+        proposer:
+          $ref: "#/components/schemas/UserRef"
+        decider:
+          oneOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
         change_hash:
-          {
-            type: string,
-            pattern: "^[0-9a-f]{64}$",
-            description: "SHA-256 of the canonical content.",
-          }
-        proposed_at: { type: string, format: date-time }
-        decided_at: { type: [string, "null"], format: date-time }
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: SHA-256 of the canonical content.
+        proposed_at:
+          type: string
+          format: date-time
+        decided_at:
+          type:
+            - string
+            - "null"
+          format: date-time
     PendingChangePage:
       allOf:
-        - { $ref: "#/components/schemas/PageBase" }
+        - $ref: "#/components/schemas/PageBase"
         - type: object
-          required: [items]
+          required:
+            - items
           properties:
             items:
               type: array
-              items: { $ref: "#/components/schemas/PendingChange" }
+              items:
+                $ref: "#/components/schemas/PendingChange"
     ApproveChangeRequest:
       type: object
       additionalProperties: false
-      required: [change_hash]
+      required:
+        - change_hash
       properties:
-        change_hash: { type: string, pattern: "^[0-9a-f]{64}$" }
-    # ---- audit
+        change_hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
     AuditEventType:
       type: string
       enum:
@@ -2544,78 +3565,117 @@ components:
         - USER_DISABLED
         - AUDIT_VIEWED
         - AUDIT_VERIFY_RUN
+        - LINK_PROMOTED
+        - LINK_WITHDRAWN
+        - ACCESS_REQUEST_VIEWED
+        - GRANT_VIEWED
+        - CHANGE_VIEWED
     AuditActor:
       type: object
       additionalProperties: false
-      required: [kind]
+      required:
+        - kind
       properties:
-        kind: { type: string, enum: [USER, SYSTEM, ANONYMOUS] }
-        user_id: { $ref: "#/components/schemas/Uuid" }
-        role: { $ref: "#/components/schemas/Role" }
-        district_id: { $ref: "#/components/schemas/Uuid" }
+        kind:
+          type: string
+          enum:
+            - USER
+            - SYSTEM
+            - ANONYMOUS
+        user_id:
+          $ref: "#/components/schemas/Uuid"
+        role:
+          $ref: "#/components/schemas/Role"
+        district_id:
+          $ref: "#/components/schemas/Uuid"
     AuditCaseRef:
       type: object
       additionalProperties: false
-      required: [case_id, district_id]
+      required:
+        - case_id
+        - district_id
       properties:
-        case_id: { $ref: "#/components/schemas/Id" }
-        district_id: { $ref: "#/components/schemas/Uuid" }
+        case_id:
+          $ref: "#/components/schemas/Id"
+        district_id:
+          $ref: "#/components/schemas/Uuid"
     AuditRow:
       type: object
       additionalProperties: false
-      required: [row_ref, occurred_at, event_type, outcome, actor, refs]
+      required:
+        - row_ref
+        - occurred_at
+        - event_type
+        - outcome
+        - actor
+        - refs
       description: |
         Never contains a sequence number, event id, hash, nonce, session id, request id or client address. Keys the
         reader may not see are absent, not null. `target_id` of an UNRESOLVED target is the string the caller supplied.
       properties:
         row_ref:
           type: string
-          pattern: "^[A-Za-z0-9_-]{16,128}$"
+          pattern: ^[A-Za-z0-9_-]{16,128}$
           description: Opaque; HMAC of the row and the reader. Two readers get different values for the same row.
-        occurred_at: { type: string, format: date-time }
-        event_type: { $ref: "#/components/schemas/AuditEventType" }
-        outcome: { type: string, enum: [SUCCESS, DENIED, FAILED] }
-        actor: { $ref: "#/components/schemas/AuditActor" }
-        reason_code: { type: string, pattern: "^[A-Z0-9_]+$" }
+        occurred_at:
+          type: string
+          format: date-time
+        event_type:
+          $ref: "#/components/schemas/AuditEventType"
+        outcome:
+          type: string
+          enum:
+            - SUCCESS
+            - DENIED
+            - FAILED
+        actor:
+          $ref: "#/components/schemas/AuditActor"
+        reason_code:
+          type: string
+          pattern: ^[A-Z0-9_]+$
         refs:
           type: array
           description: Only the cases the reader may see. Empty for system events and for R2_NOT_VISIBLE denials.
-          items: { $ref: "#/components/schemas/AuditCaseRef" }
+          items:
+            $ref: "#/components/schemas/AuditCaseRef"
         target_type:
           type: string
           enum:
-            [
-              CASE,
-              ENTITY,
-              LINK,
-              STUB,
-              DOCUMENT,
-              USER,
-              ACCESS_REQUEST,
-              GRANT,
-              BATCH,
-              RUN,
-              SETTING,
-              CHANGE,
-              AUDIT,
-              UNRESOLVED,
-            ]
-        target_id: { type: string }
+            - CASE
+            - ENTITY
+            - LINK
+            - STUB
+            - DOCUMENT
+            - USER
+            - ACCESS_REQUEST
+            - GRANT
+            - BATCH
+            - RUN
+            - SETTING
+            - CHANGE
+            - AUDIT
+            - UNRESOLVED
+        target_id:
+          type: string
         detail:
-          type: object
-          description: Only the keys listed for the event in the audit spec, and only those the reader may see. Never personal values.
-          additionalProperties: true
+          $ref: "#/components/schemas/AuditDetail"
     AuditPage:
       type: object
       additionalProperties: false
-      required: [items, next_cursor, result_count]
+      required:
+        - items
+        - next_cursor
+        - result_count
       properties:
         items:
           type: array
-          items: { $ref: "#/components/schemas/AuditRow" }
+          items:
+            $ref: "#/components/schemas/AuditRow"
         next_cursor:
-          oneOf: [{ $ref: "#/components/schemas/Cursor" }, { type: "null" }]
-          description: Signed, bound to the reader and the filters. Null on the last page and on every empty page.
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+          description: Encrypted, bound to the reader and the filters, expires after 15 minutes; position is the visible sort key plus `row_ref`, never `seq`. Null on the last page and on every empty page.
         result_count:
           type: integer
           minimum: 0
@@ -2623,10 +3683,533 @@ components:
     AuditVerifyResult:
       type: object
       additionalProperties: false
-      required: [result]
+      required:
+        - result
       properties:
-        result: { type: string, enum: [OK, BROKEN] }
+        result:
+          type: string
+          enum:
+            - OK
+            - BROKEN
         first_bad_seq:
-          type: [integer, "null"]
+          type:
+            - integer
+            - "null"
           minimum: 1
-          description: Present with BROKEN only. The single place a sequence number leaves the API (audit spec section 4); SENIOR only.
+          description: Present only with BROKEN, only to a SENIOR. The single place a sequence number leaves the API (D38, as amended).
+    StartRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        cases:
+          type: array
+          minItems: 1
+          maxItems: 500
+          description: Optional run scope; default is every loaded case. The server maps each entry to a case id and passes `input_case_ids` to the engine; both end cases of a pair must be in the set. An entry that matches no case answers the same 422 as an invalid one.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - district_id
+              - case_number
+            properties:
+              district_id:
+                $ref: "#/components/schemas/Uuid"
+              case_number:
+                type: string
+                minLength: 1
+                maxLength: 64
+    LinkTotals:
+      type: object
+      additionalProperties: false
+      required:
+        - waiting
+        - rejected
+        - undone
+        - auto
+        - confirmed
+      properties:
+        waiting:
+          type: integer
+          minimum: 0
+        rejected:
+          type: integer
+          minimum: 0
+        undone:
+          type: integer
+          minimum: 0
+        auto:
+          type: integer
+          minimum: 0
+        confirmed:
+          type: integer
+          minimum: 0
+    GrantHeld:
+      type: object
+      additionalProperties: false
+      required:
+        - view
+        - grant_id
+        - request_id
+        - status
+        - starts_at
+        - expires_at
+        - link_id
+        - far_entity_id
+      description: The holder's view. Never carries the far case, the approver or another holder.
+      properties:
+        view:
+          const: HELD
+        grant_id:
+          $ref: "#/components/schemas/Uuid"
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        status:
+          $ref: "#/components/schemas/GrantStatus"
+        starts_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        closed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        close_cause:
+          oneOf:
+            - $ref: "#/components/schemas/GrantCloseCause"
+            - type: "null"
+        link_id:
+          $ref: "#/components/schemas/Uuid"
+        far_entity_id:
+          $ref: "#/components/schemas/Id"
+    GrantAuthority:
+      type: object
+      additionalProperties: false
+      required:
+        - view
+        - grant_id
+        - request_id
+        - status
+        - starts_at
+        - expires_at
+        - holder
+        - far_case_id
+      description: The approving authority's view. Never carries the link id or the far entity id of the holder's side.
+      properties:
+        view:
+          const: AUTHORITY
+        grant_id:
+          $ref: "#/components/schemas/Uuid"
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        status:
+          $ref: "#/components/schemas/GrantStatus"
+        starts_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        closed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        close_cause:
+          oneOf:
+            - $ref: "#/components/schemas/GrantCloseCause"
+            - type: "null"
+        holder:
+          $ref: "#/components/schemas/UserRef"
+        far_case_id:
+          $ref: "#/components/schemas/Id"
+    AccessRequestMine:
+      type: object
+      additionalProperties: false
+      required:
+        - view
+        - request_id
+        - status
+        - requested_at
+        - expires_at
+        - stub
+      description: The requester's view. `stub` is bound to (requester, link). Never carries the far case, the approver or a grant's authority fields.
+      properties:
+        view:
+          const: MINE
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        status:
+          $ref: "#/components/schemas/AccessRequestStatus"
+        requested_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: Seven days after the request.
+        decided_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        decision_note:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        stub:
+          $ref: "#/components/schemas/Stub"
+        grant:
+          oneOf:
+            - $ref: "#/components/schemas/GrantHeld"
+            - type: "null"
+    AccessRequestToDecide:
+      type: object
+      additionalProperties: false
+      required:
+        - view
+        - request_id
+        - status
+        - requested_at
+        - expires_at
+        - reason
+        - requester
+        - far_case_id
+        - stub
+      description: The approver's view. `stub` is bound to (approver, link) with `near_entity_id` on the approver's side; the requester's stub id and entity are never shown.
+      properties:
+        view:
+          const: TO_DECIDE
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        status:
+          $ref: "#/components/schemas/AccessRequestStatus"
+        requested_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: Seven days after the request.
+        decided_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        reason:
+          type: string
+        requester:
+          $ref: "#/components/schemas/UserRef"
+        far_case_id:
+          $ref: "#/components/schemas/Id"
+        stub:
+          $ref: "#/components/schemas/Stub"
+        grant:
+          oneOf:
+            - $ref: "#/components/schemas/GrantAuthority"
+            - type: "null"
+    HistoryEntryGranted:
+      type: object
+      additionalProperties: false
+      required:
+        - from
+        - to
+        - at
+        - reason_code
+      description: "History under a grant: only from, to, at and reason_code, as in the explanation payload. No actor and no free text."
+      properties:
+        from:
+          oneOf:
+            - $ref: "#/components/schemas/LinkState"
+            - type: "null"
+        to:
+          oneOf:
+            - $ref: "#/components/schemas/LinkState"
+            - type: "null"
+        at:
+          type: string
+          format: date-time
+        reason_code:
+          type:
+            - string
+            - "null"
+          pattern: ^[A-Z_]+$
+    AuditDetail:
+      type: object
+      additionalProperties: false
+      description: Allow-listed keys only (audit spec section 3), further narrowed per event by `x-detail-keys`. Keys that carry a sequence number or chain position (`seq_from`, `seq_to`, `range_from`, `range_to`, `first_bad_seq`, `head_seq`, `anchor_seq`) are stored but never returned. Keys the reader may not see are absent, not null.
+      properties:
+        schema_version:
+          type: integer
+        claimed_username:
+          type: string
+        throttled:
+          type: boolean
+        failure:
+          type: string
+          pattern: ^[A-Z_]+$
+        claimed_sub:
+          type: string
+        case_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+        entity_ids:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+        link_ids_shown:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        link_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        stub_ids_shown:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        stub_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        near_entity_ids:
+          type: array
+          items:
+            type: string
+        request_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        grant_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        change_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+        entity_type_filter:
+          type: string
+        action:
+          type: string
+        http_status:
+          type: integer
+        run_id:
+          $ref: "#/components/schemas/Uuid"
+        band:
+          $ref: "#/components/schemas/Band"
+        score:
+          type: number
+        previous_state:
+          type: string
+        new_state:
+          type: string
+        cause:
+          type: string
+          pattern: ^[A-Z_]+$
+        stub_id:
+          $ref: "#/components/schemas/Uuid"
+        grant_id:
+          $ref: "#/components/schemas/Uuid"
+        expires_at:
+          type: string
+          format: date-time
+        line_from:
+          type: integer
+        line_to:
+          type: integer
+        file_sha256:
+          type: string
+        byte_count:
+          type: integer
+        document_count:
+          type: integer
+        thresholds_version:
+          type: integer
+        auto_count:
+          type: integer
+        suggested_count:
+          type: integer
+        kind:
+          $ref: "#/components/schemas/ChangeKind"
+        subject_id:
+          type: string
+        change_hash:
+          type: string
+        old_value:
+          type:
+            - object
+            - "null"
+        new_value:
+          type: object
+        case_id:
+          type: string
+        added:
+          type: boolean
+        role:
+          $ref: "#/components/schemas/Role"
+        district_id:
+          $ref: "#/components/schemas/Uuid"
+        filter_keys:
+          type: array
+          items:
+            type: string
+        result_count:
+          type: integer
+        redacted:
+          type: boolean
+        result:
+          type: string
+          enum:
+            - OK
+            - BROKEN
+      x-detail-keys:
+        AUTH_LOGIN_FAILED:
+          - claimed_username
+          - throttled
+        AUTH_TOKEN_REJECTED:
+          - failure
+          - claimed_sub
+        CASE_LISTED:
+          - case_ids
+        CASE_ENTITIES_VIEWED:
+          - entity_ids
+        ENTITY_VIEWED:
+          - link_ids_shown
+          - stub_ids_shown
+        STUB_VIEWED:
+          - stub_ids
+          - near_entity_ids
+        GRAPH_VIEWED:
+          - entity_ids
+          - link_ids
+          - stub_ids
+        REVIEW_QUEUE_VIEWED:
+          - link_ids
+        SOURCE_LINES_VIEWED:
+          - line_from
+          - line_to
+        SEARCH_RUN:
+          - entity_ids
+          - entity_type_filter
+        ACCESS_DENIED:
+          - action
+          - http_status
+        LINKS_LISTED:
+          - link_ids
+          - stub_ids
+        LINK_AUTO_CREATED:
+          - run_id
+          - band
+          - score
+          - entity_ids
+        LINK_SUGGESTED:
+          - run_id
+          - band
+          - score
+          - entity_ids
+        LINK_DEMOTED:
+          - run_id
+          - previous_state
+          - new_state
+          - cause
+        LINK_PROMOTED:
+          - run_id
+          - previous_state
+          - new_state
+        LINK_WITHDRAWN:
+          - run_id
+          - previous_state
+        LINK_CONFIRMED:
+          - previous_state
+          - new_state
+        LINK_REJECTED:
+          - previous_state
+          - new_state
+        LINK_UNDONE:
+          - previous_state
+          - new_state
+        LINK_REOPENED:
+          - previous_state
+          - new_state
+        ACCESS_REQUEST_CREATED:
+          - stub_id
+        ACCESS_REQUEST_WITHDRAWN:
+          - stub_id
+        ACCESS_REQUEST_EXPIRED:
+          - stub_id
+        ACCESS_REQUEST_APPROVED:
+          - grant_id
+          - expires_at
+        ACCESS_REQUEST_REJECTED:
+          - grant_id
+        ACCESS_REQUEST_VIEWED:
+          - request_ids
+          - stub_ids
+          - near_entity_ids
+        ACCESS_GRANT_REVOKED:
+          - cause
+        ACCESS_GRANT_EXPIRED:
+          - cause
+        ACCESS_GRANT_CLOSED:
+          - cause
+        GRANT_VIEWED:
+          - grant_ids
+          - link_ids
+        CHANGE_VIEWED:
+          - change_ids
+          - case_ids
+        DATA_UPLOADED:
+          - file_sha256
+          - byte_count
+          - document_count
+        MATCHING_RUN_STARTED:
+          - thresholds_version
+        MATCHING_RUN_COMPLETED:
+          - thresholds_version
+          - auto_count
+          - suggested_count
+        CHANGE_PROPOSED:
+          - kind
+          - subject_id
+          - change_hash
+          - old_value
+          - new_value
+        CHANGE_APPROVED:
+          - kind
+          - subject_id
+          - change_hash
+          - old_value
+          - new_value
+        CHANGE_DENIED:
+          - kind
+          - subject_id
+          - change_hash
+          - old_value
+          - new_value
+        ASSIGNMENT_CHANGED:
+          - case_id
+          - added
+        USER_CREATED:
+          - role
+          - district_id
+        USER_ENABLED:
+          - role
+          - district_id
+        USER_DISABLED:
+          - role
+          - district_id
+        AUDIT_VIEWED:
+          - filter_keys
+          - result_count
+          - redacted
+        AUDIT_VERIFY_RUN:
+          - result

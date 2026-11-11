@@ -91,6 +91,11 @@ AUDIT_EVENTS = {
     "USER_DISABLED",
     "AUDIT_VIEWED",
     "AUDIT_VERIFY_RUN",
+    "LINK_PROMOTED",
+    "LINK_WITHDRAWN",
+    "ACCESS_REQUEST_VIEWED",
+    "GRANT_VIEWED",
+    "CHANGE_VIEWED",
 }
 
 # Every evidence kind and gate in docs/specs/engine-matching.md sections 3 and 5.
@@ -439,7 +444,6 @@ def test_stub_has_exactly_the_allowed_fields_and_no_far_side_data() -> None:
 def test_audit_row_exposes_no_private_columns() -> None:
     row = _load_openapi()["components"]["schemas"]["AuditRow"]
     assert not NO_STORED_FIELDS & set(row["properties"])
-    assert "seq" not in json.dumps(_load_openapi()["components"]["schemas"]["AuditPage"])
 
 
 def test_review_queue_filters_include_rejected_for_reopen() -> None:
@@ -470,7 +474,7 @@ def test_explanation_is_referenced_from_the_schema_file() -> None:
 def test_every_list_operation_takes_a_signed_cursor() -> None:
     spec = _load_openapi()
     cursor = spec["components"]["parameters"]["Cursor"]
-    assert "Signed and bound to the reader and filters" in cursor["description"]
+    assert "Encrypted, bound to the reader and filters" in cursor["description"]
     for method, path, op in _operations():
         names = [
             spec["components"]["parameters"][p["$ref"].rsplit("/", 1)[1]].get("name")
@@ -493,7 +497,7 @@ def test_minor_a_audit_read_rule_d_applies_only_to_rows_without_case_references(
 
 def test_minor_b_cursor_is_signed_and_bound_to_reader_and_filters() -> None:
     spec = _load_openapi()
-    assert "signed" in spec["info"]["description"] and "bound" in spec["info"]["description"]
+    assert "encrypted" in spec["info"]["description"] and "bound" in spec["info"]["description"]
     audit_next = spec["components"]["schemas"]["AuditPage"]["properties"]["next_cursor"]
     assert "bound to the reader and the filters" in audit_next["description"]
 

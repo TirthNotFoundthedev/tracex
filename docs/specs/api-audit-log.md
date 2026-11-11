@@ -18,7 +18,7 @@ Class (used by section 7 when a row is shown but references a case the reader ca
 | `reason_code` | text, null | A | Policy rule (`R2_NOT_VISIBLE`, `MATRIX_DENY`, `GRANT_ACTIVE`, ...) |
 | `refs` | jsonb | S | Every case the row references: `[{case_id, district_id}]`, including both ends of a link or the far case of a request. Empty for system events and for R2_NOT_VISIBLE denials (see W3) |
 | `target_type`, `target_id` | text | S for `CASE`, `ENTITY`, `DOCUMENT`; J for `LINK`, `STUB`, `ACCESS_REQUEST`, `GRANT`; A otherwise | Target type: `CASE`, `ENTITY`, `LINK`, `STUB`, `DOCUMENT`, `USER`, `ACCESS_REQUEST`, `GRANT`, `BATCH`, `RUN`, `SETTING`, `CHANGE`, `AUDIT`, `UNRESOLVED` |
-| `detail` | jsonb | per key | Only keys listed in section 3; keys marked `*` are class J, others S (or A if no case is involved); unknown keys rejected |
+| `detail` | jsonb | per key | Only keys listed in section 3; keys marked `*` are class J, keys marked `^` are class P (stored, **never returned**: every key that carries a sequence number or chain position), others S (or A if no case is involved); unknown keys rejected. Each key has an owning case or case set, kept in the registry `audit_detail_key_owner` (`owner_ref` may be "every end of the link" for joint keys) |
 | `session_id`, `request_id`, `client_ip` | uuid, inet | P | Kept for forensics through database access only |
 | `row_nonce` | bytea(16) | P | Random 128-bit value per row, inside the hashed content |
 | `prev_hash`, `row_hash` | bytea(32) | P | Section 4. Never returned by any endpoint |
@@ -38,6 +38,9 @@ The row commits in the same transaction as the action unless noted. Detail keys 
 | ENTITY_VIEWED | Entity detail returned | ENTITY | `link_ids_shown*`, `stub_ids_shown*` |
 | LINK_VIEWED | Link returned in full | LINK | none |
 | STUB_VIEWED | One event per response that shows stubs (entity detail, link list, `GET /stubs/{id}`) | none | `stub_ids*`, `near_entity_ids` |
+| ACCESS_REQUEST_VIEWED | Access-request list or detail returned (requester or approver view); replaces STUB_VIEWED on those routes | none | `request_ids*`, `stub_ids*`, `near_entity_ids` |
+| GRANT_VIEWED | Grant list or detail returned | none | `grant_ids*`, `link_ids*` |
+| CHANGE_VIEWED | Pending-change list or detail returned | none | `change_ids`, `case_ids` (of any assignment change) |
 | GRAPH_VIEWED | Graph neighbours returned | ENTITY | `entity_ids`, `link_ids*`, `stub_ids*` |
 | REVIEW_QUEUE_VIEWED | Review queue page returned | none | `link_ids*` |
 | EXPLANATION_VIEWED | Explanation returned | LINK | none |
@@ -47,17 +50,19 @@ The row commits in the same transaction as the action unless noted. Detail keys 
 | LINKS_LISTED | Link-list response returned | none | `link_ids*`, `stub_ids*` |
 | LINK_AUTO_CREATED / LINK_SUGGESTED | API records an engine transition (create) | LINK | `run_id*`, `band*`, `score*`, `entity_ids*` |
 | LINK_DEMOTED | API records an engine demotion (AUTO to SUGGESTED, threshold change or lost evidence) | LINK | `run_id*`, `previous_state*`, `new_state*`, `cause` |
+| LINK_PROMOTED | API records an engine promotion (SUGGESTED to AUTO on a rerun) | LINK | `run_id*`, `previous_state*`, `new_state*` |
+| LINK_WITHDRAWN | API records an engine withdrawal (a SUGGESTED edge fell below the medium threshold; the row stays in state WITHDRAWN, not block-listed) | LINK | `run_id*`, `previous_state*` |
 | LINK_CONFIRMED / _REJECTED / _UNDONE / _REOPENED | Officer decides | LINK | `previous_state*`, `new_state*` |
 | ACCESS_REQUEST_CREATED / _WITHDRAWN / _EXPIRED | Request lifecycle (one link, one far case) | ACCESS_REQUEST | `stub_id*` |
 | ACCESS_REQUEST_APPROVED / _REJECTED | Approver decides | ACCESS_REQUEST | `grant_id*`, `expires_at` (approve) |
 | ACCESS_GRANT_REVOKED / _EXPIRED / _CLOSED | Revoked, expired, or closed by the system | GRANT | `cause` (`MANUAL`, `ROLE_CHANGE`, `LINK_CLOSED`, `EVIDENCE_CHANGED`, `TIME`) |
-| DATA_UPLOADED | Upload accepted | BATCH | `file_sha256`, `byte_count`, `document_count` |
+| DATA_UPLOADED | Upload accepted. `refs` holds the target case, so that case's SUPERVISOR sees under rule (c) that material was added | BATCH | `file_sha256`, `byte_count`, `document_count` |
 | MATCHING_RUN_STARTED / _COMPLETED | Run begins / ends | RUN | `thresholds_version`; completed adds `auto_count`, `suggested_count` (system-wide) |
 | CHANGE_PROPOSED / _APPROVED / _DENIED | `pending_change` workflow: users create/enable/disable, roles, jurisdictions, assignments, thresholds | CHANGE | `kind`, `subject_id`, `change_hash`, `old_value`, `new_value` (ids, roles, settings only) |
 | ASSIGNMENT_CHANGED | An approved assignment change takes effect | USER | `case_id`, `added` (bool) |
 | USER_CREATED / _ENABLED / _DISABLED | An approved account change takes effect | USER | `role`, `district_id` |
-| AUDIT_VIEWED | An audit page is about to be returned | AUDIT | `filter_keys`, `seq_from`, `seq_to`, `result_count`, `redacted` (bool) |
-| AUDIT_VERIFY_RUN | Verification run | AUDIT | `range_from`, `range_to`, `result`, `first_bad_seq`, `head_seq`, `anchor_seq` |
+| AUDIT_VIEWED | An audit page is about to be returned | AUDIT | `filter_keys`, `seq_from^`, `seq_to^`, `result_count`, `redacted` (bool) |
+| AUDIT_VERIFY_RUN | Verification run | AUDIT | `range_from^`, `range_to^`, `result`, `first_bad_seq^`, `head_seq^`, `anchor_seq^` |
 
 Write rules:
 | # | Rule |
@@ -68,6 +73,7 @@ Write rules:
 | W4 | `reason_code` is set on every ACCESS_DENIED and on view events with `via_grant` true. |
 | W5 | One function, `audit.append`, writes; no code path updates or deletes. |
 | W6 | Every route declares its audit event; the route-inventory test fails a route that has none. |
+| W8 | Keys marked `^` are stored for forensics and never returned by any endpoint, and `GET /audit` serializes `detail` through a per-event allow-list (additional keys forbidden). A test scans every `GET /audit` response for `seq`, `*_seq` and `range_*` keys. The only sequence number the API ever returns is `first_bad_seq` in a BROKEN result of `POST /audit/verify`, to a SENIOR. |
 | W7 | `refs` must list every case a row's ids or fields reveal, including ids inside `detail`. A write whose `refs` do not cover its case-bearing keys is rejected. |
 
 ## 4. Hash chain, verification, anchor
@@ -75,7 +81,7 @@ Write rules:
 
 Append (last step before commit, W2): take `pg_advisory_xact_lock`, read the last row, set `seq` and `prev_hash`, compute `row_hash`, insert, commit. The lock is held only for those steps. `seq` has no gaps.
 
-Verification (`audit.verify`, server-side; `POST /audit/verify`, SENIOR or system only) returns `OK` or `BROKEN` plus `first_bad_seq` and nothing else: no rows, no hashes.
+Verification (`audit.verify`, server-side; `POST /audit/verify`, SENIOR or system only) returns `OK`, or `BROKEN` plus `first_bad_seq`, and nothing else: no rows, no hashes, no head position. This is the one place a sequence number leaves the API (D38, as amended).
 | Step | Check |
 |---|---|
 | 1 | Rows contiguous; first `prev_hash` matches the preceding row (zeros for 1) |
@@ -83,7 +89,7 @@ Verification (`audit.verify`, server-side; `POST /audit/verify`, SENIOR or syste
 | 3 | Each `row_hash` equals the recomputed hash |
 | 4 | Against the latest anchor: chain must reach `anchor.seq` and the row there must hash to `anchor.row_hash` |
 
-Anchor: the API appends `{seq, row_hash, at}` as one line to an append-only file outside the database (`AUDIT_ANCHOR_PATH`, opened O_APPEND, never rewritten) every 60 seconds, on every verify and on shutdown. The database credentials cannot write it. Startup verifies the last 1000 rows plus step 4; failure blocks readiness. Full verify runs nightly and on demand. A manual copy of the head goes in the runbook as well. Residual risk: someone with both database owner rights and the anchor file can still rewrite history.
+Anchor: the API appends `{seq, row_hash, at}` as one line to an append-only file outside the database (`AUDIT_ANCHOR_PATH`, opened O_APPEND, never rewritten) every 60 seconds, on every verify and on shutdown. The anchor is written by a separate OS user or sidecar process (or the file is set append-only with `chattr +a`); the API's own OS user and the database credentials cannot truncate it. Startup verifies the last 1000 rows plus step 4; failure blocks readiness. Full verify runs nightly and on demand. A manual copy of the head goes in the runbook as well. Residual risk: someone with both database owner rights and the anchor file can still rewrite history.
 
 ## 5. Append-only enforcement
 | Layer | Control |
@@ -111,7 +117,7 @@ JUNIOR and INVESTIGATOR: 403, ACCESS_DENIED. SUPERVISOR, SENIOR and ADMIN read u
 | (a) | the reader is the actor; or |
 | (b) | the actor is in the reader's chain of command (SUPERVISOR or SENIOR: actor district inside their scope or coverage), including the actor's denied probes; or |
 | (c) | `refs` is non-empty and the reader has ALLOW on **every** case in `refs`; or |
-| (d) | the row is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN or SENIOR |
+| (d) | `refs` is empty and the row is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN, or a SENIOR for whom every user and district the row names (target, `subject_id`, `old_value`, `new_value`; an actor with no jurisdiction, such as ADMIN or SYSTEM, does not count) lies inside the SENIOR's coverage. An all-state SENIOR sees every such row. Rule (d) never admits a row that references a case. |
 
 Any other row does not exist for that reader: no placeholder, no gap, no count, no paging effect. There are no partial views of other people's actions. For a row shown under (a) or (b) that references a case the reader cannot see, the hidden `refs` entries, every S field of those cases and every J field are **dropped from the response** (keys absent, not null). Rows shown under (c) or (d) are complete. The API never returns P columns, hashes, nonces or `seq`.
 
@@ -119,7 +125,7 @@ Example: charu (SUPERVISOR, Rivergate). L-3 joins C-101 (Rivergate) to C-301 (La
 
 **Filters, sorting and paging** run only over the rows and fields the reader can see, after the rule above. A filter on a value the reader cannot see (a hidden case id, a guessed link id, an officer outside their scope) returns exactly what a filter on a non-existent value returns: same empty page, same `result_count`, same cursor. Sort keys are visible fields only.
 
-Pagination uses an opaque cursor; no export. Every page returned writes AUDIT_VIEWED first (W1) with filter names, `result_count` and whether any field was dropped, and is not part of the page it logs.
+Pagination uses an opaque cursor; no export. The cursor is **encrypted** (authenticated encryption, server key), bound to the reader and the filters, and expires after 15 minutes; it carries the visible sort key and the `row_ref` as position, never `seq` or an id. A cursor of another reader, other filters, an expired or altered one is a 422 like a malformed one. Every page returned writes AUDIT_VIEWED first (W1) with filter names, `result_count` and whether any field was dropped, and is not part of the page it logs.
 
 ## 8. Acceptance cases
 Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a superuser connection in the test database only.
@@ -172,6 +178,15 @@ Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a sup
 | U44 | Read a page, then the next | Second page includes the first page's AUDIT_VIEWED; no `seq` in any response; two readers get different `row_ref` for the same row |
 | U45 | meena verifies; charu verifies | OK; 403 |
 | U46 | Link-list response | LINKS_LISTED with `link_ids` and `stub_ids`; route inventory fails a route without an event |
+| U47 | Read pages of AUDIT_VIEWED and AUDIT_VERIFY_RUN rows as the actor and as ADMIN | No `seq`, `*_seq`, `range_*` key in any response; `detail` has only allow-listed keys |
+| U48 | hari proposes a role change for gita; gita logs in; deepak reads audit | Neither the CHANGE_PROPOSED row nor gita's AUTH rows exist for deepak (outside coverage); meena sees both |
+| U49 | Decode a cursor | It does not decode to a `seq` or an id; another reader's, expired or altered cursor gives 422 |
+| U50 | Engine promotes and withdraws links in a rerun; a decision is recorded | LINK_PROMOTED and LINK_WITHDRAWN rows written from the transition records; LINK_CONFIRMED committed with the decision, before the engine call |
+| U51 | Read grants, pending changes and access requests | GRANT_VIEWED, CHANGE_VIEWED, ACCESS_REQUEST_VIEWED with the ids shown |
+| U52 | hari uploads to C-101 | DATA_UPLOADED has `refs` [C-101]; charu sees it under (c) |
+
+## 8.1 Keys
+The JWT signing key, the cursor key, the `row_ref` key and the `hmac:` key are four distinct secrets from the environment; none is derived from another.
 
 ## 9. Out of scope
 Export, retention or purge (rows live as long as the database), streaming to external systems, external signing keys.

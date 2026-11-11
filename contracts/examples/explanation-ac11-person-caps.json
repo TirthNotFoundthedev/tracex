@@ -45,7 +45,7 @@
           "is_anchor": false,
           "modifiers": [],
           "template_key": "match.evidence.per_name_sim",
-          "params": { "name_a": "rohit sethi", "name_b": "rohit sethi", "sim": 0.95 },
+          "params": { "name_a": "rohit sethi", "name_b": "rohit seti", "sim": 0.95 },
           "sources": [
             { "case_id": "CASE-K1", "document_id": "doc_fir_k1", "line": 4 },
             { "case_id": "CASE-K2", "document_id": "doc_fir_k2", "line": 2 }
