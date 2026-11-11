@@ -1,0 +1,38 @@
+# Source inputs: kept on disk, not in the repo (DECISIONS D18)
+*.pptx
+TraceX How the Project Works*.md
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+.vite/
+playwright-report/
+test-results/
+
+# Data and volumes
+data-kit/out/
+*.dump
+neo4j-data/
+pg-data/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.claude/
