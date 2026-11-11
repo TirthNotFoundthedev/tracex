@@ -96,6 +96,7 @@ AUDIT_EVENTS = {
     "ACCESS_REQUEST_VIEWED",
     "GRANT_VIEWED",
     "CHANGE_VIEWED",
+    "ENGINE_DIVERGENCE_REVERTED",
 }
 
 # Every evidence kind and gate in docs/specs/engine-matching.md sections 3 and 5.

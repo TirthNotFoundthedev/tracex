@@ -195,6 +195,8 @@ Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 RE
 | A45 | Any | 6 failed logins for the same username string, then for a nonexistent one | 429 in both cases |
 | A46 | bharat | Review queue | Only ALLOW links; no stub appears |
 | A47 | test | Walk the route table | Every route has a policy and an audit event |
+| A52 | bharat | `GET /links/{id}`, its explanation and a stub of a WITHDRAWN link | Same 404 as a random id; not listed anywhere |
+| A53 | hari | Start a run scoped to one batch, then read the run | Matched against all loaded cases; response has totals of AUTO and SUGGESTED created only: no LOW count, no per-case or per-pair counts |
 | A49 | deepak | Approve an ASSIGNMENT_ADD naming C-301 for a Northvale officer; approve a USER_CREATE of a SENIOR covering Eastmark | 404 (case district outside coverage); 404 (new coverage not a subset) |
 | A50 | asha, isha, bharat | Fetch entity, list, explanation of a phone in C-102 (asha: own case) and in C-201 under a grant held by isha (JUNIOR) | asha sees it in full; the other masked (`98xxxx1234`); the full value is in no field of the body |
 | A51 | hari | `GET /stats/links` | One object of totals; no parameters, no breakdown; any officer role 404; `/review-queue` 404 for hari |

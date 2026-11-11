@@ -51,6 +51,7 @@ The row commits in the same transaction as the action unless noted. Detail keys 
 | LINK_AUTO_CREATED / LINK_SUGGESTED | API records an engine transition (create) | LINK | `run_id*`, `band*`, `score*`, `entity_ids*` |
 | LINK_DEMOTED | API records an engine demotion (AUTO to SUGGESTED, threshold change or lost evidence) | LINK | `run_id*`, `previous_state*`, `new_state*`, `cause` |
 | LINK_PROMOTED | API records an engine promotion (SUGGESTED to AUTO on a rerun) | LINK | `run_id*`, `previous_state*`, `new_state*` |
+| ENGINE_DIVERGENCE_REVERTED | Startup reconcile found an edge change in Neo4j with no matching Postgres state or `decision_id` in `decision_outbox`, reverted it to the Postgres state and alerted. System actor | LINK | `link_ids*`, `cause` |
 | LINK_WITHDRAWN | API records an engine withdrawal (a SUGGESTED edge fell below the medium threshold; the row stays in state WITHDRAWN, not block-listed) | LINK | `run_id*`, `previous_state*` |
 | LINK_CONFIRMED / _REJECTED / _UNDONE / _REOPENED | Officer decides | LINK | `previous_state*`, `new_state*` |
 | ACCESS_REQUEST_CREATED / _WITHDRAWN / _EXPIRED | Request lifecycle (one link, one far case) | ACCESS_REQUEST | `stub_id*` |
@@ -117,7 +118,7 @@ JUNIOR and INVESTIGATOR: 403, ACCESS_DENIED. SUPERVISOR, SENIOR and ADMIN read u
 | (a) | the reader is the actor; or |
 | (b) | the actor is in the reader's chain of command (SUPERVISOR or SENIOR: actor district inside their scope or coverage), including the actor's denied probes; or |
 | (c) | `refs` is non-empty and the reader has ALLOW on **every** case in `refs`; or |
-| (d) | `refs` is empty and the row is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN, or a SENIOR for whom every user and district the row names (target, `subject_id`, `old_value`, `new_value`; an actor with no jurisdiction, such as ADMIN or SYSTEM, does not count) lies inside the SENIOR's coverage. An all-state SENIOR sees every such row. Rule (d) never admits a row that references a case. |
+| (d) | `refs` is empty and the row is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN, or a SENIOR for whom every user and district the row names (the actor's district, the target, `subject_id`, `old_value`, `new_value`, `claimed_username`, `claimed_sub`; an actor with no jurisdiction, such as ADMIN or SYSTEM, does not count) lies inside the SENIOR's coverage. An all-state SENIOR sees every such row. Rule (d) never admits a row that references a case. |
 
 Any other row does not exist for that reader: no placeholder, no gap, no count, no paging effect. There are no partial views of other people's actions. For a row shown under (a) or (b) that references a case the reader cannot see, the hidden `refs` entries, every S field of those cases and every J field are **dropped from the response** (keys absent, not null). Rows shown under (c) or (d) are complete. The API never returns P columns, hashes, nonces or `seq`.
 
@@ -179,10 +180,12 @@ Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a sup
 | U45 | meena verifies; charu verifies | OK; 403 |
 | U46 | Link-list response | LINKS_LISTED with `link_ids` and `stub_ids`; route inventory fails a route without an event |
 | U47 | Read pages of AUDIT_VIEWED and AUDIT_VERIFY_RUN rows as the actor and as ADMIN | No `seq`, `*_seq`, `range_*` key in any response; `detail` has only allow-listed keys |
-| U48 | hari proposes a role change for gita; gita logs in; deepak reads audit | Neither the CHANGE_PROPOSED row nor gita's AUTH rows exist for deepak (outside coverage); meena sees both |
+| U48 | hari proposes a role change for gita; gita logs in, and a wrong password is tried for gita's username; deepak reads audit | Neither the CHANGE_PROPOSED row, gita's AUTH rows nor the AUTH_LOGIN_FAILED row with her raw `claimed_username` exist for deepak (outside coverage); meena sees all |
 | U49 | Decode a cursor | It does not decode to a `seq` or an id; another reader's, expired or altered cursor gives 422 |
 | U50 | Engine promotes and withdraws links in a rerun; a decision is recorded | LINK_PROMOTED and LINK_WITHDRAWN rows written from the transition records; LINK_CONFIRMED committed with the decision, before the engine call |
 | U51 | Read grants, pending changes and access requests | GRANT_VIEWED, CHANGE_VIEWED, ACCESS_REQUEST_VIEWED with the ids shown |
+| U53 | A run is requested while an outbox row is unacknowledged; a decision while a run is RUNNING | 409 `RUN_IN_PROGRESS` each; no state change |
+| U54 | A transition record whose `from` differs from the Postgres state; a forged `decision_id` written straight to Neo4j | Record rejected and alerted; the forged change reverted, ENGINE_DIVERGENCE_REVERTED written, no LINK_* decision row |
 | U52 | hari uploads to C-101 | DATA_UPLOADED has `refs` [C-101]; charu sees it under (c) |
 
 ## 8.1 Keys

@@ -518,6 +518,7 @@ paths:
         (R3); a link across districts or states is decided only by a SENIOR whose coverage includes both ends; a grant
         never qualifies (403, `decision_block` GRANT_READ_ONLY). Any other source state answers 409
         `INVALID_TRANSITION`.
+        While a matching run is RUNNING this answers 409 `RUN_IN_PROGRESS` (state unchanged).
       x-required-role: INVESTIGATOR
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends; other jurisdiction -> 404 (hidden end); grant -> 403
       x-audit-event: LINK_CONFIRMED
@@ -558,6 +559,7 @@ paths:
         SUGGESTED -> REJECTED with a required reason. An AUTO link cannot be rejected (409 `INVALID_TRANSITION`);
         it can only be undone. The rejected pair joins the block list (the REJECTED edge itself); it is never proposed
         again. The reason is stored on the link history, never in the audit log.
+        While a matching run is RUNNING this answers 409 `RUN_IN_PROGRESS` (state unchanged).
       x-required-role: INVESTIGATOR
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends; hidden end -> 404; grant -> 403
       x-audit-event: LINK_REJECTED
@@ -597,6 +599,7 @@ paths:
       description: |
         AUTO -> UNDONE or CONFIRMED -> UNDONE with a required reason. Entities, provenance and the edge with its
         history remain; the pair is not auto-linked again; clusters split on the next read.
+        While a matching run is RUNNING this answers 409 `RUN_IN_PROGRESS` (state unchanged).
       x-required-role: SUPERVISOR
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends (A18); hidden end -> 404; grant -> 403
       x-audit-event: LINK_UNDONE
@@ -633,7 +636,9 @@ paths:
         - links
       operationId: reopenLink
       summary: Reopen a REJECTED or UNDONE link as SUGGESTED
-      description: "REJECTED -> SUGGESTED and UNDONE -> SUGGESTED with a required reason (D34: surfaced in the admin panel review queue under the Rejected filter). A reopened pair is ended only by a human (CONFIRMED, or REJECTED again); it never becomes AUTO and a rerun never withdraws it."
+      description: |
+        REJECTED -> SUGGESTED and UNDONE -> SUGGESTED with a required reason (D34: surfaced in the admin panel review queue under the Rejected filter). A reopened pair is ended only by a human (CONFIRMED, or REJECTED again); it never becomes AUTO and a rerun never withdraws it.
+        While a matching run is RUNNING this answers 409 `RUN_IN_PROGRESS` (state unchanged).
       x-required-role: SUPERVISOR
       x-jurisdiction: both ends own case or own jurisdiction A (same district); cross-district or cross-state needs SENIOR with coverage of both ends; hidden end -> 404; grant -> 403
       x-audit-event: LINK_REOPENED
@@ -1204,7 +1209,7 @@ paths:
         - ingest
       operationId: uploadFiles
       summary: Upload case material
-      description: "One batch per file. `case_number` is unique per district, so the pair (`district_id`, `case_number`) names the case. The response is identical for a new and an existing case: batch ids and file facts only, no case id, title or created flag, no different status or error. Accepted residual: an ADMIN can learn that a case number exists in a district they name (also through `input_case_count` and a proposal's 422). Parsing runs after the response (status moves WAITING, READING, DONE, FAILED)."
+      description: "One batch per file. `case_number` is unique per district, so the pair (`district_id`, `case_number`) names the case. The response is identical for a new and an existing case: batch ids and file facts only, no case id, title or created flag, no different status or error. Accepted residual: an ADMIN can learn that a case number exists in a district they name (also through a proposal's 422). Parsing runs after the response (status moves WAITING, READING, DONE, FAILED)."
       x-required-role: ADMIN
       x-jurisdiction: system-wide (A/A/A); the response never reveals case data
       x-audit-event: DATA_UPLOADED
@@ -1290,7 +1295,7 @@ paths:
         - ingest
       operationId: startMatchingRun
       summary: Start a matching run over all cases
-      description: Runs are batch and jurisdiction-blind, over every loaded case or the optional `cases` scope. The run reads `thresholds_version` once at start. The engine returns transition records; the API writes the link rows and the audit rows (LINK_AUTO_CREATED, LINK_SUGGESTED, LINK_DEMOTED, LINK_PROMOTED, LINK_WITHDRAWN, SYSTEM actor). A WITHDRAWN link keeps its row in state WITHDRAWN (never deleted, never readable, not block-listed). 409 `RUN_IN_PROGRESS` if one is already running.
+      description: "Runs are batch and jurisdiction-blind. The scope is by upload batch (`batch_ids`, or every batch not yet run); new input is matched against all loaded cases. The run reads `thresholds_version` once at start. **Guard:** a run starts only when the decision outbox has no unacknowledged row, and while a run is RUNNING the four decision operations answer 409 `RUN_IN_PROGRESS`; both directions use the same code. The engine returns transition records; the API rejects any record whose `from` state does not equal the Postgres state, and otherwise writes the link rows and audit rows (LINK_AUTO_CREATED, LINK_SUGGESTED, LINK_DEMOTED, LINK_PROMOTED, LINK_WITHDRAWN, SYSTEM actor). A WITHDRAWN link keeps its row in state WITHDRAWN (never deleted, never readable, not block-listed). The response and the run record expose totals of AUTO and SUGGESTED created only: no LOW count, no per-case or per-pair counts."
       x-required-role: ADMIN
       x-jurisdiction: system-wide (A/A/A); the response carries system-wide totals only
       x-audit-event: MATCHING_RUN_STARTED
@@ -1546,9 +1551,7 @@ paths:
         - admin
       operationId: listPendingChanges
       summary: Pending changes the caller proposed or may decide
-      description: |
-        ADMIN sees changes they proposed. A SENIOR sees changes whose subject jurisdiction (old and new) lies in their
-        coverage; threshold changes only to a SENIOR with all-state coverage. Others do not exist for the caller.
+      description: ADMIN sees changes they proposed. A SENIOR sees changes whose every touched jurisdiction (the subject's old and new district, the district of an assignment's case) lies in their coverage; threshold changes, ADMIN subjects and role changes to or from SENIOR or ADMIN only to an all-state SENIOR. Others do not exist for the caller.
       x-required-role: SENIOR or ADMIN
       x-jurisdiction: "ADMIN: own proposals. SENIOR: changes whose every touched jurisdiction is inside coverage (all-state coverage for thresholds, ADMIN subjects, role changes to or from SENIOR or ADMIN)."
       x-audit-event: CHANGE_VIEWED
@@ -1691,7 +1694,7 @@ paths:
         coverage), including the actor's denied probes; or
         (c) `refs` is non-empty and the reader has ALLOW on every case in `refs`, judged by **case-level access**
         (own case, own jurisdiction or coverage); a grant never counts; or
-        (d) the row **references no cases** (`refs` empty) and is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN, or a SENIOR for whom every user and district the row names (target, subject, old and new values; an actor without a jurisdiction, such as ADMIN or SYSTEM, does not count) lies inside their coverage. An all-state SENIOR sees every such row. Rule (d) never admits a row that references a case.
+        (d) the row **references no cases** (`refs` empty) and is a system event (AUTH_*, DATA_UPLOADED, MATCHING_RUN_*, CHANGE_*, USER_*, AUDIT_*) and the reader is ADMIN, or a SENIOR for whom every user and district the row names (the actor's district, the target, the subject, old and new values, `claimed_username` and `claimed_sub`; an actor without a jurisdiction, such as ADMIN or SYSTEM, does not count) lies inside their coverage. An all-state SENIOR sees every such row. Rule (d) never admits a row that references a case.
 
         Rows that fail the rule do not exist for the reader: no placeholder, no gap, no count. For a row shown under (a)
         or (b) that references a case the reader cannot see, hidden `refs` entries, every field owned by those cases
@@ -3177,15 +3180,13 @@ components:
         - status
         - started_at
         - triggered_by
-        - input_case_count
         - ruleset_version
         - thresholds_version
-        - counts_by_state
-        - counts_by_band
         - oversized_block_count
-      description: |
-        The engine's run record as the API persists it. `input_case_ids` stay in the database; the response gives a
-        count, so an ADMIN learns nothing about individual cases.
+        - input_batch_count
+        - auto_created
+        - suggested_created
+      description: The engine's run record as the API persists it, reduced for ADMIN. `input_case_ids` and per-state, per-band and per-pair counts stay in the database; the response has totals of AUTO and SUGGESTED created only.
       properties:
         run_id:
           $ref: "#/components/schemas/Uuid"
@@ -3201,47 +3202,11 @@ components:
           format: date-time
         triggered_by:
           $ref: "#/components/schemas/Uuid"
-        input_case_count:
-          type: integer
-          minimum: 0
         ruleset_version:
           type: string
         thresholds_version:
           type: integer
           minimum: 1
-        counts_by_state:
-          type: object
-          additionalProperties: false
-          properties:
-            AUTO:
-              type: integer
-              minimum: 0
-            SUGGESTED:
-              type: integer
-              minimum: 0
-            PROMOTED:
-              type: integer
-              minimum: 0
-            DEMOTED:
-              type: integer
-              minimum: 0
-            WITHDRAWN:
-              type: integer
-              minimum: 0
-        counts_by_band:
-          type: object
-          additionalProperties: false
-          description: Low pairs are counted, not stored.
-          properties:
-            HIGH:
-              type: integer
-              minimum: 0
-            MEDIUM:
-              type: integer
-              minimum: 0
-            LOW:
-              type: integer
-              minimum: 0
         oversized_block_count:
           type: integer
           minimum: 0
@@ -3250,6 +3215,15 @@ components:
             - string
             - "null"
           pattern: ^[A-Z_]+$
+        input_batch_count:
+          type: integer
+          minimum: 0
+        auto_created:
+          type: integer
+          minimum: 0
+        suggested_created:
+          type: integer
+          minimum: 0
     MatchRunPage:
       allOf:
         - $ref: "#/components/schemas/PageBase"
@@ -3570,6 +3544,7 @@ components:
         - ACCESS_REQUEST_VIEWED
         - GRANT_VIEWED
         - CHANGE_VIEWED
+        - ENGINE_DIVERGENCE_REVERTED
     AuditActor:
       type: object
       additionalProperties: false
@@ -3701,24 +3676,13 @@ components:
       type: object
       additionalProperties: false
       properties:
-        cases:
+        batch_ids:
           type: array
           minItems: 1
-          maxItems: 500
-          description: Optional run scope; default is every loaded case. The server maps each entry to a case id and passes `input_case_ids` to the engine; both end cases of a pair must be in the set. An entry that matches no case answers the same 422 as an invalid one.
+          maxItems: 100
           items:
-            type: object
-            additionalProperties: false
-            required:
-              - district_id
-              - case_number
-            properties:
-              district_id:
-                $ref: "#/components/schemas/Uuid"
-              case_number:
-                type: string
-                minLength: 1
-                maxLength: 64
+            $ref: "#/components/schemas/Uuid"
+          description: "Optional: upload batches whose cases are new input. Default: every batch not yet run. The server maps the batches to `input_case_ids` for the engine; new input is always matched against all loaded cases, never against a named subset, so the totals say no more than a full run would. A batch id that is unknown answers the same 422 as an invalid one."
     LinkTotals:
       type: object
       additionalProperties: false
@@ -4213,3 +4177,6 @@ components:
           - redacted
         AUDIT_VERIFY_RUN:
           - result
+        ENGINE_DIVERGENCE_REVERTED:
+          - link_ids
+          - cause

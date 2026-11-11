@@ -199,11 +199,43 @@ def test_n8_only_verify_returns_a_sequence_number_and_only_when_broken() -> None
     assert "`seq_from^`" in spec and "W8" in spec
 
 
-def test_iyer_run_scope_is_optional_and_reaches_the_engine() -> None:
+def test_d49_run_is_scoped_by_upload_batch_never_by_named_cases() -> None:
     op = _op("/matching/runs", "post")
     assert op["requestBody"]["required"] is False
-    assert "input_case_ids" in _schemas()["StartRunRequest"]["properties"]["cases"]["description"]
+    props = _schemas()["StartRunRequest"]["properties"]
+    assert set(props) == {"batch_ids"}
+    assert "always matched against all loaded cases" in props["batch_ids"]["description"] or (
+        "matched against all loaded cases" in props["batch_ids"]["description"]
+    )
     assert "input_case_ids" in ARCHITECTURE.read_text(encoding="utf-8")
+
+
+def test_d49_run_result_exposes_only_auto_and_suggested_totals() -> None:
+    run = _schemas()["MatchRun"]
+    assert not {"counts_by_band", "counts_by_state", "input_case_count"} & set(run["properties"])
+    assert {"auto_created", "suggested_created"} <= set(run["properties"])
+    assert "LOW" not in json.dumps(run)
+
+
+def test_d49_run_and_decisions_guard_each_other() -> None:
+    assert "no unacknowledged row" in _op("/matching/runs", "post")["description"]
+    for action in ("confirm", "reject", "undo", "reopen"):
+        op = _op("/links/{link_id}/" + action, "post")
+        assert "RUN_IN_PROGRESS" in op["description"], action
+        assert "409" in op["responses"], action
+    architecture = ARCHITECTURE.read_text(encoding="utf-8")
+    assert "Reconcile never imports a `decision_id`" in architecture
+    assert "match_run_id, decision_id, reason_code, at" in architecture
+    assert "ENGINE_DIVERGENCE_REVERTED" in _schemas()["AuditEventType"]["enum"]
+
+
+def test_m1_rule_d_names_the_actor_district_and_claimed_identifiers() -> None:
+    description = _op("/audit", "get")["description"]
+    assert "claimed_username" in description and "actor's district" in description
+
+
+def test_m2_pending_change_list_description_matches_its_jurisdiction_rule() -> None:
+    assert "every touched jurisdiction" in _op("/pending-changes", "get")["description"]
 
 
 def test_iyer_promoted_and_withdrawn_transitions_are_audited() -> None:
