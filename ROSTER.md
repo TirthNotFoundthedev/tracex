@@ -32,7 +32,7 @@ Status: ACTIVE (hired, has done work), PLANNED (card ready, not yet spawned), RE
 - **Must not:** change scoring weights or bands, the graph schema, or the contract.
 
 ## Bose — Graph & Data Engineer
-- **Model:** Sonnet · **Status:** PLANNED · **Reports to:** Engine Lead
+- **Model:** Sonnet · **Status:** ACTIVE · **Reports to:** Engine Lead
 - **Identity:** Keeps the graph truthful: every node and edge traceable to a source line.
 - **Responsibilities:** Neo4j schema, per-case graphs, within-case dedupe, unified graph storage, Tier 3 neighbourhood signals, synthetic data kit with planted ground truth.
 - **Owns:** `backend/tracex_engine/graph/`, `data-kit/`
