@@ -170,7 +170,7 @@ Sign in -> My cases -> Case -> Item -> Also appears in -> Why linked -> Confirm 
 
 ## 3. Admin panel
 
-Layout: left navigation (icon + label) with Upload, Matching, Review queue, Access requests, Users and roles, Audit log, Thresholds, Network graph. Header: user name, area, `[(languages) हिंदी]`, `[(log-out) Sign out]`. Each page has one title and at most one primary button.
+Layout: left navigation (icon + label) with Upload, Matching, Review queue, Approvals, Users and roles, Audit log, Thresholds, Network graph. Header: user name, area, `[(languages) हिंदी]`, `[(log-out) Sign out]`. Each page has one title and at most one primary button.
 
 ### A1 Upload case material
 Title: "Upload case material". Fields: "Case" (select from list or "New case number"), a drop area "Drop files here or [Choose files]", accepted types written in words: "PDF, Word, Excel, text, images". Primary: `[ * Upload files ]`. Result table: File, Case, Status ("Waiting", "Reading", "Done", "Could not read: [reason in words]"), `[Open]`. Failure row action: `[Try again]`.
@@ -283,23 +283,58 @@ A missing button always comes with its line (DESIGN_RULES 5), never a greyed but
 | queue.error.notFound | We could not find this link. | हमें यह लिंक नहीं मिला। |
 | officer.rejected.mistake | You rejected this link. If this was a mistake, ask your supervisor. | आपने यह लिंक अस्वीकार किया। अगर यह ग़लती थी, तो अपने सुपरवाइज़र से कहें। |
 
-### A4 Access requests
-Title: "Access requests". Table: Requested by, For case (admin sees it), From area, Reason, Date, Status. Row: `[Open]`. Detail: reason text in full, and `[ * Approve ]` `[ Refuse ]`; Refuse has an optional "Reason for refusing". Approve needs second step: "Give [name] access to Case 31/207 for 30 days? [ * Yes, approve ] [No, go back]". Access end date field "Access ends": default 30 days.
+### A4 Approvals (access requests and changes)
+Title: "Approvals". A two-choice switch under the title, same design as the A3 status switch: "Access requests (n)" and "Changes (n)". Supervisors see only "Access requests"; Senior officers and Administrators see both. Access requests: Table: Requested by, For case (admin sees it), From area, Reason, Date, Status. Row: `[Open]`. Detail: reason text in full, and `[ * Approve ]` `[ Refuse ]`; Refuse has an optional "Reason for refusing". Approve needs second step: "Give [name] access to Case 31/207 for 30 days? [ * Yes, approve ] [No, go back]". Access end date field "Access ends": default 30 days.
+
+#### A4a Changes to approve (D35)
+Every Administrator change to users, roles, areas, case assignments and match settings is a proposal. It takes effect only when a Senior officer approves it. The page reuses the A4 pattern, so there is no new screen.
+Table: Proposed by, Change (plain words, e.g. "Turn off Ravi Kumar", "Ravi Kumar: Supervisor to Senior officer", "Match settings: strong match starts at 80, new 85"), About, Date, Status ("Waiting for a senior officer", "Approved", "Refused"). Row `[Open]`. Detail: the old value and the new value side by side, who proposed it and when, then `[ * Approve this change ]` `[ Refuse this change ]`. Approve has a second step, as in A4: "Apply this change? It takes effect now. [ * Yes, approve ] [No, go back]". Refuse has an optional "Reason for refusing". After: "(check) You approved this change. It is now in effect." or "(x) You refused this change. Nothing was changed."
+Who sees the buttons (access spec 3.2): a Senior officer whose coverage includes the person or area concerned (for match settings, a Senior officer covering all states), who is neither the proposer nor the subject. A Senior officer outside that coverage cannot see the change: not listed, and opened by address it shows "We could not find this change. [Back to the list]". The proposer sees "You proposed this change. Another senior officer must decide it." and no buttons; the subject sees "This change is about you. Another senior officer must decide it." and no buttons. An Administrator sees only the status of the changes they proposed, never an Approve button.
+
+**Pending state on the item.** After any Save on A5 or A7 the page shows, and keeps until it is decided: "(clock) Sent for approval. Nothing changes until a senior officer approves it." The item carries a tag "(clock) Change waiting for approval" (icon + words, dashed border): on the A5 table row and on the user form, and above the A7 fields with "The current numbers stay in use until then." while the proposed values are shown beside the current ones. The old values keep working until approval. Approved: tag disappears, "Saved." appears on next open. Refused: tag becomes "(x) Change refused" with the refusal reason if one was written, and the old values remain.
 
 ### A5 Users and roles
-Title: "Users and roles". Table: Name, User ID, Role, Area, Status. `[ * Add user ]` primary. Form: Name, User ID, Area, Role ("Officer: can look", "Investigating officer: can look", "Supervisor: can decide in own area", "Senior officer: can decide across areas", "Administrator: manages the system, no case access"), `[ * Save user ]`. Row `[Open]` -> same form plus `[Turn off this user]` (danger, second confirm: "Turn off [name]? They will not be able to sign in. [ * Yes, turn off ] [No, go back]"). Roles are explained in one sentence beside each choice; codes (JUNIOR etc.) are never shown. Administrators see no case content on any screen: A3, A4 and A8 show case details only to roles with case rights; an Administrator sees counts and status.
+Title: "Users and roles". Table: Name, User ID, Role, Area, Status. `[ * Add user ]` primary. Form: Name, User ID, Area, Role ("Officer: can look", "Investigating officer: can look", "Supervisor: can decide in own area", "Senior officer: can decide across areas", "Administrator: manages the system, no case access"), `[ * Save user ]` (a proposal: after it, "Sent for approval. Nothing changes until a senior officer approves it."). Row `[Open]` -> same form plus `[Turn off this user]` (danger, second confirm: "Turn off [name]? They will not be able to sign in once a senior officer approves. [ * Yes, send for approval ] [No, go back]"). Roles are explained in one sentence beside each choice; codes (JUNIOR etc.) are never shown. Administrators see no case content on any screen: A3, A4 and A8 show case details only to roles with case rights; an Administrator sees counts and status.
+
+**Approval strings (D35).**
+| Key | English | Hindi |
+|---|---|---|
+| approvals.title | Approvals | मंज़ूरियाँ |
+| approvals.show.access | Access requests ({n}) | पहुँच के अनुरोध ({n}) |
+| approvals.show.changes | Changes ({n}) | बदलाव ({n}) |
+| approvals.col.proposedBy | Proposed by | किसने प्रस्तावित किया |
+| approvals.col.change | Change | बदलाव |
+| approvals.col.about | About | किसके बारे में |
+| approvals.status.waiting | Waiting for a senior officer | वरिष्ठ अधिकारी की प्रतीक्षा में |
+| approvals.status.approved | Approved | मंज़ूर |
+| approvals.status.refused | Refused | अस्वीकृत |
+| approvals.approve | Approve this change | यह बदलाव मंज़ूर करें |
+| approvals.refuse | Refuse this change | यह बदलाव अस्वीकार करें |
+| approvals.approve.confirm | Apply this change? It takes effect now. | यह बदलाव लागू करें? यह अभी से लागू होगा। |
+| approvals.approve.yes | Yes, approve | हाँ, मंज़ूर करें |
+| approvals.done.approved | You approved this change. It is now in effect. | आपने यह बदलाव मंज़ूर किया। यह अब लागू है। |
+| approvals.done.refused | You refused this change. Nothing was changed. | आपने यह बदलाव अस्वीकार किया। कुछ नहीं बदला। |
+| approvals.noRight.proposer | You proposed this change. Another senior officer must decide it. | यह बदलाव आपने प्रस्तावित किया था। कोई दूसरे वरिष्ठ अधिकारी इसका फ़ैसला करेंगे। |
+| approvals.noRight.subject | This change is about you. Another senior officer must decide it. | यह बदलाव आपके बारे में है। कोई दूसरे वरिष्ठ अधिकारी इसका फ़ैसला करेंगे। |
+| approvals.error.notFound | We could not find this change. | हमें यह बदलाव नहीं मिला। |
+| approvals.sent | Sent for approval. Nothing changes until a senior officer approves it. | मंज़ूरी के लिए भेज दिया गया। वरिष्ठ अधिकारी के मंज़ूर करने तक कुछ नहीं बदलेगा। |
+| approvals.tag.waiting | Change waiting for approval | बदलाव मंज़ूरी की प्रतीक्षा में है |
+| approvals.tag.refused | Change refused | बदलाव अस्वीकृत |
+| approvals.thresholds.pending | The current numbers stay in use until then. | तब तक मौजूदा संख्याएँ ही चलेंगी। |
+| approvals.turnoff.yes | Yes, send for approval | हाँ, मंज़ूरी के लिए भेजें |
+| approvals.turnoff.warn | They will not be able to sign in once a senior officer approves. | वरिष्ठ अधिकारी के मंज़ूर करने के बाद वे साइन इन नहीं कर पाएँगे। |
 
 ### A6 Audit log
 Title: "Activity log". Read-only table: Time, Person, What they did, Case, Item. Filters: date range, person, action type (words: "Looked at", "Confirmed", "Rejected", "Asked for access", "Approved access", "Uploaded"). No download or export control exists (the audit spec allows no export), and no edit or delete controls; line at top: "This log cannot be changed."
 
 ### A7 Thresholds
-Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (80, a score from 0 to 100) "Links at or above this are made automatically."; "Possible match starts at" (45) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "No link made | Please check | Linked automatically" (the first zone is a score range only; nothing is stored or listed for it). Primary `[ * Save settings ]`; after save: "Saved. New matching runs use these numbers. Past results do not change." There is no test run or preview of how many links would move (no dry-run in the MVP). Allowed values are written under each field: strong from 70 to 100; possible from 30 up to 10 below the strong value. A value outside them shows "Please enter a number from 70 to 100." / "Please enter a number from 30 to [strong value minus 10]."
+Title: "Match settings". Line: "These numbers decide which links are made automatically." Fields with one-sentence help each: "Strong match starts at" (80, a score from 0 to 100) "Links at or above this are made automatically."; "Possible match starts at" (45) "Links between this and the strong level wait in 'Links to check'. Below it, nothing is linked." Visual: horizontal bar split into three labelled zones (words + pattern fill, not colour only): "No link made | Please check | Linked automatically" (the first zone is a score range only; nothing is stored or listed for it). Primary `[ * Save settings ]`; after save: "Sent for approval. Nothing changes until a senior officer approves it." (a proposal, A4a). After approval, new matching runs use the numbers and past results do not change There is no test run or preview of how many links would move (no dry-run in the MVP). Allowed values are written under each field: strong from 70 to 100; possible from 30 up to 10 below the strong value. A value outside them shows "Please enter a number from 70 to 100." / "Please enter a number from 30 to [strong value minus 10]."
 
 ### A8 Network graph
 Title: "Network of links". Search "Find a person, phone number, account or vehicle", then `[ * Show network ]`. Canvas rules in DESIGN_RULES section 12. Left of canvas: legend (icon + word per node and edge kind). Right panel: selected node's explanation panel. Toggle `[(list) Show as list]` / `[(share-2) Show as picture]`. Message at limit: "Showing the 150 closest. Narrow the search to see others."
 
 ### Admin flow in one line
-Upload -> Matching -> Links to check -> Confirm or Reject -> (Network graph to inspect) ; side flows: Access requests, Users and roles, Match settings, Activity log.
+Upload -> Matching -> Links to check -> Confirm or Reject -> (Network graph to inspect) ; side flows: Approvals (access requests and changes), Users and roles, Match settings, Activity log.
 
 ## 4. Shared states
 

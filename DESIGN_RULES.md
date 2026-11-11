@@ -63,7 +63,7 @@ Rules:
 - Primary action sits at the bottom of the content, full width, not in a floating or sticky bar except on phone.
 
 **Admin panel**:
-- Left navigation (240px) with icon + label for each section: Upload, Matching, Review queue, Access requests, Users, Audit log, Settings, Network graph. Content area uses tables with 44px rows and sortable columns labelled in words.
+- Left navigation (240px) with icon + label for each section: Upload, Matching, Review queue, Approvals, Users, Audit log, Settings, Network graph. Content area uses tables with 44px rows and sortable columns labelled in words.
 - Header shows user, jurisdiction, language switch, sign out. Breadcrumbs for depth above two.
 - Tables: header row sticky, number columns right aligned in mono, row actions in a single "Open" button, not icon clusters. Reason: reduces misclicks across many rows.
 - Wide screens use width; text blocks still obey the 60-character measure.
@@ -155,7 +155,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - Errors say what happened, whether data is safe, and what to do: "We could not save. Nothing was changed. [Try again]". Never codes, never blame ("you entered an invalid value"), never a dead end; always a button.
 - Empty states say why and what next: "No cases yet. Ask your supervisor to add your cases."
 - Session timeout warns 2 minutes before, with a button "Stay signed in".
-- Destructive admin actions state the effect in the button ("Delete this user") and need a second confirm.
+- Destructive admin actions state the effect in the button ("Delete this user") and need a second confirm. Every Administrator change to users, roles, areas, assignments or match settings is a proposal: after Save the page says "Sent for approval. Nothing changes until a senior officer approves it." and the item shows a tag with icon and words until a Senior officer decides (D35). Reason: the Administrator cannot change access alone, and the screen must not look as if the change already happened.
 
 ## 12. Graph view (admin only)
 - Nodes are shapes with labels, never colour only: person = circle, phone = rounded square, bank account = diamond, vehicle = triangle, case = hexagon. Each label is visible text (min 14px), not hover-only.
