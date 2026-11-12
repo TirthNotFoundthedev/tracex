@@ -141,7 +141,6 @@ def test_bank_account_leading_zeros_are_kept() -> None:
         ("TX2,10-09-2026,5010000088801,SYNB0000123,AJAY PAL,DR,,x,10.00,5.00", "txn_date"),
         ("TX2,2026-09-10,50100,SYNB0000123,AJAY PAL,DR,,x,10.00,5.00", "account_no"),
         ("TX2,2026-09-10,5010000088801,BADIFSC,AJAY PAL,DR,,x,10.00,5.00", "ifsc"),
-        ("TX2,2026-09-10,5010000088801,SYNB0000123,,DR,,x,10.00,5.00", "account_holder"),
         ("TX2,2026-09-10,5010000088801,SYNB0000123,AJAY PAL,XX,,x,10.00,5.00", "direction"),
         ("TX2,2026-09-10,5010000088801,SYNB0000123,AJAY PAL,DR,,x,ten,5.00", "amount_inr"),
         ("TX2,2026-09-10,5010000088801,SYNB0000123,AJAY PAL,DR,,x,10.00,5.00,extra", "columns"),
@@ -177,3 +176,16 @@ def test_sdr_rows_carry_subscriber_phone_and_provenance() -> None:
     [error] = result.errors
     assert error.source.line == 3
     assert "subscriber_name" in error.reason
+
+
+def test_bank_row_with_no_account_holder_is_a_valid_row_with_an_empty_holder() -> None:
+    """Real planted rows (AC-04, AC-26) leave account_holder empty."""
+    row = "TX3,2026-09-10,5010000088801,SYNB0000123,,DR,CASH DEPOSIT,x,10.00,5.00"
+
+    result = parse_bank("C-124", "bank.csv", f"{BANK_HEADER}\n{row}\n")
+
+    assert result.errors == ()
+    [parsed] = result.rows
+    assert parsed.holder == ""
+    assert parsed.account.normalized == "5010000088801"
+    assert parsed.counterparty_kind == "NAME"

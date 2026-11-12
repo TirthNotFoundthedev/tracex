@@ -3,7 +3,15 @@
 import random
 import string
 
-from tests.engine.support import CDR_HEADER, cdr_row, fir_file, note, notes_file, pinned_file
+from tests.engine.support import (
+    BANK_HEADER,
+    CDR_HEADER,
+    cdr_row,
+    fir_file,
+    note,
+    notes_file,
+    pinned_file,
+)
 from tracex_engine.extract import (
     AttributionCode,
     IdentifierMention,
@@ -115,3 +123,16 @@ def test_arbitrary_text_never_raises_and_every_mention_is_cited_and_raw() -> Non
             assert mention.source.case_id == "C-9" and mention.source.line >= 1
         for attribution in records.attributions:
             assert attribution.identifier.kind in set(IdKind)
+
+
+def test_bank_account_without_a_holder_is_an_account_with_no_owner() -> None:
+    row = "TX3,2026-09-10,5010000088801,SYNB0000123,,DR,CASH DEPOSIT,x,10.00,5.00"
+    text = f"{BANK_HEADER}\n{row}\n"
+
+    records = extract_case("C-124", {"bank.csv": text})
+
+    assert records.errors == ()
+    assert [(i.kind, i.normalized, i.source.line) for i in records.identifiers] == [
+        (IdKind.ACCOUNT, "5010000088801", 2)
+    ]
+    assert records.persons == () and records.orgs == () and records.attributions == ()
