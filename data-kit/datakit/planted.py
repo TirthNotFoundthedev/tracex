@@ -86,7 +86,8 @@ def fx01(b: Builder, cs: dict[str, Case]) -> None:
                      ("C-201", "cdr.csv", 33), ("C-201", "cdr.csv", 41)],
     )  # fmt: skip
     # 4471 itself joins the access overlay links in `access`; keep the entities for it.
-    b.keep = {"ph_a": ph_a, "ph_b": ph_b, "irfan_a": irfan_a, "irfan_b": irfan_b}
+    b.keep = {"ph_a": ph_a, "ph_b": ph_b, "irfan_a": irfan_a, "irfan_b": irfan_b,
+              "p1203_a": p1203_a, "p1203_b": p1203_b}  # fmt: skip
     # TR-10 partner is added in fx17_19
 
 
@@ -164,6 +165,7 @@ def fx07(b: Builder, cs: dict[str, Case]) -> None:
     b.fir_person(p, suresh, "accused", phone=ph_p, line=12)
     b.ring("FX-07", ["AC-07"], [(n, ph_n), (p, ph_p)], b.phones.alloc(3))
     b.ident_links("FX07-PHN", ["AC-07"], [ph_n, ph_p])
+    b.keep.update({"ph_n": ph_n, "ph_p": ph_p})
     b.non_link("NL-FX07-A", ["AC-07"], "TR-02", ramesh, suresh, "ANY_EDGE",
                "Shared family phone, 33.0 Low, no edge")  # fmt: skip
     b.non_link("NL-FX07-B", ["AC-07"], "TR-02", sunita, suresh, "ANY_EDGE",
@@ -243,7 +245,13 @@ def fx11(b: Builder, cs: dict[str, Case]) -> None:
                      mohalla="Lal Darwaza", relation="s/o", relative=rel, line=12)  # fmt: skip
     towers = ["Rivergate Market", "Rivergate Ghat", "Kherapur Chowk", "Rivergate Bus Stand"]
     stamps = [f"2026-03-1{i}T10:15:00+05:30" for i in range(4)]
-    b.ring("FX-11", ["AC-11"], [(c1, p1), (c2, p2)], b.phones.alloc(4), when=stamps, towers=towers)
+    ring = b.ring(
+        "FX-11", ["AC-11"], [(c1, p1), (c2, p2)], b.phones.alloc(4), when=stamps, towers=towers
+    )
+    # exactly three shared (tower_place, date) pairs: the fourth row differs in the second case
+    _file, line = ring.lines[c2.case_id][3]
+    row = c2.doc("cdr.csv").csv_cells[line]
+    row[1], row[7] = "2026-03-20T10:15:00+05:30", "Rivergate Civil Lines"
     b.link("EL-FX11-PER", ["AC-11"], "PERSON", a1, a2, "SUGGESTED", "HIGH", 90.0, "band",
            ["G2"], ["PER_NAME_SIM", "PER_RELATIVE_NAME", "PER_DOB_MATCH", "PER_LOCALITY",
                     "PER_SHARED_NETWORK", "PER_CO_LOCATION"], trap="TR-06")  # fmt: skip
@@ -278,7 +286,7 @@ def fx12(b: Builder, cs: dict[str, Case]) -> None:
 def fx13(b: Builder, cs: dict[str, Case]) -> None:
     q1, q2, q3, q4 = cs["C-117"], cs["C-208"], cs["C-305"], cs["C-118"]
     names = {
-        "Q1": "Harbhajan Sandhawalia", "Q2": "Harbhajan Sandhawalia",
+        "Q1": "Harbhajan Sandhawalia", "Q2": "Harbajan Sandhawalia",
         "Q3": "Harbhajan Sandhawaliya", "Q4": "Harbhajan Sandhwalia",
     }  # fmt: skip
     cases = {"Q1": q1, "Q2": q2, "Q3": q3, "Q4": q4}
@@ -312,7 +320,7 @@ def fx13(b: Builder, cs: dict[str, Case]) -> None:
     _cross(b, "FX13-Q1Q2", per["Q1"], per["Q2"])
     _cross(b, "FX13-Q3Q4", per["Q3"], per["Q4"])
     kinds = ["SHARED_PHONE", "PER_NAME_SIM", "PER_SHARED_NETWORK"]
-    b.link("EL-FX13-Q1Q2", ["AC-13"], "PERSON", per["Q1"], per["Q2"], "AUTO", "HIGH", 99.0,
+    b.link("EL-FX13-Q1Q2", ["AC-13"], "PERSON", per["Q1"], per["Q2"], "AUTO", "HIGH", 98.0,
            "band", [], kinds, harness="HS-AC13")  # fmt: skip
     b.link("EL-FX13-Q3Q4", ["AC-13"], "PERSON", per["Q3"], per["Q4"], "AUTO", "HIGH", 96.9,
            "band", [], kinds)  # fmt: skip
@@ -392,7 +400,7 @@ def fx21_22(b: Builder, cs: dict[str, Case]) -> None:
     _within(b, "FX21-B", o2, h2)
     b.ident_links("FX21-ACC", ["AC-21"], [a1, a2])
     _cross(b, "FX21-ORG", o1, o2)
-    b.link("EL-FX21-ORG", ["AC-21"], "ORG", o1, o2, "SUGGESTED", "HIGH", 95.0, "band",
+    b.link("EL-FX21-ORG", ["AC-21"], "ORG", o1, o2, "SUGGESTED", "HIGH", 90.0, "band",
            ["G7"], ["SHARED_ACCOUNT", "ORG_NAME_SIM", "PER_LOCALITY"])  # fmt: skip
     # FX-22 Naveen Tomar
     rg, hc = cs["C-123"], cs["C-213"]
@@ -441,7 +449,7 @@ def sf01_03(b: Builder, cs: dict[str, Case]) -> None:
     n1 = b.per(c, "SF-01.PER.A", "Ramesh Kasana urf Kalu", "ramesh kasana", aliases=["kalu"])
     n2 = b.per(c, "SF-01.PER.B", "Kalu", "kalu")
     b.fir_person(c, n1, "accused")
-    b.note(c, "Kalu was seen again near the market.", [n2])
+    b.note(c, "Accused Kalu was seen again near the market.", [n2])
     _within(b, "SF01-PER", n1, n2)
     # SF-02, SF-03
     p1 = b.phn(cs["C-128"], "SF-02.PHN.A", "9000091827")
@@ -553,6 +561,13 @@ def sf07_08(b: Builder, cs: dict[str, Case]) -> None:
 
 def access(b: Builder, cs: dict[str, Case]) -> None:
     k = b.keep
+    for i, (x, y) in enumerate(
+        ((k["p1203_a"], k["ph_n"]), (k["p1203_a"], k["ph_p"]),
+         (k["p1203_b"], k["ph_n"]), (k["p1203_b"], k["ph_p"]))
+    ):  # fmt: skip
+        b.non_link(f"NL-B2-{i + 1}", [], "TR-11", x, y, "ANY_EDGE",
+                   "9000021203 and 9000022310 have the same digit set but are not an adjacent swap: "
+                   "B2 candidate without evidence, no edge")  # fmt: skip
     a, c, c102, c202 = cs["C-101"], cs["C-201"], cs["C-102"], cs["C-202"]
     caller, peer1, peer2, caller8 = b.phones.alloc(4)
     e3 = b.phn(c102, "ACC.PHN.E3", "9000014471")
