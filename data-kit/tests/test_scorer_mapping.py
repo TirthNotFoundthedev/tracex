@@ -222,3 +222,48 @@ def test_each_mention_of_an_engine_entity_maps_on_its_own_raw_text(
         frozenset({witness["gt_id"]}),
     ]
     assert index.closure(per_mention[0]) != index.closure(per_mention[1])
+
+
+ROLE_WORDS = ("Accused", "Complainant", "Witness", "Abhiyukt", "Shikayatkarta", "Gawah")
+ROLE_WORDS_HI = ("अभियुक्त", "शिकायतकर्ता", "गवाह")
+
+
+def test_person_and_org_raw_text_is_the_bare_name_without_role_prefix_or_alias_clause(
+    gt: dict[str, Any],
+) -> None:
+    for entity in gt["entities"]:
+        if entity["type"] not in ("PERSON", "ORG"):
+            continue
+        raw = entity["raw_text"]
+        assert " urf " not in raw and " उर्फ " not in raw and " alias " not in raw, entity["gt_id"]
+        assert not raw.startswith("M/s"), entity["gt_id"]
+        assert not raw.startswith((*ROLE_WORDS, *ROLE_WORDS_HI)), entity["gt_id"]
+
+
+def test_names_written_with_an_alias_clause_keep_the_alias_in_attributes(
+    gt: dict[str, Any], read_case_file: Any
+) -> None:
+    named = {e["gt_id"]: e for e in gt["entities"]}
+    for gt_id, alias in (("FX-14.PER.R2", "monu"), ("SF-01.PER.A", "kalu")):
+        entity = named[gt_id]
+        assert " urf " not in entity["raw_text"]
+        assert alias in entity["attributes"]["aliases"]
+    with_alias = [
+        e
+        for e in gt["entities"]
+        if e["type"] == "PERSON" and e.get("attributes", {}).get("aliases")
+    ]
+    assert len(with_alias) >= 30
+    for entity in with_alias:
+        ref = entity["mentions"][0]
+        lines = read_case_file(ref["case_id"], ref["file"])
+        assert f"{entity['raw_text']} urf " in lines[ref["line"] - 1], entity["gt_id"]
+
+
+def test_the_org_raw_text_drops_the_m_s_prefix_but_stays_on_the_line(
+    gt: dict[str, Any], read_case_file: Any
+) -> None:
+    orgs = {e["gt_id"]: e for e in gt["entities"] if e["type"] == "ORG"}
+    assert orgs["FX-21.ORG.A"]["raw_text"] == "Shree Balaji Traders"
+    assert orgs["FX-21.ORG.B"]["raw_text"] == "Shri Balaji Trading Co"
+    assert "M/s Shree Balaji Traders" in read_case_file("C-122", "fir.txt")[11]

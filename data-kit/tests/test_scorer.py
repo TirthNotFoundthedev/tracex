@@ -680,3 +680,32 @@ def test_scenario_only_acceptance_cases_are_listed_apart_from_passes(
         ac for ac, row in report["per_ac"].items() if row["status"] == "pass"
     }
     assert "Not scored (scenario-only): AC-16, AC-18" in format_report(report)
+
+
+def test_a_transliteration_split_inside_one_within_case_group_is_allowed(
+    gt: dict[str, Any], perfect: dict[str, Any]
+) -> None:
+    """Two engine entities for two writings of one person in one case: the safe side."""
+    split = copy.deepcopy(perfect)
+    template = edge_of_link(split, gt, "EL-FX01-PER")
+    split["edges"].append({**template, "a": eid("FX-01.PER.IRFAN_A_BANK")})
+    assert score(gt, split)["ok"] is True
+    merged = copy.deepcopy(perfect)
+    merge_mentions(merged, gt, "FX-01.PER.IRFAN_A", "FX-01.PER.IRFAN_A_BANK")
+    assert score(gt, merged)["ok"] is True
+
+
+def test_one_engine_entity_in_two_groups_or_two_cases_still_fails_next_to_a_split(
+    gt: dict[str, Any], perfect: dict[str, Any]
+) -> None:
+    two_groups = copy.deepcopy(perfect)
+    witness = next(
+        e["gt_id"]
+        for e in gt["entities"]
+        if e["type"] == "PERSON" and e["raw_text"] == "Sunil Pandey" and e["case_id"] == "C-101"
+    )
+    merge_mentions(two_groups, gt, "FX-01.PER.IRFAN_A_BANK", witness)
+    assert _wrong_kinds(score(gt, two_groups)) == ["entity_conflict"]
+    two_cases = copy.deepcopy(perfect)
+    merge_mentions(two_cases, gt, "FX-01.PER.IRFAN_A", "FX-01.PER.IRFAN_B")
+    assert "entity_conflict" in _wrong_kinds(score(gt, two_cases))
