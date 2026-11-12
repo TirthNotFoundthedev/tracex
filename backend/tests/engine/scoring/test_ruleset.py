@@ -94,7 +94,7 @@ def test_pending_items_name_the_tier_they_wait_for() -> None:
 
 
 def test_default_thresholds_are_the_spec_defaults() -> None:
-    assert DEFAULT_THRESHOLDS == Thresholds(Decimal(80), Decimal(45), 1)
+    assert Thresholds(Decimal(80), Decimal(45), 1) == DEFAULT_THRESHOLDS
 
 
 @pytest.mark.parametrize(
