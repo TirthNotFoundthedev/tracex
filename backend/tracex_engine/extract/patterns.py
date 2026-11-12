@@ -118,7 +118,7 @@ ROLE_LATIN = re.compile(
 )
 ROLE_DEV = re.compile(
     r"(?P<role>आरोपी|अभियुक्त|शिकायतकर्ता|गवाह|संदिग्ध|मुखबिर|पी(?:ड़|ड़)ित)"
-    rf"[\s,:]*(?P<name>{NAME_DEV})"
+    rf"[\s,:]*(?P<name>{NAME})"
 )
 _RELATION = r"(?:(?i:[sdw]/o|son\s+of|daughter\s+of|wife\s+of|putra|putri|patni)|पुत्र|पुत्री|पत्नी)"
 RELATION = re.compile(rf"(?P<name>{NAME})\s*,?\s*(?P<rel>{_RELATION})\s+(?P<relname>{NAME})")
@@ -138,7 +138,7 @@ LIST_NEXT = re.compile(
     rf"(?P<sep>\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+aur\s+|\s*&\s*|\s+or\s+){_BY_PREFIX}(?P<name>{NAME})"
 )
 OR_AFTER = re.compile(r"\s+or\s+")
-USED_BY_DEV = re.compile(rf"(?P<name>{NAME_DEV})\s+द्वारा\s+(?:इस्तेमाल|उपयोग|प्रयोग)")
+USED_BY_DEV = re.compile(rf"(?P<name>{NAME})\s+द्वारा\s+(?:इस्तेमाल|उपयोग|प्रयोग)")
 IN_NAME_OF = re.compile(
     r"(?i:(?<![A-Za-z])(?:in\s+the\s+name\s+of|sim\s+subscriber|registered\s+to))"
     rf"\s+(?P<name>{NAME})"
@@ -157,13 +157,16 @@ AGE = re.compile(
     r"(?:\s*(?:(?i:yrs?\.?|years?|saal|sal|varsh)|वर्ष|साल))?"
 )
 DOB = re.compile(
-    r"(?:(?i:(?<![A-Za-z])(?:dob|d\.o\.b\.?|date\s+of\s+birth|born\s+on))|जन्म\s+तिथि)"
+    r"(?:(?i:(?<![A-Za-z])(?:dob|d\.o\.b\.?|date\s+of\s+birth|born\s+on|janm\s+tithi))|जन्म\s+तिथि)"
     rf"\s*:?\s*(?P<date>{DATE_PATTERN})"
 )
-GENDER = re.compile(r"(?i:(?<![A-Za-z])(?P<en>male|female)(?![A-Za-z]))|(?P<hi>पुरुष|महिला)")
+GENDER = re.compile(
+    r"(?i:(?<![A-Za-z])(?P<en>male|female)(?![A-Za-z]))|(?P<hi>पुरुष|महिला)"
+    r"|(?i:(?<![A-Za-z])(?P<rom>purush|mahila)(?![A-Za-z]))"
+)
 _LOCALITY_WORD = rf"[A-Z][A-Za-z'’-]*|{DEV}+"
 LOCALITY = re.compile(
-    r"(?P<kw>(?i:village|mohalla|ward)|ग्राम|गांव|मोहल्ला|वार्ड)[ \t]+"
+    r"(?P<kw>(?i:village|gram|gaon|mohalla|ward)|ग्राम|गांव|मोहल्ला|वार्ड)[ \t]+"
     rf"(?P<loc>\d{{1,3}}(?!\d)|(?:{_LOCALITY_WORD})(?:[ \t]+(?:{_LOCALITY_WORD}))?)"
 )
 WARD_WORDS = frozenset({"ward", "वार्ड"})
@@ -172,7 +175,7 @@ UPI_PHONE = re.compile(
     r"(?<![\w.@])(?P<num>(?:\+?91)?[6-9]\d{9})@(?P<psp>[A-Za-z][A-Za-z0-9.]*)(?![\w@])"
 )
 ACCOUNT = re.compile(
-    r"(?i:(?<![A-Za-z])(?:a/c|acct?\.?|account)|खाता)\s*(?i:(?:no\.?|number)|नंबर|संख्या)?\s*:?\s*"
+    r"(?i:(?<![A-Za-z])(?:a/c|acct?\.?|account|khata)|खाता)\s*(?i:(?:no\.?|number|sankhya)|नंबर|संख्या)?\s*:?\s*"
     r"(?P<acc>\d{4,}(?:[ -]\d{2,}){0,4})(?!\d)"
 )
 IFSC_AFTER = re.compile(r"\s*[,(]?\s*(?i:ifsc)\s*[:-]?\s*(?P<code>[A-Za-z]{4}0[A-Za-z0-9]{6})")
@@ -183,7 +186,7 @@ VEHICLE = re.compile(
 
 _CUE_WORDS = (
     r"mobile|phone|cell|contact|number|num|no\.?|vehicle|plate|bike|motorcycle|scooter|car"
-    r"|registration|owns|holds|uses|मोबाइल|फोन|नंबर|नम्बर|वाहन"
+    r"|registration|vahan|owns|holds|uses|मोबाइल|फोन|नंबर|नम्बर|वाहन"
 )
 OWNERSHIP_CUE = re.compile(
     r"(?i:(?P<pron>(?<![A-Za-z])(?:his|her)\s+)?"
@@ -205,7 +208,8 @@ _ROLE_WORD = (
 _WORD_EDGE_LEFT = r"(?<![A-Za-zऀ-ॿ])"
 _WORD_EDGE_RIGHT = r"(?![A-Za-zऀ-ॿ])"
 _CUE_PHRASE = (
-    rf"{_WORD_EDGE_LEFT}(?:a/c|acct?\.?|account|खाता|{_CUE_WORDS}){_WORD_EDGE_RIGHT}[\s:.\-]*"
+    rf"{_WORD_EDGE_LEFT}(?:a/c|acct?\.?|account|khata\s+sankhya|khata|खाता|{_CUE_WORDS})"
+    rf"{_WORD_EDGE_RIGHT}[\s:.\-]*"
 )
 # Pattern A: text allowed between a person phrase and an identifier (identifiers cut out): a
 # separator (comma, semicolon, colon, dash or bracket) or `'s`, then cue [is]; further pairs
@@ -275,3 +279,6 @@ _NAME_TOKEN = rf"(?:{_WORD_EDGE_LEFT}[A-Z][A-Za-z.'’-]*|{_DEV_TOKEN})"
 JOINED_TO_NAME = re.compile(
     _NAME_TOKEN + r"\s*(?:[,&]|" + _CONNECTOR + r")\s*(?:" + _ROLE_WORD + r"\s*)*$",
 )
+
+# `used by <name> (shop number, PCO)`: a closing parenthesis holding only shared-number wording.
+SHARED_NOTE_TAIL = re.compile(r"^\s*\((?P<inside>[^()]*)\)\s*$")

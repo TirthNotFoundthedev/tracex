@@ -58,6 +58,7 @@ from tracex_engine.extract.patterns import (
     ROLE_DEV,
     ROLE_LATIN,
     SENTENCE_END,
+    SHARED_NOTE_TAIL,
     UPI_PHONE,
     USED_BY,
     USED_BY_DEV,
@@ -438,6 +439,9 @@ def _used_by(
         spans.append((following.start("name"), following.end("name"), "or" in following["sep"]))
         position = following.end("name")
     added = [add(start, end) for start, end, _ in spans]
+    alias = ALIAS_AFTER.match(sentence, position)
+    if alias and not devanagari:
+        position = alias.end()
     tail = sentence[position:]
     or_listed = any(flag for *_, flag in spans) or OR_AFTER.match(sentence, position) is not None
     index = _nearest_before(idents, match.start())
@@ -446,6 +450,8 @@ def _used_by(
     bridge = sentence[idents[index].full_end : match.start("name" if devanagari else 0)]
     adjacent = bool(re.fullmatch(r"\s*", bridge) if devanagari else USED_GAP.match(bridge))
     tail_ok = (DEV_USED_TAIL if devanagari else USED_TAIL).match(tail) is not None
+    shared_note = SHARED_NOTE_TAIL.match(tail)
+    tail_ok = tail_ok or bool(shared_note and has_shared_wording(shared_note["inside"]))
     clean = tail_ok and all(c is not None for c in added)
     group = _UsedGroup(index, adjacent, clean, or_listed)
     for candidate in added:
@@ -520,7 +526,9 @@ def _bind_facts(sentence: str, candidates: list[_Candidate]) -> None:
     for match in GENDER.finditer(sentence):
         owner = _preceding(candidates, match.start(), person_only=True)
         if owner and owner.gender is None:
-            female = (match["en"] or "").lower() == "female" or match["hi"] == "महिला"
+            female = (match["en"] or match["rom"] or "").lower() in ("female", "mahila") or match[
+                "hi"
+            ] == "महिला"
             owner.gender = Value(match.group(), "female" if female else "male")
             owner.fact_spans.append(match.span())
     for match in LOCALITY.finditer(sentence):
