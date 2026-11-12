@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from datakit.scoremap import GroundTruthIndex
 from datakit.scorer import ScoreInputError, format_report, score
 from tests.scorer_helpers import (
     add_edge,
@@ -40,12 +41,22 @@ def _wrong_kinds(report: dict[str, Any]) -> list[str]:
 
 
 def _non_link(gt: dict[str, Any], forbid: str) -> dict[str, Any]:
-    """A non-link of the given kind whose pair no other non-link row also names."""
-    pairs = [frozenset({n["a"], n["b"]}) for n in gt["expected_non_links"]]
+    """A non-link of the given kind whose pair no expected link or other non-link also covers."""
+    index = GroundTruthIndex(gt)
+    others = [
+        (index.closure({x["a"]}), index.closure({x["b"]}), x["id"])
+        for key in ("expected_links", "expected_non_links")
+        for x in gt[key]
+    ]
+
+    def covered(row: dict[str, Any]) -> int:
+        left, right = index.closure({row["a"]}), index.closure({row["b"]})
+        return sum(
+            1 for a, b, ident in others if (left & a and right & b) or (left & b and right & a)
+        )
+
     found: dict[str, Any] = next(
-        n
-        for n in gt["expected_non_links"]
-        if n["forbid"] == forbid and pairs.count(frozenset({n["a"], n["b"]})) == 1
+        n for n in gt["expected_non_links"] if n["forbid"] == forbid and covered(n) == 1
     )
     return found
 
@@ -118,7 +129,7 @@ def test_harness_link_is_scored_once_the_harness_is_declared_applied(
     broken = copy.deepcopy(perfect)
     edge_of_link(broken, gt, "EL-FX13-Q1Q2")["band"] = "MEDIUM"
     report = score(gt, broken)
-    assert _wrong_kinds(report) == ["band"]
+    assert _wrong_kinds(report) == ["auto_band", "band"]
     assert _failing_acs(report) == {"AC-13"}
 
 
@@ -201,7 +212,8 @@ def test_any_stored_edge_on_an_any_edge_non_link_is_a_forbidden_hit(
     gt: dict[str, Any], broken: dict[str, Any], state: str
 ) -> None:
     trap = _non_link(gt, "ANY_EDGE")
-    add_edge(broken, trap["b"], trap["a"], state, band="MEDIUM", score=60)
+    band = "HIGH" if state == "AUTO" else "MEDIUM"
+    add_edge(broken, trap["b"], trap["a"], state, band=band, score=60)
     report = score(gt, broken)
     assert report["ok"] is False
     assert [h["id"] for h in report["forbidden_hits"]] == [trap["id"]]
@@ -214,9 +226,9 @@ def test_wrong_band_fails_only_that_link(gt: dict[str, Any], broken: dict[str, A
     edge_of_link(broken, gt, "EL-FX01-PER")["band"] = "MEDIUM"
     report = score(gt, broken)
     assert report["ok"] is False
-    assert [(w["id"], w["kind"], w["expected"], w["actual"]) for w in report["wrong_links"]] == [
-        ("EL-FX01-PER", "band", "HIGH", "MEDIUM")
-    ]
+    assert [
+        (w["id"], w["kind"], w["expected"], w["actual"]) for w in report["wrong_links"] if w["id"]
+    ] == [("EL-FX01-PER", "band", "HIGH", "MEDIUM")]
     assert report["missed_links"] == []
     assert report["forbidden_hits"] == []
     assert _failing_acs(report) == {"AC-01"}
@@ -312,7 +324,7 @@ def test_auto_edge_on_a_suggested_link_that_carries_a_trap_is_a_forbidden_hit(
     assert [(w["id"], w["kind"]) for w in report["wrong_links"] if w["id"]] == [
         (link["id"], "state")
     ]
-    assert _wrong_kinds(report) == ["closed_world", "state"]
+    assert _wrong_kinds(report) == ["auto_band", "closed_world", "state"]
     assert _failing_acs(report) == set(link["ac"])
 
 

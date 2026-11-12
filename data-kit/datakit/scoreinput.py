@@ -8,9 +8,10 @@ from typing import Any
 
 RESULT_SCHEMA_VERSION = "engine-result/1"
 ENTITY_TYPES = frozenset({"PERSON", "ORG", "PHONE", "ACCOUNT", "VEHICLE"})
-STATES = frozenset({"AUTO", "SUGGESTED", "CONFIRMED", "REJECTED", "UNDONE", "WITHDRAWN"})
+STATES = frozenset({"AUTO", "SUGGESTED", "CONFIRMED", "REJECTED", "UNDONE"})
 BANDS = frozenset({"HIGH", "MEDIUM", "LOW"})
 BATCH_ORDER = {"b01": 1, "b02": 2}
+BATCH_PREFIXES = (["b01"], ["b01", "b02"])
 
 Ref = tuple[str, str, int]
 
@@ -40,6 +41,7 @@ class Edge:
     score: Decimal
     raw_score: Any
     gates: frozenset[str]
+    kinds: frozenset[str]
     sources: frozenset[Ref]
 
 
@@ -80,10 +82,13 @@ def _refs(items: Any, where: str) -> frozenset[Ref]:
 def _entity(raw: Any, position: int) -> dict[str, Any]:
     where = f"entities[{position}]"
     _require(isinstance(raw, dict), f"{where} must be an object")
-    for key in ("id", "type", "raw_text", "normalized", "mentions"):
+    for key in ("id", "type", "normalized", "mentions"):
         _require(key in raw, f"{where}: missing {key}")
     _require(raw["type"] in ENTITY_TYPES, f"{where}: unknown type {raw['type']!r}")
     _refs(raw["mentions"], f"{where}.mentions")
+    if raw["type"] in ("PERSON", "ORG"):
+        for ref in raw["mentions"]:
+            _require("raw_text" in ref, f"{where}: each PERSON or ORG mention needs raw_text")
     entity: dict[str, Any] = raw
     return entity
 
@@ -91,13 +96,18 @@ def _entity(raw: Any, position: int) -> dict[str, Any]:
 def _edge(raw: Any, position: int, entities: dict[str, dict[str, Any]]) -> Edge:
     where = f"edges[{position}]"
     _require(isinstance(raw, dict), f"{where} must be an object")
-    for key in ("a", "b", "state", "band", "score", "gates_failed", "sources"):
+    for key in ("a", "b", "state", "band", "score", "gates_failed", "evidence_kinds", "sources"):
         _require(key in raw, f"{where}: missing {key}")
     for end in ("a", "b"):
         _require(raw[end] in entities, f"{where}: {end} names unknown entity {raw[end]!r}")
     _require(raw["state"] in STATES, f"{where}: unknown state {raw['state']!r}")
     _require(raw["band"] in BANDS, f"{where}: unknown band {raw['band']!r}")
     _require(isinstance(raw["gates_failed"], list), f"{where}: gates_failed must be a list")
+    _require(
+        isinstance(raw["evidence_kinds"], list)
+        and all(isinstance(k, str) for k in raw["evidence_kinds"]),
+        f"{where}: evidence_kinds must be a list of strings",
+    )
     for gate in raw["gates_failed"]:
         _require(
             isinstance(gate, str)
@@ -113,6 +123,7 @@ def _edge(raw: Any, position: int, entities: dict[str, dict[str, Any]]) -> Edge:
         score=_decimal(raw["score"], where),
         raw_score=raw["score"],
         gates=frozenset(gate_key(g) for g in raw["gates_failed"]),
+        kinds=frozenset(raw["evidence_kinds"]),
         sources=_refs(raw["sources"], f"{where}.sources"),
     )
 
@@ -125,8 +136,10 @@ def parse_result(data: Any) -> EngineResult:
     )
     for key in ("batches_loaded", "harness_applied", "entities", "edges"):
         _require(isinstance(data.get(key), list), f"{key} must be a list")
-    for batch in data["batches_loaded"]:
-        _require(batch in BATCH_ORDER, f"batches_loaded: unknown batch {batch!r}")
+    _require(
+        data["batches_loaded"] in BATCH_PREFIXES,
+        f"batches_loaded must be ['b01'] or ['b01', 'b02'], got {data['batches_loaded']!r}",
+    )
     entities: dict[str, dict[str, Any]] = {}
     for position, raw in enumerate(data["entities"]):
         entity = _entity(raw, position)
