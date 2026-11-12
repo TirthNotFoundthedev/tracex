@@ -159,7 +159,8 @@ def test_undo_keeps_everything_and_splits_the_cluster() -> None:
     assert undone.history[-1].reason_text == "not him"
     assert [e for e in m.links.edges() if e.entity_type.value == "PHONE"] == phones
     assert m.cluster_of(edge.entity_a_id) == {edge.entity_a_id}
-    assert m.explanation(edge.link_id)["state"] == "UNDONE"
+    payload = m.explanation(edge.link_id)
+    assert payload is not None and payload["state"] == "UNDONE"
 
 
 @pytest.mark.parametrize(

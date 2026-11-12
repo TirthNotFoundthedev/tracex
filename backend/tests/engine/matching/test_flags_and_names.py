@@ -66,7 +66,7 @@ def test_registered_to_counts_toward_shared_but_mentioned_with_does_not() -> Non
         ],
     )
 
-    assert flags_of(one).get(KEY) == {"SHARED"}
+    assert flags_of(one).get(KEY) == frozenset({"SHARED"})
     assert flags_of(two).get(KEY) is None
 
 

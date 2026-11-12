@@ -26,6 +26,9 @@ class ActiveGraph:
         self._adj[a].discard(b)
         self._adj[b].discard(a)
 
+    def has(self, a: str, b: str) -> bool:
+        return b in self._adj.get(a, ())
+
     def component(self, start: str, without: tuple[str, str] | None = None) -> set[str]:
         """Members of `start`'s cluster, ignoring the edge `without` if given."""
         seen = {start}

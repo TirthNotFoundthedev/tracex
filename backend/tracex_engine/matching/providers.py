@@ -21,7 +21,8 @@ Pair = tuple[str, str]
 
 
 class EvidenceProvider(Protocol):
-    name: str
+    @property
+    def name(self) -> str: ...
 
     def candidates(self, corpus: Corpus) -> Iterable[Pair]:
         """Extra pairs to compare (any order; the matcher canonicalises and scopes them)."""

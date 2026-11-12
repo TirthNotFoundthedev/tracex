@@ -52,9 +52,9 @@ def identifier_flags(
             for t in ties
             if t.code == "OWNS" and corpus.entities[t.party_id].type is EntityType.PERSON
         )
-    for key, persons in owners.items():
-        if _multi_user(corpus, sorted(set(persons)), confirmed_person_pairs):
-            flags[key].add(MULTI_USER)
+    for value, owner_ids in owners.items():
+        if _multi_user(corpus, sorted(set(owner_ids)), confirmed_person_pairs):
+            flags[value].add(MULTI_USER)
     return {k: frozenset(v) for k, v in flags.items() if v}
 
 
