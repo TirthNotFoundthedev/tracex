@@ -2,3 +2,4 @@ extend = "../backend/pyproject.toml"
 
 [lint.per-file-ignores]
 "tests/**" = ["S101"]
+"datakit/planted.py" = ["E501"]

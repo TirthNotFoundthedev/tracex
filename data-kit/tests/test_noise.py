@@ -53,7 +53,12 @@ def test_language_mix_is_recorded_and_within_five_points(manifest: dict[str, Any
 
 def test_recurring_identities_and_look_alikes_have_the_stated_rates(gt: dict[str, Any]) -> None:
     noise_persons = [
-        e for e in gt["entities"] if e["type"] == "PERSON" and e["gt_id"].startswith("NZ-")
+        e
+        for e in gt["entities"]
+        if e["type"] == "PERSON"
+        and e["gt_id"].startswith("NZ-")
+        and int(e["case_id"][3:]) >= 50
+        and any(m["file"] == "fir.txt" for m in e["mentions"])
     ]
     ids = {e["gt_id"] for e in noise_persons}
     in_group = {

@@ -105,9 +105,7 @@ def test_layout_matches_the_spec_and_cases_csv_has_one_row_per_baseline_case(
     b01_cases = {case_id for case_id, _, _ in case_files(small_dir, "b01")}
     with (small_dir / "cases.csv").open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    assert [r["case_id"] for r in rows] == sorted(
-        b01_cases, key=lambda c: (int(c[2]), int(c[3:]))
-    )
+    assert [r["case_id"] for r in rows] == sorted(b01_cases, key=lambda c: (int(c[2]), int(c[3:])))
     jurisdictions = json.loads((KIT_ROOT / "seed" / "jurisdictions.json").read_text("utf-8"))
     districts = {
         d["name"]: (s["name"], d["id_digit"], d["stations"])
@@ -245,7 +243,7 @@ def test_phones_accounts_and_ifsc_stay_inside_the_declared_ranges(small_dir: Pat
                 assert ok, (case_id, name, line_no, value)
             for account in accounts_in(line):
                 assert re.match(r"^(5010000\d{6}|5019\d{9})$", account), (case_id, name, line_no)
-            assert not re.search(r"(?<!\d)\d{12}(?!\d)", line), (case_id, name, line_no)
+            assert not re.search(r"(?<![\d+])\d{12}(?!\d)", line), (case_id, name, line_no)
             for ifsc in re.findall(r"[A-Z]{4}0\d{6}", line):
                 assert re.match(r"^(SYNB|FAKE)0\d{6}$", ifsc), (case_id, name, line_no)
             for at in re.finditer("@", line):

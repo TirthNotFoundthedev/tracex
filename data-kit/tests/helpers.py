@@ -7,7 +7,9 @@ from pathlib import Path
 CASE_RE = re.compile(r"^C-[1-4]\d{2,}$")
 PHONE_RE = re.compile(r"(?<!\d)(?:\+91[- ]?|0)?(\d{5}) ?(\d{5})(?!\d)")
 ACCOUNT_RE = re.compile(r"(?<!\d)(50[01]\d{10})(?!\d)")
-PLATE_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]{2})[ -]?(\d{2})[ -]?([A-Za-z]{1,3})[ -]?(\d{4})(?!\d)")
+PLATE_RE = re.compile(
+    r"(?<![A-Za-z0-9])([A-Za-z]{2})[ -]?(\d{2})[ -]?([A-Za-z]{1,3})[ -]?(\d{4})(?!\d)"
+)
 
 PLANTED_PHONE_RE = re.compile(r"^9000\d{6}$")
 NOISE_PHONE_RE = re.compile(r"^9100\d{6}$")

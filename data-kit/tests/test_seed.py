@@ -40,7 +40,7 @@ def test_users_match_the_access_spec_seed() -> None:
 
 def test_users_hold_no_password_and_unique_password_env() -> None:
     raw = (KIT_ROOT / "seed" / "users.json").read_text("utf-8")
-    assert "password\"" not in raw
+    assert 'password"' not in raw
     envs = [u["password_env"] for u in _users()]
     assert len(envs) == len(set(envs))
     for user in _users():

@@ -40,9 +40,7 @@ def test_manifest_lists_every_file_with_matching_sha256(
     assert manifest["seed"] == DEFAULT_SEED
     assert manifest["tier"] == "small"
     listed = {entry["path"]: entry for entry in manifest["files"]}
-    on_disk = {
-        name for name in _tree(small_dir) if name not in ("manifest.json",)
-    }
+    on_disk = {name for name in _tree(small_dir) if name not in ("manifest.json",)}
     assert set(listed) == on_disk
     for name, entry in listed.items():
         data = (small_dir / name).read_bytes()
@@ -77,6 +75,8 @@ def test_planted_cases_are_byte_identical_in_the_demo_tier(small_dir: Path, tmp_
     started = time.monotonic()
     generate_kit("demo", DEFAULT_SEED, tmp_path)
     assert time.monotonic() - started < 300
+    golden = (KIT_ROOT / "golden" / "demo.sha256").read_text("utf-8").strip()
+    assert hashlib.sha256((tmp_path / "manifest.json").read_bytes()).hexdigest() == golden
     for batch in ("b01", "b02"):
         for case_id, name, path in case_files(small_dir, batch):
             if int(case_id[3:]) >= 50:
@@ -95,9 +95,7 @@ def test_b02_only_adds_files_and_leaves_b01_untouched(small_dir: Path, tmp_path:
     full_b01 = {e["path"]: e["sha256"] for e in full["files"] if "/b01/" in e["path"]}
     only_b01 = {e["path"]: e["sha256"] for e in only["files"] if "/b01/" in e["path"]}
     assert full_b01 == only_b01
-    b02_names = {
-        (case_id, name) for case_id, name, _ in case_files(small_dir, "b02")
-    }
+    b02_names = {(case_id, name) for case_id, name, _ in case_files(small_dir, "b02")}
     b01_names = {(case_id, name) for case_id, name, _ in case_files(small_dir, "b01")}
     assert b02_names and not (b02_names & b01_names)
 

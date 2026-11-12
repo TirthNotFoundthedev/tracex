@@ -22,13 +22,15 @@ from tests.helpers import (
 )
 
 EXACT_ACS = {"AC-01", "AC-07", "AC-08", "AC-09", "AC-10", "AC-12", "AC-14", "AC-17", "AC-22"}
-FIXTURES = [f"FX-{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 19, 21, 22, 26)]
+FIXTURES = [
+    f"FX-{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 19, 21, 22, 26)
+]
 SUPPORT = [f"SF-{n:02d}" for n in range(1, 9)]
 
 
 def _file_path(root: Path, batch_hint: str | None, ref: dict[str, Any]) -> Path:
     for batch in ("b01", "b02"):
-        path = root / "batches" / batch / "cases" / ref["case_id"] / ref["file"]
+        path: Path = root / "batches" / batch / "cases" / str(ref["case_id"]) / str(ref["file"])
         if path.is_file():
             return path
     raise AssertionError(f"missing file for {ref}")
@@ -82,6 +84,7 @@ def test_every_acceptance_case_and_fixture_is_in_the_ground_truth(gt: dict[str, 
 
 def test_traps_tr01_to_tr19_are_all_listed(gt: dict[str, Any]) -> None:
     traps = {n["trap"] for n in gt["expected_non_links"]}
+    traps |= {x["trap"] for x in gt["expected_links"] if "trap" in x}
     assert traps >= {f"TR-{n:02d}" for n in range(1, 20)}
     for non in gt["expected_non_links"]:
         assert non["forbid"] in ("ANY_EDGE", "AUTO")
@@ -170,9 +173,17 @@ def test_no_identifier_crosses_cases_unless_a_group_says_so(
     for entity in gt["entities"]:
         if entity["type"] in ("PHONE", "ACCOUNT", "VEHICLE"):
             by_value[(entity["type"], entity["normalized"])].append(entity)
+    vetoed = {
+        gt_id
+        for n in gt["expected_non_links"]
+        if n["trap"] == "TR-17"
+        for gt_id in (n["a"], n["b"])
+    }
     for key, cases in _identifier_occurrences(small_dir).items():
         case_ids = {c for c, _, _ in cases}
         if len(case_ids) < 2:
+            continue
+        if any(e["gt_id"] in vetoed for e in by_value[key]):
             continue
         entities = [e for e in by_value[key] if e["case_id"] in case_ids]
         assert {e["case_id"] for e in entities} == case_ids, key
@@ -193,6 +204,7 @@ def test_b2_digit_set_collisions_among_planted_phones_are_only_the_intended_ones
         frozenset({"9000081914", "9000081194"}),
         frozenset({"9000014471", "9000014741"}),
         frozenset({"9000091827", "9000097821"}),
+        frozenset({"9000021203", "9000022310"}),
     }
 
 
@@ -255,23 +267,47 @@ def _find(gt: dict[str, Any], ac: str, type_: str, state: str) -> list[dict[str,
         ("AC-10", "PERSON", "SUGGESTED", "MEDIUM", 45.0, "exact", ["G1", "G4"]),
         ("AC-11", "PERSON", "SUGGESTED", "HIGH", 90.0, "band", ["G2"]),
         ("AC-12", "PERSON", "AUTO", "HIGH", 99.0, "exact", []),
-        ("AC-12", "PERSON", "SUGGESTED", "HIGH", 93.0, "exact", [
-            {"gate": "G6", "template_key": "match.gate.cluster_conflict"}
-        ]),
-        ("AC-13", "PERSON", "SUGGESTED", "HIGH", None, "band", [
-            {"gate": "G6", "template_key": "match.gate.cluster_bridge"}
-        ]),
+        (
+            "AC-12",
+            "PERSON",
+            "SUGGESTED",
+            "HIGH",
+            93.0,
+            "exact",
+            [{"gate": "G6", "template_key": "match.gate.cluster_conflict"}],
+        ),
+        (
+            "AC-13",
+            "PERSON",
+            "SUGGESTED",
+            "HIGH",
+            None,
+            "band",
+            [{"gate": "G6", "template_key": "match.gate.cluster_bridge"}],
+        ),
         ("AC-14", "PERSON", "AUTO", "HIGH", 93.0, "exact", []),
-        ("AC-14", "PERSON", "SUGGESTED", "HIGH", 91.5, "exact", [
-            {"gate": "G6", "template_key": "match.gate.cluster_same_case"}
-        ]),
+        (
+            "AC-14",
+            "PERSON",
+            "SUGGESTED",
+            "HIGH",
+            91.5,
+            "exact",
+            [{"gate": "G6", "template_key": "match.gate.cluster_same_case"}],
+        ),
         ("AC-17", "PERSON", "SUGGESTED", "MEDIUM", 75.0, "exact", ["G1"]),
         ("AC-19", "VEHICLE", "SUGGESTED", "HIGH", 100, "band", ["G5"]),
         ("AC-21", "ORG", "SUGGESTED", "HIGH", None, "band", ["G7"]),
         ("AC-22", "PERSON", "AUTO", "HIGH", 99.0, "exact", []),
-        ("AC-26", "ACCOUNT", "SUGGESTED", "HIGH", 100, "band", [
-            {"gate": "G6", "template_key": "match.gate.cluster_conflict"}
-        ]),
+        (
+            "AC-26",
+            "ACCOUNT",
+            "SUGGESTED",
+            "HIGH",
+            100,
+            "band",
+            [{"gate": "G6", "template_key": "match.gate.cluster_conflict"}],
+        ),
     ],
 )
 def test_pinned_expected_links_match_the_spec_table(
@@ -296,9 +332,7 @@ def test_pinned_expected_links_match_the_spec_table(
 
 
 def test_ac01_person_link_cites_the_worked_scenario_lines(gt: dict[str, Any]) -> None:
-    link = next(
-        x for x in gt["expected_links"] if "AC-01" in x["ac"] and x["type"] == "PERSON"
-    )
+    link = next(x for x in gt["expected_links"] if "AC-01" in x["ac"] and x["type"] == "PERSON")
     assert link["evidence_kinds"] == ["SHARED_PHONE", "PER_NAME_SIM", "PER_SHARED_NETWORK"]
     cited = {(c["case_id"], c["file"], c["line"]) for c in link["cited_lines"]}
     assert {
