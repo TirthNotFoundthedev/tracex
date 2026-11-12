@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from datakit.generate import DEFAULT_SEED, KIT_VERSION, generate_kit
 from tests.conftest import KIT_ROOT
 from tests.helpers import case_files
@@ -71,6 +73,7 @@ def test_small_tier_has_62_planted_and_60_noise_cases(gt: dict[str, Any], small_
     assert per_district == {"1": 15, "2": 15, "3": 15, "4": 15}
 
 
+@pytest.mark.slow
 def test_planted_cases_are_byte_identical_in_the_demo_tier(small_dir: Path, tmp_path: Path) -> None:
     started = time.monotonic()
     generate_kit("demo", DEFAULT_SEED, tmp_path)
