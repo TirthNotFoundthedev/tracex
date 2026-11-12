@@ -141,7 +141,7 @@ def test_confirmed_state_satisfies_an_auto_link_whose_harness_confirms_it(
     assert score(gt, result)["ok"] is True
     other = copy.deepcopy(perfect)
     edge_of_link(other, gt, "EL-FX01-PER")["state"] = "CONFIRMED"
-    assert _wrong_kinds(score(gt, other)) == ["state"]
+    assert _wrong_kinds(score(gt, other)) == ["human_state", "state"]
 
 
 def test_confirmed_state_is_accepted_only_when_the_applied_harness_confirms_that_link(
@@ -154,12 +154,12 @@ def test_confirmed_state_is_accepted_only_when_the_applied_harness_confirms_that
             step["action"] = "RERUN"
     result = copy.deepcopy(perfect)
     edge_of_link(result, gt, "EL-FX13-Q1Q2")["state"] = "CONFIRMED"
-    assert _wrong_kinds(score(changed, result)) == ["state"]
+    assert _wrong_kinds(score(changed, result)) == ["human_state", "state"]
     retargeted = copy.deepcopy(gt)
     for step in next(s for s in retargeted["scenarios"] if s["id"] == "HS-AC13")["steps"]:
         if step["action"] == "CONFIRM":
             step["target"] = "EL-FX13-Q3Q4"
-    assert _wrong_kinds(score(retargeted, result)) == ["state"]
+    assert _wrong_kinds(score(retargeted, result)) == ["human_state", "state"]
 
 
 # --- deliberately broken results fail in exactly the right place ----------------------------
@@ -219,7 +219,8 @@ def test_any_stored_edge_on_an_any_edge_non_link_is_a_forbidden_hit(
     assert [h["id"] for h in report["forbidden_hits"]] == [trap["id"]]
     assert report["missed_links"] == []
     assert _failing_acs(report) == set(trap["ac"])
-    assert _wrong_kinds(report) == (["closed_world"] if state == "AUTO" else [])
+    expected_kinds = {"AUTO": ["closed_world"], "SUGGESTED": []}.get(state, ["human_state"])
+    assert _wrong_kinds(report) == expected_kinds
 
 
 def test_wrong_band_fails_only_that_link(gt: dict[str, Any], broken: dict[str, Any]) -> None:
@@ -709,3 +710,32 @@ def test_one_engine_entity_in_two_groups_or_two_cases_still_fails_next_to_a_spli
     two_cases = copy.deepcopy(perfect)
     merge_mentions(two_cases, gt, "FX-01.PER.IRFAN_A", "FX-01.PER.IRFAN_B")
     assert "entity_conflict" in _wrong_kinds(score(gt, two_cases))
+
+
+@pytest.mark.parametrize("state", ["CONFIRMED", "REJECTED", "UNDONE"])
+def test_an_edge_in_a_human_state_without_an_applied_harness_step_fails(
+    gt: dict[str, Any], broken: dict[str, Any], state: str
+) -> None:
+    """The engine never puts an edge into a human state by itself."""
+    a, b = next(
+        (e["a"].removeprefix("E|"), e["b"].removeprefix("E|"))
+        for e in broken["edges"]
+        if e["a"].startswith("E|NZ-")
+    )
+    edge = next(e for e in broken["edges"] if e["a"] == eid(a))
+    edge["state"] = state
+    assert b
+    report = score(gt, broken)
+    assert report["ok"] is False
+    assert _wrong_kinds(report) == ["human_state"]
+
+
+def test_a_confirmed_edge_the_applied_harness_confirms_is_not_a_human_state_failure(
+    gt: dict[str, Any], perfect: dict[str, Any]
+) -> None:
+    result = copy.deepcopy(perfect)
+    edge_of_link(result, gt, "EL-FX13-Q1Q2")["state"] = "CONFIRMED"
+    assert score(gt, result)["ok"] is True
+    unapplied = copy.deepcopy(result)
+    unapplied["harness_applied"] = []
+    assert "human_state" in _wrong_kinds(score(gt, unapplied))
