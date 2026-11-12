@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "data-kit-gt/1",
+  "title": "TraceX data kit ground truth",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kit_version",
+    "tier",
+    "seed",
+    "ruleset_version",
+    "batches",
+    "entities",
+    "groups",
+    "attributions",
+    "expected_links",
+    "expected_non_links",
+    "scenarios"
+  ],
+  "properties": {
+    "schema_version": { "const": "data-kit-gt/1" },
+    "kit_version": { "type": "string" },
+    "tier": { "enum": ["small", "demo"] },
+    "seed": { "type": "integer" },
+    "ruleset_version": { "type": "string" },
+    "batches": { "type": "array", "items": { "enum": ["b01", "b02"] } },
+    "entities": { "type": "array", "items": { "$ref": "#/$defs/entity" } },
+    "groups": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "attributions": { "type": "array", "items": { "$ref": "#/$defs/attribution" } },
+    "expected_links": { "type": "array", "items": { "$ref": "#/$defs/link" } },
+    "expected_non_links": { "type": "array", "items": { "$ref": "#/$defs/nonlink" } },
+    "scenarios": { "type": "array", "items": { "$ref": "#/$defs/scenario" } }
+  },
+  "$defs": {
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "file", "line"],
+      "properties": {
+        "case_id": { "type": "string", "pattern": "^C-[1-4][0-9]{2,}$" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "entityType": { "enum": ["PERSON", "ORG", "PHONE", "ACCOUNT", "VEHICLE"] },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gt_id", "type", "case_id", "raw_text", "normalized", "mentions", "batch"],
+      "properties": {
+        "gt_id": { "type": "string" },
+        "type": { "$ref": "#/$defs/entityType" },
+        "case_id": { "type": "string" },
+        "raw_text": { "type": "string" },
+        "normalized": { "type": "string" },
+        "mentions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ref" } },
+        "batch": { "enum": ["b01", "b02"] },
+        "attributes": { "type": "object" }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "scope", "members", "origin"],
+      "properties": {
+        "group_id": { "type": "string" },
+        "scope": { "enum": ["cross_case", "within_case"] },
+        "members": { "type": "array", "minItems": 2, "items": { "type": "string" } },
+        "origin": { "enum": ["planted", "noise"] }
+      }
+    },
+    "attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity", "identifier", "code", "source"],
+      "properties": {
+        "entity": { "type": "string" },
+        "identifier": { "type": "string" },
+        "code": { "enum": ["OWNS", "REGISTERED_TO", "MENTIONED_WITH"] },
+        "source": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "gate": {
+      "oneOf": [
+        { "enum": ["G1", "G2", "G3", "G4", "G5", "G6", "G7"] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gate", "template_key"],
+          "properties": { "gate": { "type": "string" }, "template_key": { "type": "string" } }
+        }
+      ]
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ac",
+        "type",
+        "a",
+        "b",
+        "batch_min",
+        "state",
+        "band",
+        "score",
+        "gates_failed",
+        "evidence_kinds",
+        "cited_lines",
+        "harness"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "ac": { "type": "array", "items": { "type": "string", "pattern": "^AC-[0-9]{2}$" } },
+        "type": { "$ref": "#/$defs/entityType" },
+        "a": { "type": "string" },
+        "b": { "type": "string" },
+        "batch_min": { "enum": ["b01", "b02"] },
+        "state": { "enum": ["AUTO", "SUGGESTED"] },
+        "band": { "enum": ["HIGH", "MEDIUM"] },
+        "score": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "mode"],
+          "properties": { "value": { "type": "number" }, "mode": { "enum": ["exact", "band"] } }
+        },
+        "gates_failed": { "type": "array", "items": { "$ref": "#/$defs/gate" } },
+        "evidence_kinds": { "type": "array", "items": { "type": "string" } },
+        "cited_lines": { "type": "array", "items": { "$ref": "#/$defs/ref" } },
+        "harness": { "type": ["string", "null"] },
+        "trap": { "type": "string", "pattern": "^TR-[0-9]{2}$" }
+      }
+    },
+    "nonlink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ac", "trap", "a", "b", "forbid", "why"],
+      "properties": {
+        "id": { "type": "string" },
+        "ac": { "type": "array", "items": { "type": "string", "pattern": "^AC-[0-9]{2}$" } },
+        "trap": { "type": "string", "pattern": "^TR-[0-9]{2}$" },
+        "a": { "type": "string" },
+        "b": { "type": "string" },
+        "forbid": { "enum": ["ANY_EDGE", "AUTO"] },
+        "why": { "type": "string" }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ac", "steps"],
+      "properties": {
+        "id": { "type": "string" },
+        "ac": { "type": "array", "items": { "type": "string", "pattern": "^AC-[0-9]{2}$" } },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["actor_role", "action", "target", "expect"],
+            "properties": {
+              "actor_role": { "type": "string" },
+              "action": { "type": "string" },
+              "target": { "type": "string" },
+              "expect": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

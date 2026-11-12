@@ -1,0 +1,159 @@
+{
+  "kit_version": "data-kit/1.0",
+  "users": [
+    {
+      "username": "asha",
+      "display_name": "Asha",
+      "role": "JUNIOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Rivergate"],
+      "assigned_cases": ["C-101"],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_ASHA"
+    },
+    {
+      "username": "isha",
+      "display_name": "Isha",
+      "role": "JUNIOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Rivergate"],
+      "assigned_cases": [],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_ISHA"
+    },
+    {
+      "username": "jatin",
+      "display_name": "Jatin",
+      "role": "JUNIOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Hillcrest"],
+      "assigned_cases": ["C-201"],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_JATIN"
+    },
+    {
+      "username": "kiran",
+      "display_name": "Kiran",
+      "role": "JUNIOR",
+      "states": ["Eastmark"],
+      "all_states": false,
+      "districts": ["Lakeside"],
+      "assigned_cases": ["C-301"],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_KIRAN"
+    },
+    {
+      "username": "omkar",
+      "display_name": "Omkar",
+      "role": "JUNIOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Hillcrest"],
+      "assigned_cases": [],
+      "active": false,
+      "password_env": "TRACEX_SEED_PASSWORD_OMKAR"
+    },
+    {
+      "username": "bharat",
+      "display_name": "Bharat",
+      "role": "INVESTIGATOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Rivergate"],
+      "assigned_cases": ["C-101", "C-102"],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_BHARAT"
+    },
+    {
+      "username": "esha",
+      "display_name": "Esha",
+      "role": "INVESTIGATOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Hillcrest"],
+      "assigned_cases": ["C-201"],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_ESHA"
+    },
+    {
+      "username": "gita",
+      "display_name": "Gita",
+      "role": "INVESTIGATOR",
+      "states": ["Eastmark"],
+      "all_states": false,
+      "districts": ["Lakeside"],
+      "assigned_cases": ["C-301"],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_GITA"
+    },
+    {
+      "username": "charu",
+      "display_name": "Charu",
+      "role": "SUPERVISOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Rivergate"],
+      "assigned_cases": [],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_CHARU"
+    },
+    {
+      "username": "farid",
+      "display_name": "Farid",
+      "role": "SUPERVISOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": ["Hillcrest"],
+      "assigned_cases": [],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_FARID"
+    },
+    {
+      "username": "lata",
+      "display_name": "Lata",
+      "role": "SUPERVISOR",
+      "states": ["Eastmark"],
+      "all_states": false,
+      "districts": ["Lakeside"],
+      "assigned_cases": [],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_LATA"
+    },
+    {
+      "username": "deepak",
+      "display_name": "Deepak",
+      "role": "SENIOR",
+      "states": ["Northvale"],
+      "all_states": false,
+      "districts": [],
+      "assigned_cases": [],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_DEEPAK"
+    },
+    {
+      "username": "meena",
+      "display_name": "Meena",
+      "role": "SENIOR",
+      "states": [],
+      "all_states": true,
+      "districts": [],
+      "assigned_cases": [],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_MEENA"
+    },
+    {
+      "username": "hari",
+      "display_name": "Hari",
+      "role": "ADMIN",
+      "states": [],
+      "all_states": false,
+      "districts": [],
+      "assigned_cases": [],
+      "active": true,
+      "password_env": "TRACEX_SEED_PASSWORD_HARI"
+    }
+  ]
+}

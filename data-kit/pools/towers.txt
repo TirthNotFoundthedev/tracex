@@ -1,0 +1,24 @@
+Rivergate|Rivergate Market
+Rivergate|Rivergate Bus Stand
+Rivergate|Rivergate Ghat
+Rivergate|Rivergate Civil Lines
+Rivergate|Kherapur Chowk
+Rivergate|Rivergate Industrial Area
+Hillcrest|Hillcrest Clock Tower
+Hillcrest|Hillcrest Bazaar
+Hillcrest|Hillcrest College Road
+Hillcrest|Tomarpur Junction
+Hillcrest|Hillcrest Water Works
+Hillcrest|Hillcrest Depot
+Lakeside|Lakeside Promenade
+Lakeside|Lakeside Fish Market
+Lakeside|Harbour Gate
+Lakeside|Lakeside Station
+Lakeside|Lakeside Mill Road
+Lakeside|Lakeside Park
+Rampur|Rampur Sadar Bazaar
+Rampur|Rampur Court Road
+Rampur|Civil Lines Crossing
+Rampur|Rampur Fort Gate
+Rampur|Rampur Grain Market
+Rampur|Rampur Depot Road

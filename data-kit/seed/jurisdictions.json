@@ -1,0 +1,34 @@
+{
+  "states": [
+    {
+      "name": "Northvale",
+      "districts": [
+        {
+          "id_digit": 1,
+          "name": "Rivergate",
+          "stations": ["PS Rivergate Central", "PS Kherapur"]
+        },
+        {
+          "id_digit": 2,
+          "name": "Hillcrest",
+          "stations": ["PS Hillcrest Town", "PS Tomarpur"]
+        }
+      ]
+    },
+    {
+      "name": "Eastmark",
+      "districts": [
+        {
+          "id_digit": 3,
+          "name": "Lakeside",
+          "stations": ["PS Lakeside City", "PS Harbour Road"]
+        },
+        {
+          "id_digit": 4,
+          "name": "Rampur",
+          "stations": ["PS Rampur Sadar", "PS Civil Lines"]
+        }
+      ]
+    }
+  ]
+}
