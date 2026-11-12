@@ -141,14 +141,17 @@ def random_mentions(rng: random.Random) -> list[Extracted]:
 
 def test_no_entity_holds_two_mentions_a_stated_conflict_separates() -> None:
     rng = random.Random(20261112)  # noqa: S311 - seeded test input
+    cases_with_joins = 0
     for _ in range(400):
         mentions = random_mentions(rng)
         groups = group_mentions(mentions)
+        cases_with_joins += len(set(groups)) < len(groups)
         for (a, group_a), (b, group_b) in itertools.combinations(
             list(zip(mentions, groups, strict=True)), 2
         ):
             if group_a == group_b:
                 assert not separated(a, b), (key(a), key(b))
+    assert cases_with_joins >= 50, "generator rarely joins anything; the check would be vacuous"
 
 
 def test_group_ids_count_up_in_order_of_first_appearance() -> None:
