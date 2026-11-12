@@ -1,15 +1,17 @@
 """Within-case dedupe: which mentions are the same entity (docs/specs/engine-graph.md section 2).
 
-Conservative by construction. A mention joins an existing entity only when a join rule holds,
-no stated attribute conflicts with anything already in that entity, and exactly one entity
-qualifies; otherwise it starts its own entity. Nothing is ever dropped: the caller keeps every
-mention and only groups them.
+Conservative and order-independent by construction. The partition is a function of the set of
+the case's mentions: writings that say the same about themselves are one node; two nodes are
+linked when a join rule holds; a connected set of nodes is one entity only if no two of its
+nodes are separated by a stated conflict, otherwise none of them joins (no guessing). The
+caller numbers entities afterwards from source order. Nothing is ever dropped: every mention
+is kept and only grouped.
 """
 
 import re
 import unicodedata
-from collections.abc import Iterable
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass, field, fields
 
 from tracex_engine.extract import IdentifierMention, OrgMention, PersonMention
 from tracex_engine.graph.model import EntityType
@@ -53,19 +55,6 @@ class _Traits:
     ifscs: set[str] = field(default_factory=set)
     sides: set[str] = field(default_factory=set)
 
-    def absorb(self, other: "_Traits") -> None:
-        self.names |= other.names
-        self.writings |= other.writings
-        self.aliases |= other.aliases
-        self.relatives |= other.relatives
-        self.ages |= other.ages
-        self.genders |= other.genders
-        self.dobs |= other.dobs
-        self.localities |= other.localities
-        self.districts |= other.districts
-        self.ifscs |= other.ifscs
-        self.sides |= other.sides
-
 
 @dataclass
 class Draft:
@@ -74,7 +63,6 @@ class Draft:
     type: EntityType
     ordinal: int
     mentions: list[Extracted] = field(default_factory=list)
-    traits: _Traits = field(default_factory=_Traits)
 
 
 def entity_type(mention: Extracted) -> EntityType:
@@ -153,93 +141,104 @@ def _vetoed(new: _Traits, entity: _Traits) -> bool:
     )
 
 
-def _same_name(type_: EntityType, new: _Traits, entity: _Traits) -> bool:
-    """The join rule per type (spec section 2); `new` has at most one name."""
-    [name] = new.names
-    if type_ is EntityType.PERSON:
-        if name in entity.names:
-            return len(name.split()) >= 2 or bool(new.writings & entity.writings)
-        return name in entity.aliases or bool(new.aliases & entity.names)
-    if type_ is EntityType.ORG:
-        return name in entity.names and bool(new.writings & entity.writings)
-    return name in entity.names
+def _linked(type_: EntityType, a: _Traits, b: _Traits, contested: set[str]) -> bool:
+    """The join rule per type (spec section 2) between two nodes, one name each.
 
-
-class EntityIndex:
-    """Places mentions one by one, in load order, into entities.
-
-    `mentions` is every mention of the case, so that ambiguity checks do not depend on which
-    of two competing writings happens to load first.
+    A link through a bare name or alias that two or more different full names claim is
+    refused, so a shared nickname never ties its claimants together.
     """
+    [x] = a.names
+    [y] = b.names
+    if type_ is EntityType.PERSON:
+        if x == y:
+            if len(x.split()) >= 2:
+                return True
+            return bool(a.writings & b.writings) and x not in contested
+        return (x in b.aliases and x not in contested) or (y in a.aliases and y not in contested)
+    if type_ is EntityType.ORG:
+        return x == y and bool(a.writings & b.writings)
+    return x == y
 
-    def __init__(self, mentions: Iterable[Extracted]) -> None:
-        self.drafts: list[Draft] = []
-        self._placed: dict[Extracted, int] = {}
-        self._by_name: dict[tuple[EntityType, str], set[int]] = {}
-        self._by_alias: dict[tuple[EntityType, str], set[int]] = {}
-        self._full_names: dict[str, set[str]] = {}
-        ifscs: dict[str, set[str]] = {}
-        for mention in mentions:
-            if isinstance(mention, PersonMention):
-                for name in {mention.normalized, *(a.normalized for a in mention.aliases)}:
-                    if len(name.split()) >= 2:
-                        for token in name.split():
-                            self._full_names.setdefault(token, set()).add(name)
-            elif (
-                isinstance(mention, IdentifierMention)
-                and mention.ifsc is not None
-                and mention.ifsc.normalized
-            ):
-                ifscs.setdefault(mention.normalized, set()).add(mention.ifsc.normalized)
-        # Account digits written with two different IFSCs: IFSC-less writings fit both.
-        self._split_accounts = {digits for digits, found in ifscs.items() if len(found) > 1}
 
-    def place(self, mention: Extracted) -> int:
-        """Index in `drafts` of the entity this mention belongs to (created when needed)."""
-        known = self._placed.get(mention)
-        if known is not None:
-            self.drafts[known].mentions.append(mention)
-            return known
+def _contested(traits: Sequence[_Traits]) -> set[str]:
+    """Strings (a bare token or alias) that two or more different names lay claim to."""
+    owners: dict[str, set[str]] = {}
+    for item in traits:
+        if not item.names or not item.writings:
+            continue
+        [name] = item.names
+        if len(name.split()) >= 2:
+            for token in name.split():
+                owners.setdefault(token, set()).add(name)
+        for alias in item.aliases - {name}:
+            owners.setdefault(alias, set()).add(name)
+    return {text for text, names in owners.items() if len(names) >= 2}
+
+
+def separated(a: Extracted, b: Extracted) -> bool:
+    """True when something both writings state differs, so they can never be one entity."""
+    return _vetoed(_traits(a), _traits(b))
+
+
+def group_mentions(mentions: Sequence[Extracted]) -> list[int]:
+    """Entity group of each mention, numbered 0, 1, ... in order of first appearance."""
+    all_traits = [_traits(m) for m in mentions]
+    contested = _contested(all_traits)
+    node_of: dict[object, int] = {}
+    nodes: list[tuple[EntityType, _Traits]] = []
+    position_node: list[int] = []
+    for mention, traits in zip(mentions, all_traits, strict=True):
         type_ = entity_type(mention)
-        traits = _traits(mention)
-        matching = [i for i in sorted(self._candidates(type_, traits)) if self._joins(i, traits)]
-        index = matching[0] if len(matching) == 1 else self._create(type_)
-        self._absorb(index, mention, traits)
-        self._placed[mention] = index
-        return index
-
-    def _candidates(self, type_: EntityType, traits: _Traits) -> set[int]:
-        if not traits.names:
-            return set()
-        [name] = traits.names
-        found = set(self._by_name.get((type_, name), ())) | set(
-            self._by_alias.get((type_, name), ())
+        signature: object = (
+            (type_, *(tuple(sorted(getattr(traits, f.name))) for f in fields(traits)))
+            if traits.names
+            else ("nameless", mention)
         )
-        for alias in traits.aliases:
-            found |= self._by_name.get((type_, alias), set())
-        return found
+        if signature not in node_of:
+            node_of[signature] = len(nodes)
+            nodes.append((type_, traits))
+        position_node.append(node_of[signature])
 
-    def _joins(self, index: int, traits: _Traits) -> bool:
-        draft = self.drafts[index]
-        if not _same_name(draft.type, traits, draft.traits) or _vetoed(traits, draft.traits):
-            return False
-        [name] = traits.names
-        if draft.type is EntityType.ACCOUNT and name in self._split_accounts:
-            return bool(traits.ifscs) == bool(draft.traits.ifscs)
-        if draft.type is EntityType.PERSON and len(name.split()) == 1:
-            own = draft.traits.names | draft.traits.aliases
-            return self._full_names.get(name, set()) <= own
-        return True
+    parent = list(range(len(nodes)))
 
-    def _create(self, type_: EntityType) -> int:
-        self.drafts.append(Draft(type_, len(self.drafts) + 1))
-        return len(self.drafts) - 1
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
 
-    def _absorb(self, index: int, mention: Extracted, traits: _Traits) -> None:
-        draft = self.drafts[index]
-        draft.mentions.append(mention)
-        draft.traits.absorb(traits)
+    by_name: dict[tuple[EntityType, str], list[int]] = {}
+    by_alias: dict[tuple[EntityType, str], list[int]] = {}
+    for index, (type_, traits) in enumerate(nodes):
         for name in traits.names:
-            self._by_name.setdefault((draft.type, name), set()).add(index)
+            by_name.setdefault((type_, name), []).append(index)
         for alias in traits.aliases:
-            self._by_alias.setdefault((draft.type, alias), set()).add(index)
+            by_alias.setdefault((type_, alias), []).append(index)
+    for index, (type_, traits) in enumerate(nodes):
+        if not traits.names:
+            continue
+        [name] = traits.names
+        found = {*by_name.get((type_, name), ()), *by_alias.get((type_, name), ())}
+        for alias in traits.aliases:
+            found.update(by_name.get((type_, alias), ()))
+        for other in found - {index}:
+            if _linked(type_, traits, nodes[other][1], contested):
+                parent[find(index)] = find(other)
+
+    members: dict[int, list[int]] = {}
+    for index in range(len(nodes)):
+        members.setdefault(find(index), []).append(index)
+    joined = {
+        root: not any(
+            _vetoed(nodes[a][1], nodes[b][1]) for i, a in enumerate(group) for b in group[i + 1 :]
+        )
+        for root, group in members.items()
+    }
+
+    numbering: dict[tuple[str, int], int] = {}
+    out: list[int] = []
+    for node in position_node:
+        root = find(node)
+        entity = ("joined", root) if joined[root] else ("alone", node)
+        out.append(numbering.setdefault(entity, len(numbering)))
+    return out

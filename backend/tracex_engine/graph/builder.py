@@ -11,7 +11,7 @@ from tracex_engine.extract import (
     OrgMention,
     PersonMention,
 )
-from tracex_engine.graph.dedupe import Draft, EntityIndex, Extracted, entity_type
+from tracex_engine.graph.dedupe import Draft, Extracted, entity_type, group_mentions
 from tracex_engine.graph.model import (
     AttrValue,
     CaseGraph,
@@ -35,14 +35,18 @@ def build_case_graph(records: CaseRecords) -> CaseGraph:
     """Group the case's mentions into entities and draw its edges, each citing its line."""
     case_id = records.case_id
     ordered = _in_load_order(records)
-    index = EntityIndex(ordered)
+    groups = group_mentions(ordered)
+    drafts: list[Draft] = []
     mention_entity: dict[Extracted, str] = {}
     key_entity: dict[_MentionKey, str] = {}
     mentions: list[Mention] = []
     line_count: dict[tuple[str, int], int] = defaultdict(int)
 
-    for extracted in ordered:
-        entity_id = _entity_id(case_id, index.place(extracted))
+    for extracted, group in zip(ordered, groups, strict=True):
+        if group == len(drafts):
+            drafts.append(Draft(entity_type(extracted), group + 1))
+        drafts[group].mentions.append(extracted)
+        entity_id = _entity_id(case_id, group)
         mention_entity[extracted] = entity_id
         if isinstance(extracted, IdentifierMention):
             key_entity.setdefault(_key_of(extracted), entity_id)
@@ -72,7 +76,7 @@ def build_case_graph(records: CaseRecords) -> CaseGraph:
 
     return CaseGraph(
         case_id=case_id,
-        entities=tuple(_entity(draft, case_id) for draft in index.drafts),
+        entities=tuple(_entity(draft, case_id) for draft in drafts),
         mentions=tuple(mentions),
         places=tuple(edges.places.values()),
         edges=tuple(edges.edges),

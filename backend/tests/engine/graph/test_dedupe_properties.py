@@ -86,7 +86,7 @@ def cases() -> dict[str, list[Extracted]]:
 @pytest.mark.parametrize("name", list(cases()))
 def test_every_load_order_gives_the_same_partition(name: str) -> None:
     mentions = cases()[name]
-    rng = random.Random(name)
+    rng = random.Random(name)  # noqa: S311 - seeded test input
     orders: list[tuple[int, ...]] = (
         list(itertools.permutations(range(len(mentions))))
         if len(mentions) <= 5
@@ -140,7 +140,7 @@ def random_mentions(rng: random.Random) -> list[Extracted]:
 
 
 def test_no_entity_holds_two_mentions_a_stated_conflict_separates() -> None:
-    rng = random.Random(20261112)
+    rng = random.Random(20261112)  # noqa: S311 - seeded test input
     for _ in range(400):
         mentions = random_mentions(rng)
         groups = group_mentions(mentions)
