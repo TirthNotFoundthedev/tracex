@@ -30,6 +30,7 @@ from tracex_engine.matching.model import (
     TransitionRecord,
 )
 from tracex_engine.matching.providers import EvidenceProvider, NotYetImplemented, pending_seams
+from tracex_engine.matching.result_export import engine_result, write_engine_result
 
 __all__ = [
     "DecisionError",
@@ -49,5 +50,7 @@ __all__ = [
     "TransitionRecord",
     "build_explanation",
     "cited_sources",
+    "engine_result",
     "pending_seams",
+    "write_engine_result",
 ]
