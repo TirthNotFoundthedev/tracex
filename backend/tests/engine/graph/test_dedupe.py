@@ -384,3 +384,87 @@ def test_a_person_and_an_organisation_with_one_name_never_join() -> None:
     )
 
     assert {e.type for e in graph.entities} == {EntityType.PERSON, EntityType.ORG}
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("complainant", "accused"),
+        ("victim", "suspect"),
+        ("informant", "arrested"),
+        ("accused", "complainant"),
+        ("शिकायतकर्ता", "अभियुक्त"),
+        ("पीड़ित", "आरोपी"),
+        ("shikayatkarta", "aaropi"),
+    ],
+)
+def test_a_complainant_side_and_an_accused_side_role_never_join(first: str, second: str) -> None:
+    graph = persons(
+        person("Rajesh Kumar", 12, role=first),
+        person("Rajesh Kumar", 13, role=second),
+    )
+
+    assert len(graph.entities) == 2
+
+
+def test_the_same_side_or_a_witness_does_not_stop_a_join() -> None:
+    graph = persons(
+        person("Rajesh Kumar", 9, role="complainant"),
+        person("Rajesh Kumar", 12, role="Complainant"),
+        person("Rajesh Kumar", 13, role="witness"),
+    )
+
+    assert len(graph.entities) == 1
+
+
+def test_a_single_token_alias_is_ambiguous_when_a_full_name_in_the_case_holds_the_token() -> None:
+    graph = persons(
+        person("Ramesh Kasana", 12, aliases=("Kalu",)),
+        person("Kalu", 13, aliases=("Pappu",)),
+        person("Pappu Sharma", 14),
+        person("Pappu", 3, "notes.txt"),
+    )
+
+    assert entity_groups(graph, EntityType.PERSON) == [
+        [("fir.txt", 12), ("fir.txt", 13)],
+        [("fir.txt", 14)],
+        [("notes.txt", 3)],
+    ]
+
+
+def test_the_competing_full_name_may_arrive_after_the_bare_name() -> None:
+    graph = persons(
+        person("Ramesh Kasana", 12, aliases=("Pappu",)),
+        person("Pappu", 3, "notes.txt"),
+        person("Pappu Sharma", 4, "notes.txt"),
+    )
+
+    assert len(graph.entities) == 3
+
+
+def test_a_plain_alias_chain_stays_transitive() -> None:
+    graph = persons(
+        person("Ramesh Kasana", 12, aliases=("Kalu",)),
+        person("Kalu", 13, aliases=("Pappu",)),
+        person("Pappu", 14),
+    )
+
+    assert len(graph.entities) == 1
+
+
+@pytest.mark.parametrize("order", [(0, 1, 2), (2, 0, 1), (1, 2, 0), (2, 1, 0)])
+def test_an_account_without_ifsc_is_ambiguous_whatever_the_load_order(
+    order: tuple[int, int, int],
+) -> None:
+    writings = [None, "SYNB0000123", "FAKE0000456"]
+    graph = build_case_graph(
+        records(
+            identifiers=tuple(
+                account("5010000019082", 12 + i, ifsc=writings[k]) for i, k in enumerate(order)
+            )
+        )
+    )
+
+    by_ifsc = {e.ifsc: e.entity_id for e in graph.entities}
+    assert set(by_ifsc) == {None, "SYNB0000123", "FAKE0000456"}
+    assert len(graph.entities) == 3
