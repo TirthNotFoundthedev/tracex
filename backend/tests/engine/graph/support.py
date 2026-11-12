@@ -92,9 +92,9 @@ def ident(
     )
 
 
-def phone(digits: str, line: int = 12, file: str = "fir.txt", raw: str | None = None) -> (
-    IdentifierMention
-):
+def phone(
+    digits: str, line: int = 12, file: str = "fir.txt", raw: str | None = None
+) -> IdentifierMention:
     return ident(IdKind.PHONE, raw or digits, digits, line, file)
 
 

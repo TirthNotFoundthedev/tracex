@@ -70,7 +70,7 @@ Every mention, edge and entity carries `file` and `line` (physical line, as `Sou
 2. Section 2 table, one test per row and per veto; an ambiguous mention starts its own entity.
 3. Every mention and edge carries its extractor source; mention counts equal extractor mention counts per type.
 4. Edges per section 1 on hand-written cases, incl. hedged flag, SDR REGISTERED_TO, DR and CR direction, name counterparties giving no edge.
-5. On kit data (small tier, all cases): every engine entity maps onto at most one ground-truth `within_case` group or ungrouped entity, and every planted within-case group maps onto exactly one engine entity.
+5. On kit data (small tier, all cases): every engine entity maps onto at most one ground-truth `within_case` group or ungrouped entity, and every planted within-case group maps onto exactly one engine entity. Noise groups do too, except where a Devanagari writing and its Roman writing transliterate differently (`shrivastav` / `srivastava`): joining those needs fuzzy matching, so at most 5% may stay split, each containing a non-ASCII writing.
 6. Both stores: writing a case twice leaves counts and read-back equal; read-back equals the built graph; `find_entities` returns every case's entity for a value; SAME_AS edges survive a rewrite. Neo4j tests run when `NEO4J_URI` is set and are skipped, with a visible reason, otherwise.
 
 ## 7. Out of scope

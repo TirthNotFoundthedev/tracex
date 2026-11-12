@@ -1,4 +1,4 @@
-"""Case-graph edges, provenance, ids and determinism (docs/specs/engine-graph.md sections 1, 3, 4)."""
+"""Case-graph edges, provenance, ids and determinism (engine-graph spec sections 1, 3, 4)."""
 
 import pytest
 
@@ -29,8 +29,14 @@ CASE = "C-201"
 
 def worked_case() -> CaseGraph:
     """C-201 of the worked scenario: note line 3, calls on cdr lines 33 and 41."""
-    row33 = "SYN-C-201-33,2026-09-18T10:15:00+05:30,75,9000021203,9000014471,VOICE,CELL9,Hillcrest Market"
-    row41 = "SYN-C-201-41,2026-09-19T11:15:00+05:30,80,9000028816,9000014471,VOICE,CELL4,Hillcrest Market"
+    row33 = (
+        "SYN-C-201-33,2026-09-18T10:15:00+05:30,75,9000021203,9000014471,"
+        "VOICE,CELL9,Hillcrest Market"
+    )
+    row41 = (
+        "SYN-C-201-41,2026-09-19T11:15:00+05:30,80,9000028816,9000014471,"
+        "VOICE,CELL4,Hillcrest Market"
+    )
     files = {
         "notes.txt": notes_file(CASE, {3: note("Number 9000014471 is used by Irfan bhai.")}),
         "cdr.csv": pinned_file(
@@ -93,9 +99,15 @@ def test_the_calling_number_is_seen_at_the_tower_place_on_the_call_date() -> Non
 
 def test_a_bank_row_gives_owns_and_a_transfer_in_the_direction_of_the_money() -> None:
     header = BANK_HEADER
-    debit = "TX1,2026-09-10,5010000019082,SYNB0000123,MOHD IRFAN,DR,9000021203@upi,pay,1500.00,20000.50"
-    credit = "TX2,2026-09-11,5010000019082,SYNB0000123,MOHD IRFAN,CR,5010000077701,in,250.00,20250.50"
-    by_name = "TX3,2026-09-12,5010000019082,SYNB0000123,MOHD IRFAN,DR,RAMESH TRADERS,pay,10.00,20240.50"
+    debit = (
+        "TX1,2026-09-10,5010000019082,SYNB0000123,MOHD IRFAN,DR,9000021203@upi,pay,1500.00,20000.50"
+    )
+    credit = (
+        "TX2,2026-09-11,5010000019082,SYNB0000123,MOHD IRFAN,CR,5010000077701,in,250.00,20250.50"
+    )
+    by_name = (
+        "TX3,2026-09-12,5010000019082,SYNB0000123,MOHD IRFAN,DR,RAMESH TRADERS,pay,10.00,20240.50"
+    )
     text = f"{header}\n{debit}\n{credit}\n{by_name}\n"
 
     graph = build_case_graph(extract_case("C-101", {"bank.csv": text}))
@@ -129,7 +141,7 @@ def test_a_subscriber_row_gives_registered_to_never_owns() -> None:
     assert edges_of(graph, EdgeType.OWNS) == []
 
 
-def test_a_hedged_statement_is_a_mentioned_with_edge_that_keeps_the_hedge_and_lower_confidence() -> None:
+def test_a_hedged_statement_is_mentioned_with_and_keeps_the_hedge_and_lower_confidence() -> None:
     holder = person("Irfan", 3, "notes.txt", confidence=0.5)
     number = phone("9000014471", 3, "notes.txt")
 
@@ -209,7 +221,9 @@ def test_building_twice_gives_equal_graphs() -> None:
 
 def test_entity_ids_follow_load_order_not_dictionary_order() -> None:
     files = {
-        "bank.csv": f"{BANK_HEADER}\nTX1,2026-09-10,5010000019082,SYNB0000123,MOHD IRFAN,DR,,x,1.00,2.00\n",
+        "bank.csv": (
+            f"{BANK_HEADER}\nTX1,2026-09-10,5010000019082,SYNB0000123,MOHD IRFAN,DR,,x,1.00,2.00\n"
+        ),
         "notes-02.txt": notes_file(CASE, {3: note("Number 9000079900 is used by Jaswinder.")}),
         "notes.txt": notes_file(CASE, {3: note("Number 9000011111 is used by Jaswinder.")}),
         "fir.txt": fir_file(CASE, {}),

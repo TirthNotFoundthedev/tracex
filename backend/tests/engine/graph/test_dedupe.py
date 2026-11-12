@@ -91,9 +91,7 @@ def test_vehicle_writings_with_the_same_registration_join() -> None:
 def test_accounts_join_on_digits_unless_both_ifscs_are_known_and_differ(
     ifscs: tuple[str | None, str | None], entities: int
 ) -> None:
-    mentions = tuple(
-        account("5010000019082", 12 + i, ifsc=ifsc) for i, ifsc in enumerate(ifscs)
-    )
+    mentions = tuple(account("5010000019082", 12 + i, ifsc=ifsc) for i, ifsc in enumerate(ifscs))
 
     graph = build_case_graph(records(identifiers=mentions))
 
@@ -122,7 +120,10 @@ def test_an_account_without_ifsc_that_fits_two_banks_starts_its_own_entity() -> 
 def test_an_account_without_ifsc_takes_the_ifsc_of_the_entity_it_joins() -> None:
     graph = build_case_graph(
         records(
-            identifiers=(account("5010000019082", 12), account("5010000019082", 13, ifsc="synb0000123"))
+            identifiers=(
+                account("5010000019082", 12),
+                account("5010000019082", 13, ifsc="synb0000123"),
+            )
         )
     )
 
@@ -135,7 +136,9 @@ def test_shared_wording_on_any_mention_marks_the_entity() -> None:
         records(
             identifiers=(
                 phone("9000088120", 12),
-                ident(IdKind.PHONE, "9000088120", "9000088120", 3, "notes.txt", shared_wording=True),
+                ident(
+                    IdKind.PHONE, "9000088120", "9000088120", 3, "notes.txt", shared_wording=True
+                ),
             )
         )
     )
@@ -162,7 +165,9 @@ def test_two_writings_of_a_multi_token_name_join_and_keep_their_own_text() -> No
 
 
 def test_different_names_stay_separate() -> None:
-    graph = persons(person("Ramesh Kumar", 12), person("Ramesh Kumari", 13), person("Suresh Kumar", 14))
+    graph = persons(
+        person("Ramesh Kumar", 12), person("Ramesh Kumari", 13), person("Suresh Kumar", 14)
+    )
 
     assert len(graph.entities) == 3
 
@@ -243,7 +248,14 @@ def test_a_stated_conflict_keeps_same_named_people_apart(
         ({"locality": "Kherapur"}, {"locality": "Kherapur"}),
         ({"gender": "M"}, {}),
     ],
-    ids=["one-side-silent", "same-relative", "unknown-relation", "age-within-2", "same-place", "gender-silent"],
+    ids=[
+        "one-side-silent",
+        "same-relative",
+        "unknown-relation",
+        "age-within-2",
+        "same-place",
+        "gender-silent",
+    ],
 )
 def test_agreeing_or_silent_attributes_do_not_stop_a_join(
     first: dict[str, object], second: dict[str, object]
@@ -291,7 +303,9 @@ def test_a_mention_equal_to_an_earlier_one_goes_to_the_same_entity_even_when_amb
     assert entity_groups(graph, EntityType.PERSON)[2] == [("fir.txt", 14), ("fir.txt", 14)]
 
 
-def test_entity_confidence_is_the_highest_mention_confidence_and_each_mention_keeps_its_own() -> None:
+def test_entity_confidence_is_the_highest_mention_confidence_and_each_mention_keeps_its_own() -> (
+    None
+):
     graph = persons(
         person("Ramesh Yadav", 12, confidence=0.5),
         person("Ramesh Yadav", 13, confidence=0.9),

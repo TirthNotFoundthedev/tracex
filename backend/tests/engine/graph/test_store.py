@@ -6,6 +6,7 @@ C-903, which no kit case uses, and remove only those cases' nodes before and aft
 """
 
 import os
+from collections import Counter
 from collections.abc import Iterator
 
 import pytest
@@ -24,6 +25,7 @@ from tracex_engine.extract import extract_case
 from tracex_engine.graph import (
     CaseGraph,
     CaseGraphStore,
+    EdgeType,
     EntityType,
     InMemoryCaseGraphStore,
     Neo4jCaseGraphStore,
@@ -45,8 +47,13 @@ STORES = [
 
 
 def make_graph(case_id: str, phone: str = "9000014471") -> CaseGraph:
-    row = f"SYN-{case_id}-3,2026-09-18T10:15:00+05:30,75,9000021203,{phone},VOICE,CELL9,Hillcrest Market"
-    bank = f"TX1,2026-09-10,5010000019082,SYNB0000123,MOHD IRFAN,DR,{phone}@upi,pay,1500.00,20000.50"
+    row = (
+        f"SYN-{case_id}-3,2026-09-18T10:15:00+05:30,75,9000021203,{phone},"
+        "VOICE,CELL9,Hillcrest Market"
+    )
+    bank = (
+        f"TX1,2026-09-10,5010000019082,SYNB0000123,MOHD IRFAN,DR,{phone}@upi,pay,1500.00,20000.50"
+    )
     files = {
         "fir.txt": fir_file(case_id, {12: "The accused Mohd. Irfan, mobile 90000 14471, fled."}),
         "notes.txt": notes_file(case_id, {3: note(f"Number {phone} is used by Irfan bhai.")}),
@@ -108,7 +115,9 @@ def test_cases_are_read_separately_and_listed_in_numeric_order(store: CaseGraphS
     store.write_case(make_graph("C-901"))
 
     assert [c for c in store.case_ids() if c in TEST_CASES] == ["C-901", "C-902"]
-    assert {e.case_id for e in (store.read_case("C-901") or make_graph("C-903")).entities} == {"C-901"}
+    assert {e.case_id for e in (store.read_case("C-901") or make_graph("C-903")).entities} == {
+        "C-901"
+    }
 
 
 def test_an_exact_value_lookup_finds_the_entity_in_every_case_in_id_order(
@@ -168,9 +177,11 @@ class TestNeo4jOnly:
             "RETURN type(r) AS t, count(r) AS n ORDER BY t"
         )
         counts = {r["t"]: r["n"] for r in records}
-        assert counts["OWNS"] == 3
-        assert counts["CALLED"] == 1 and counts["TRANSFERRED_TO"] == 1 and counts["SEEN_AT"] == 1
-        assert counts["HAS_MENTION"] == len(make_graph("C-901").mentions)
+        built = make_graph("C-901")
+        expected = Counter(e.type.value for e in built.edges)
+        assert set(expected) == {t.value for t in EdgeType} - {"REGISTERED_TO"}
+        assert {t: n for t, n in counts.items() if t != "HAS_MENTION"} == dict(expected)
+        assert counts["HAS_MENTION"] == len(built.mentions)
 
     def test_a_same_as_edge_survives_loading_a_case_again_and_is_not_part_of_the_case(
         self, driver: Driver
