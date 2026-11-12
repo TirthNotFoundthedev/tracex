@@ -60,8 +60,6 @@ def _build(source: SourceRef, raw_line: str, cells: dict[str, str]) -> BankRow |
     ifsc = normalize_ifsc(ifsc_cell)
     if ifsc_cell.strip() and ifsc is None:
         return f"ifsc {ifsc_cell!r} is not a valid IFSC"
-    if not cells["account_holder"].strip():
-        return "account_holder is empty"
     direction = cells["direction"].strip()
     if direction not in ("DR", "CR"):
         return f"direction {cells['direction']!r} is not DR or CR"

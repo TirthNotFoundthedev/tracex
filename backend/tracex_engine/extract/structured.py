@@ -72,6 +72,8 @@ def extract_bank(row: BankRow) -> StructuredRecords:
                 confidence=CONFIDENCE_CLEAR,
             )
         )
+    if not row.holder.strip():
+        return StructuredRecords(identifiers=tuple(identifiers))
     org_name = normalize_org_name(row.holder)
     persons: tuple[PersonMention, ...] = ()
     orgs: tuple[OrgMention, ...] = ()

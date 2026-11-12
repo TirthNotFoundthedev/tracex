@@ -58,7 +58,7 @@ class CdrRow:
 class BankRow:
     """One bank-statement row.
 
-    `holder` is the account holder as written (the OWNS source for the account).
+    `holder` is the account holder as written, empty when the statement leaves it blank.
     `counterparty_kind` says what `counterparty` holds: a phone (UPI handle or number), an
     account, a name (kept in `counterparty_text` only) or nothing.
     """
