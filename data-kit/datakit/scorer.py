@@ -46,6 +46,12 @@ class _Scorer:
             s["id"]: {x["target"] for x in s["steps"] if x["action"] == "CONFIRM"}
             for s in gt["scenarios"]
         }
+        self.human_steps: set[tuple[str, str]] = {
+            (x["action"], x["target"])
+            for s in gt["scenarios"]
+            if s["id"] in result.harness_applied
+            for x in s["steps"]
+        }
         self.cross = [g for g in gt["groups"] if g["scope"] == "cross_case"]
         self.groups_of: dict[str, set[int]] = defaultdict(set)
         for position, group in enumerate(self.cross):
@@ -60,6 +66,7 @@ class _Scorer:
             k: {"passed": 0, "failed": 0, "skipped": 0} for k in ("S1", "S2", "S3", "S4", "S5")
         }
         self.link_edges: set[int] = set()
+        self.human_ok: set[int] = set()
         self.band_scores: dict[str, dict[str, Any]] = {}
 
     # --- helpers ---------------------------------------------------------------------------
@@ -160,6 +167,10 @@ class _Scorer:
         for link in self._applicable_links():
             candidates = self._touching(link["a"], link["b"])
             self.link_edges.update(e.index for e in candidates)
+            for edge in candidates:
+                action = _HUMAN_ACTIONS.get(edge.state)
+                if action and (action, link["id"]) in self.human_steps:
+                    self.human_ok.add(edge.index)
             if link.get("trap"):
                 for edge in candidates:
                     if edge.state == "AUTO":
@@ -230,6 +241,8 @@ class _Scorer:
             return "low_stored"
         if edge.state == "AUTO" and edge.band != "HIGH":
             return "auto_band"
+        if edge.state in _HUMAN_ACTIONS and edge.index not in self.human_ok:
+            return "human_state"
         return None
 
     def _cases(self, entity_id: str) -> set[str]:
@@ -406,7 +419,10 @@ def score(gt: dict[str, Any], result_document: dict[str, Any]) -> dict[str, Any]
     }
 
 
+_HUMAN_ACTIONS = {"CONFIRMED": "CONFIRM", "REJECTED": "REJECT", "UNDONE": "UNDO"}
+
 _INTEGRITY_RULES = {
+    "human_state": "an edge is CONFIRMED, REJECTED or UNDONE only after an applied harness step",
     "self_loop": "an edge joins two different entities",
     "same_case": "an edge joins entities of two different cases",
     "duplicate_edge": "at most one edge per pair of entities",
