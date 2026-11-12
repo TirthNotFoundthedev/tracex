@@ -10,7 +10,7 @@ from typing import Any
 
 from datakit.alloc import Allocators
 from datakit.fill import render_doc
-from datakit.model import Case, Entity, World, csv_line
+from datakit.model import Case, Entity, World, bare_name, csv_line
 from datakit.noise import TIERS, build_noise, case_sort_key, fill_planted
 from datakit.planted import build_planted
 from datakit.seed import case_assignments_csv
@@ -76,7 +76,7 @@ def _entity_json(world: World, e: Entity) -> dict[str, Any]:
         "gt_id": e.gt_id,
         "type": e.type,
         "case_id": e.case_id,
-        "raw_text": e.raw_text,
+        "raw_text": bare_name(e.raw_text) if e.type in ("PERSON", "ORG") else e.raw_text,
         "normalized": e.normalized,
         "mentions": [_ref(e.case_id, f, n) for f, n in mentions],
         "batch": min(batches),
