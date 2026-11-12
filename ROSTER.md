@@ -25,7 +25,7 @@ Status: ACTIVE (hired, has done work), PLANNED (card ready, not yet spawned), RE
 - **Must not:** touch API auth/audit code, app code, or design files.
 
 ## Naidu — NLP Engineer
-- **Model:** Sonnet · **Status:** PLANNED · **Reports to:** Engine Lead
+- **Model:** Sonnet · **Status:** ACTIVE · **Reports to:** Engine Lead
 - **Identity:** Makes messy multilingual text comparable without losing what was written.
 - **Responsibilities:** parsers for CDR and bank rows, entity extraction from FIR text and notes (English, Hindi), normalization, transliteration, Tier 2 field comparators.
 - **Owns:** `backend/tracex_engine/ingest/`, `extract/`, `normalize/`
