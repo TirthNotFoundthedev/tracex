@@ -38,6 +38,13 @@ HEDGE_PHRASES: tuple[str, ...] = (
     "not verified",
     "yet to be verified",
     "yet to be confirmed",
+    "thought to be",
+    "presumably",
+    "rumoured",
+    "rumored",
+    "cannot be confirmed",
+    "could not be confirmed",
+    "could not be verified",
     # romanised Hindi
     "shayad",
     "sambhavtah",
@@ -45,6 +52,10 @@ HEDGE_PHRASES: tuple[str, ...] = (
     "aspasht",
     "kathit",
     "sandeh",
+    "sambhavat",
+    "shaayad",
+    "shak",
+    "lagta hai",
     # Hindi (Devanagari)
     "शायद",
     "संभवतः",
@@ -54,6 +65,9 @@ HEDGE_PHRASES: tuple[str, ...] = (
     "कथित",
     "संभावित",
     "संदेह",
+    "संभवत",
+    "लगता है",
+    "शक",
 )
 
 # The subset that says the text itself is unclear or unverified. Every mention in such a
@@ -105,8 +119,11 @@ NEGATION_WORDS: tuple[str, ...] = (
     "nahi",
     "nahin",
     "nahee",
+    "nhi",
+    "cannot",
     "नहीं",
     "नही",
+    "न",
 )
 
 _WORD_EDGE = r"(?<![\wऀ-ॿ]){}(?![\wऀ-ॿ])"
@@ -143,3 +160,10 @@ def has_shared_wording(text: str) -> bool:
 
 def is_negated(text: str) -> bool:
     return _NEGATION.search(text) is not None
+
+
+# Words that can never be part of a person's name: hedges, negations and connectors.
+FORBIDDEN_NAME_TOKENS = frozenset(
+    {w for w in (*HEDGE_PHRASES, *NEGATION_WORDS) if " " not in w}
+    | {"and", "or", "aur", "tatha", "&", "और", "तथा", "व"}
+)

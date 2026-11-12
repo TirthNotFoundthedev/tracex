@@ -50,6 +50,21 @@ _DEV_STOP_WORDS = (
     "तिथि",
     "खाता",
     "शायद",
+    "संभवत",
+    "संभवतः",
+    "संभावित",
+    "लगता",
+    "शक",
+    "संदेह",
+    "कथित",
+    "अपुष्ट",
+    "अस्पष्ट",
+    "नहीं",
+    "नही",
+    "न",
+    "तथा",
+    "व",
+    "रूप",
     "पुरुष",
     "महिला",
     "आरोपी",
@@ -59,10 +74,10 @@ _DEV_STOP_WORDS = (
     "संदिग्ध",
     "मुखबिर",
 )
-_DEV_TOKEN = rf"(?!(?:{'|'.join(_DEV_STOP_WORDS)})(?!{DEV})){DEV}+"
+_DEV_TOKEN = rf"(?<![\u0900-\u097F])(?!(?:{'|'.join(_DEV_STOP_WORDS)})(?!{DEV})){DEV}+"
 NAME_DEV = rf"{_DEV_TOKEN}(?:[ \t]+{_DEV_TOKEN}){{0,2}}"
 
-_LATIN_CAP = r"[A-Z][A-Za-z.'’-]*"
+_LATIN_CAP = r"[A-Z][A-Za-z.-]*(?:['’][A-Z][A-Za-z-]*)?"
 NAME_LATIN = (
     rf"{_LATIN_CAP}(?:[ \t]+{_LATIN_CAP}){{0,3}}"
     r"(?:[ \t]+(?:bhai|bhaiya|ji|sahab|sahib|chacha)(?![A-Za-z]))?"
@@ -120,7 +135,7 @@ _BY_PREFIX = (
 )
 USED_BY = re.compile(rf"(?i:(?<![A-Za-z])used\s+by)\s+{_BY_PREFIX}(?P<name>{NAME})")
 LIST_NEXT = re.compile(
-    rf"(?P<sep>\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s*&\s*|\s+or\s+){_BY_PREFIX}(?P<name>{NAME})"
+    rf"(?P<sep>\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+aur\s+|\s*&\s*|\s+or\s+){_BY_PREFIX}(?P<name>{NAME})"
 )
 OR_AFTER = re.compile(r"\s+or\s+")
 USED_BY_DEV = re.compile(rf"(?P<name>{NAME_DEV})\s+द्वारा\s+(?:इस्तेमाल|उपयोग|प्रयोग)")
@@ -181,16 +196,82 @@ ABBREVIATIONS = frozenset(
 )
 
 CUE_WORDS = _CUE_WORDS
-_GAP_WORDS = rf"his|her|is|are|was|and|a/c|acct?\.?|account|खाता|है|{_CUE_WORDS}"
-# Text allowed between a person (with their facts) and an identifier for the cue to mean
-# "this person's": punctuation, his/her, 's, and further cue words (identifiers cut out).
+_CONNECTOR = r"(?:and|aur|tatha|&|और|तथा|व)"
+_ROLE_WORD = (
+    r"(?:accused|suspect|complainant|witness|victim|informant|informer|arrested|aaropi|abhiyukt"
+    r"|shikayatkarta|gawah|sandigdh|आरोपी|अभियुक्त|शिकायतकर्ता|गवाह|संदिग्ध|मुखबिर"
+    r"|पी(?:ड़|ड़)ित)"
+)
+_WORD_EDGE_LEFT = r"(?<![A-Za-zऀ-ॿ])"
+_WORD_EDGE_RIGHT = r"(?![A-Za-zऀ-ॿ])"
+_CUE_PHRASE = (
+    rf"{_WORD_EDGE_LEFT}(?:a/c|acct?\.?|account|खाता|{_CUE_WORDS}){_WORD_EDGE_RIGHT}[\s:.\-]*"
+)
+# Pattern A: text allowed between a person phrase and an identifier (identifiers cut out): a
+# separator (comma, semicolon, colon, dash or bracket) or `'s`, then cue [is]; further pairs
+# are joined by a separator or a connector. No verb before the cue, no other words.
+_PAIR = (
+    r"(?:"
+    + _WORD_EDGE_LEFT
+    + r"(?:his|her)"
+    + _WORD_EDGE_RIGHT
+    + r"\s+)?(?:"
+    + _CUE_PHRASE
+    + r")+(?:(?:is|are|was|है)\s+)?"
+)
+_SEPARATOR = r"[,;:(\-]"
 APPOSITION_GAP = re.compile(
-    rf"^(?:[\s,:;()&-]+|['’]s(?![A-Za-z])|(?<![A-Za-z])(?:{_GAP_WORDS})(?![A-Za-z]))*$",
+    r"^(?:\s*"
+    + _SEPARATOR
+    + r"\s*|\s*['’]s\s+)"
+    + _PAIR
+    + r"(?:\s*(?:"
+    + _SEPARATOR
+    + r"|"
+    + _WORD_EDGE_LEFT
+    + _CONNECTOR
+    + _WORD_EDGE_RIGHT
+    + r")\s*"
+    + _PAIR
+    + r")*\s*$",
     re.IGNORECASE,
 )
-# Text allowed between two people for them to count as one listed group.
-CONNECTOR_GAP = re.compile(
-    r"^(?:[\s,&]+|(?<![A-Za-z])(?:and|accused|suspect|complainant|witness|victim|informant"
-    r"|informer|arrested)(?![A-Za-z]))*$",
+# Pattern D: `His number is <identifier>` from the start of the sentence.
+HIS_GAP = re.compile(
+    r"^\s*(?:his|her)\s+(?:" + _CUE_PHRASE + r")+(?:(?:is|are|was)\s+)?$", re.IGNORECASE
+)
+# Pattern C: `<name> ka number <identifier> [hai]`.
+KA_GAP = re.compile(
+    r"^\s*(?:ka|ki|ke|का|की|के)\s+(?:(?:mobile|phone|मोबाइल|फोन)\s+)?"
+    r"(?:number|no\.?|नंबर|नम्बर)\s*(?:(?:hai|है)\s+)?$",
     re.IGNORECASE,
+)
+KA_TAIL = re.compile(
+    r"^\s*(?:(?:hai|hain|है|हैं)\s*)?[,;]?\s*(?:" + _CONNECTOR + r"\s*)?$", re.IGNORECASE
+)
+# Pattern B: `<identifier> [is] used by <list>`; what may sit before `used` and after the list.
+USED_GAP = re.compile(
+    r"^\s*,?\s*(?:(?:is|are|was|being|is\s+being|are\s+being)\s*)?$", re.IGNORECASE
+)
+USED_TAIL = re.compile(r"^\s*$|^\s*,?\s*(?:and|aur|&|or)(?![A-Za-z]).*$", re.IGNORECASE | re.DOTALL)
+DEV_USED_TAIL = re.compile(r"^\s*(?:(?:किया\s+(?:जाता|जाती|गया)|होता|होती)\s*)?(?:है|हैं)?\s*$")
+# Two people count as one listed group when only connectors and role words separate them.
+CONNECTOR_GAP = re.compile(
+    r"^(?:[\s,&]+|"
+    + _WORD_EDGE_LEFT
+    + r"(?:"
+    + _CONNECTOR
+    + "|"
+    + _ROLE_WORD
+    + r")"
+    + _WORD_EDGE_RIGHT
+    + r")*$",
+    re.IGNORECASE,
+)
+
+# A name written just before a connector that leads into the person phrase: the identifier
+# would belong to a list of people, one of whom the extractor did not recognise.
+_NAME_TOKEN = rf"(?:{_WORD_EDGE_LEFT}[A-Z][A-Za-z.'’-]*|{_DEV_TOKEN})"
+JOINED_TO_NAME = re.compile(
+    _NAME_TOKEN + r"\s*(?:[,&]|" + _CONNECTOR + r")\s*(?:" + _ROLE_WORD + r"\s*)*$",
 )

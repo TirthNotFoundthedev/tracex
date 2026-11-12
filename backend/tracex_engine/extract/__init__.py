@@ -19,16 +19,25 @@ Exposed:
     CONFIDENCE_CLEAR (0.9), CONFIDENCE_HEDGED (0.5)
     HEDGE_PHRASES, LEGIBILITY_HEDGE_PHRASES, SHARED_WORDING   the wording rules (hedges.py)
 
-Reading rules in one place (details in text.py):
-    OWNS            `Number X is used by <name> [and <name>]`, a bank row's account holder, or
-                    an identifier right after a cue (`mobile`, `number`, `a/c`) standing next
-                    to exactly one person; never when hedged, negated or ambiguous
-    REGISTERED_TO   only from `sdr.csv` rows; never OWNS
-    MENTIONED_WITH  any other identifier near a person, `in the name of <name>`, and hedged
-                    or ambiguous ownership (hedged=True for the hedged ones)
-    hedged          see hedges.py; negated statements give no attribution at all
-    confidence      0.5 for every mention in the scope of "unclear/unverified" wording, else
-                    0.9 (gate G5 needs 0.7)
+Ownership contract. OWNS comes only from this closed set of clean patterns (English,
+romanised Hindi, Devanagari); everything else near a person is MENTIONED_WITH:
+    A  <person phrase> , cue [is] <identifier> [, cue <identifier>]*
+       cue = mobile, phone, number, no., contact, a/c, account, plate, vehicle ...; the
+       person phrase is the name with the role word and the facts written right after it
+       (age, relative, alias, locality); a comma, semicolon, colon, dash or bracket must
+       come before the first cue; no verb between name and cue; `'s` also allowed
+    B  <identifier> [is/was] used by <name> [(, | and | aur) <name>]*
+       (Hindi: <identifier> <name> द्वारा इस्तेमाल [किया जाता] [है]); every named person
+       owns it; the list must end the clause (a closing `and ...` is fine); `or` is a hedge
+    C  <name> ka/का [mobile] number/नंबर [hai/है] <identifier> [hai/है]
+    D  `His/Her number is <identifier>` when the previous sentence has exactly one person
+A pattern is void (MENTIONED_WITH, hedged where a list was left open) when another person is
+joined to the same identifier by and/aur/और/commas, when a name list is followed by a verb or
+a possessive, when hedge wording (hedges.py) or a negation word is in scope (negated: no
+attribution at all), or when any other word stands between name, cue and identifier.
+REGISTERED_TO comes only from `sdr.csv` rows. Mentions in the scope of unclear or unverified
+wording (the sentence, fragments with no identifier or person on both sides, a whole note
+line) get confidence 0.5, else 0.9 (gate G5 needs 0.7).
 """
 
 from tracex_engine.extract.case import extract_case
