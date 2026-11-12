@@ -24,6 +24,7 @@ from tracex_engine.ingest import (
     read_fir,
     read_notes,
 )
+from tracex_engine.ingest.tabular import split_lines
 
 # Load order within a case (data-kit section 2): fir, notes, sdr, cdr, bank; later batches
 # (`notes-02.txt`, `cdr-02.csv`) after every baseline file, by number.
@@ -89,7 +90,8 @@ def _read_fir(case_id: str, name: str, text: str, out: _Collector) -> None:
     complainant = fir.header.get("Complainant")
     if complainant is not None and complainant[0]:
         value, source = complainant
-        out.add(extract_text_line(source, f"complainant {value}"))
+        written = split_lines(text)[source.line - 1]
+        out.add(extract_text_line(source, f"complainant {value}", statement=written))
     for line in fir.narrative:
         out.add(extract_text_line(line.source, line.text))
 
@@ -98,7 +100,7 @@ def _read_notes(case_id: str, name: str, text: str, out: _Collector) -> None:
     notes = read_notes(case_id, name, text)
     out.errors.extend(notes.errors)
     for line in notes.lines:
-        out.add(extract_text_line(line.source, line.body, shared_scope=line.body))
+        out.add(extract_text_line(line.source, line.body, whole_line=True))
 
 
 def _read_sdr(case_id: str, name: str, text: str, out: _Collector) -> None:

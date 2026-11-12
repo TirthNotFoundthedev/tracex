@@ -19,15 +19,16 @@ Exposed:
     CONFIDENCE_CLEAR (0.9), CONFIDENCE_HEDGED (0.5)
     HEDGE_PHRASES, LEGIBILITY_HEDGE_PHRASES, SHARED_WORDING   the wording rules (hedges.py)
 
-Reading rules in one place:
-    OWNS            `Number X is used by <name>`, a bank row's account holder, or an
-                    identifier right after a cue (`mobile`, `number`, `a/c`, `plate`) following
-                    the person in the same sentence
+Reading rules in one place (details in text.py):
+    OWNS            `Number X is used by <name> [and <name>]`, a bank row's account holder, or
+                    an identifier right after a cue (`mobile`, `number`, `a/c`) standing next
+                    to exactly one person; never when hedged, negated or ambiguous
     REGISTERED_TO   only from `sdr.csv` rows; never OWNS
-    MENTIONED_WITH  any other identifier after a person, and `in the name of <name>`
-    hedged          a sentence with hedge wording never gives OWNS (see hedges.py)
-    confidence      0.5 for every mention in a sentence that says the text is unclear or
-                    unverified, else 0.9 (gate G5 needs 0.7)
+    MENTIONED_WITH  any other identifier near a person, `in the name of <name>`, and hedged
+                    or ambiguous ownership (hedged=True for the hedged ones)
+    hedged          see hedges.py; negated statements give no attribution at all
+    confidence      0.5 for every mention in the scope of "unclear/unverified" wording, else
+                    0.9 (gate G5 needs 0.7)
 """
 
 from tracex_engine.extract.case import extract_case

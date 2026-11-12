@@ -1,40 +1,54 @@
 """Entity extraction from one line of FIR narrative or officer note.
 
 The line is split into sentences. Within a sentence, people and organisations are found from
-the cue shapes in `patterns`, identifiers are found by their own formats, and each identifier is
-tied to a person by these rules, strongest first:
+the cue shapes in `patterns`, identifiers by their own formats, and an identifier is tied to a
+person by these rules:
 
-1. `<identifier> ... used by <name>` ties the identifier to that name (OWNS). Negated wording
-   ("is not used by") ties nothing.
-2. An identifier right after an ownership cue (`mobile`, `number`, `a/c`, `plate` ...) is OWNS
-   of the nearest person written before it in the sentence (for "his number is", the last
-   person of the previous sentence).
-3. Any other identifier after a person is MENTIONED_WITH that person; `in the name of <name>`
-   is MENTIONED_WITH for the named person, never OWNS.
+1. `<identifier> ... used by <name>` ties it to every name in an and/comma list (OWNS); an `or`
+   list is a hedge.
+2. An identifier after an ownership cue (`mobile`, `number`, `a/c`, `plate`) is OWNS only when
+   it stands next to exactly one person: between that person (with their age, relative, alias,
+   locality) and the cue there is only punctuation, his/her, `'s` or further cue words. Two
+   people joined by `and`/commas before one identifier, or any other wording in between, give
+   MENTIONED_WITH to each. `his number` binds only to a single person of the previous sentence.
+   `in the name of <name>` gives MENTIONED_WITH, never OWNS.
+3. Hedge wording (see hedges.py) or a negation word in the sentence removes OWNS: hedged gives
+   MENTIONED_WITH with `hedged`, negated gives nothing. Hedge and unclear-text wording covers
+   the sentence plus following fragments with no identifier or person (a whole note line for
+   notes); a question is hedged.
 
-A sentence with hedge wording never asserts OWNS: its attributions are flagged `hedged` and
-downgraded to MENTIONED_WITH. A sentence that marks the text unclear or unverified lowers the
-confidence of every mention in it. No assertion is made when in doubt.
+Unclear or unverified text lowers the confidence of every mention in its scope. When in doubt,
+no OWNS.
 """
 
+import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from tracex_engine.extract.hedges import has_shared_wording, is_hedged, is_illegible
+from tracex_engine.extract.hedges import (
+    has_shared_wording,
+    is_hedged,
+    is_illegible,
+    is_negated,
+)
 from tracex_engine.extract.patterns import (
     ABBREVIATIONS,
     ACCOUNT,
     AGE,
     ALIAS_AFTER,
+    APPOSITION_GAP,
+    CONNECTOR_GAP,
     DOB,
     GENDER,
     IFSC_AFTER,
     IN_NAME_OF,
     LEADING_NON_NAME,
+    LIST_NEXT,
     LOCALITY,
     NAME_KA_NUMBER,
     NAME_KE_NAAM,
     NAME_THEN_FACT,
-    NEGATION_BEFORE,
+    OR_AFTER,
     ORG,
     OWNERSHIP_CUE,
     PHONE,
@@ -111,8 +125,14 @@ class _Candidate:
     gender: Value | None = None
     locality: Value | None = None
     used_by: int | None = None  # index of the identifier named by "used by"
-    negated: bool = False
+    or_hedged: bool = False  # named in an "or" list: a hedge
+    registered: bool = False  # named by "in the name of": never an owner by apposition
     registered_for: int | None = None  # identifier of an "in the name of" statement
+    fact_ends: list[int] = field(default_factory=list)  # where each stated fact ends
+
+    def extent(self, before: int) -> int:
+        """End of the name and of every fact stated about it that ends before `before`."""
+        return max([self.end, *(e for e in self.fact_ends if e <= before)])
 
 
 @dataclass
@@ -125,17 +145,17 @@ class _Ident:
     ifsc: Value | None = None
 
 
-def sentence_spans(text: str) -> list[tuple[int, int]]:
-    """Sentence spans of `text`, terminators excluded; `Mohd.` and initials end none."""
-    spans: list[tuple[int, int]] = []
+def sentence_spans(text: str) -> list[tuple[int, int, bool]]:
+    """Sentence spans (start, end, is_question), terminators excluded; `Mohd.` ends none."""
+    spans: list[tuple[int, int, bool]] = []
     start = 0
     for match in SENTENCE_END.finditer(text):
         if match.group()[0] == "." and _ends_abbreviation(text, match.start()):
             continue
-        spans.append((start, match.start()))
+        spans.append((start, match.start(), "?" in match.group()))
         start = match.end()
-    spans.append((start, len(text)))
-    return [(a, b) for a, b in spans if text[a:b].strip()]
+    spans.append((start, len(text), False))
+    return [(a, b, q) for a, b, q in spans if text[a:b].strip()]
 
 
 def _ends_abbreviation(text: str, dot: int) -> bool:
@@ -146,44 +166,89 @@ def _ends_abbreviation(text: str, dot: int) -> bool:
     return word in ABBREVIATIONS or (len(word) == 1 and word.isalpha())
 
 
+@dataclass
+class _Parsed:
+    sentence: str
+    question: bool
+    idents: list[_Ident]
+    candidates: list[_Candidate]
+
+    @property
+    def is_fragment(self) -> bool:
+        """A fragment states no identifier and no person of its own (`unverified.`)."""
+        return not self.idents and not self.candidates
+
+
 def extract_text_line(
-    source: SourceRef, text: str, *, shared_scope: str | None = None
+    source: SourceRef,
+    text: str,
+    *,
+    whole_line: bool = False,
+    statement: str | None = None,
 ) -> TextRecords:
     """Extract persons, organisations, identifiers and attributions from one line.
 
-    `shared_scope` is the text searched for shared-number wording (a note's whole line); by
-    default each identifier's own sentence.
+    Hedge and legibility wording covers the sentence plus any following fragment that states
+    no identifier or person; with `whole_line` (an officer note: one note, one statement) it
+    covers every sentence of the line, and shared-number wording is searched over the line.
+    `statement` replaces the sentence as the `raw_text` of attributions (header lines).
     """
+    parsed: list[_Parsed] = []
+    for begin, end, question in sentence_spans(text):
+        sentence = text[begin:end]
+        idents = _find_identifiers(sentence)
+        candidates = _find_candidates(sentence, idents)
+        _bind_facts(sentence, candidates)
+        parsed.append(_Parsed(sentence, question, idents, candidates))
+    own_hedge = [is_hedged(p.sentence) or p.question for p in parsed]
+    own_illegible = [is_illegible(p.sentence) for p in parsed]
+
     persons: list[PersonMention] = []
     orgs: list[OrgMention] = []
     identifiers: list[IdentifierMention] = []
     attributions: list[Attribution] = []
-    last_holder: PersonMention | OrgMention | None = None
-    for begin, end in sentence_spans(text):
-        records, holders = _extract_sentence(source, text[begin:end], shared_scope, last_holder)
+    previous: list[PersonMention | OrgMention] = []
+    for index, item in enumerate(parsed):
+        if whole_line:
+            hedged, illegible = any(own_hedge), any(own_illegible)
+        else:
+            reach = _fragment_reach(parsed, index)
+            hedged = any(own_hedge[i] for i in reach)
+            illegible = any(own_illegible[i] for i in reach)
+        shared = has_shared_wording(text if whole_line else item.sentence)
+        records, holders = _finish(
+            source, item, hedged, illegible, shared, previous, statement or item.sentence.strip()
+        )
         persons.extend(records.persons)
         orgs.extend(records.orgs)
         identifiers.extend(records.identifiers)
         attributions.extend(records.attributions)
-        last_holder = holders[-1] if holders else last_holder
+        previous = holders
     return TextRecords(tuple(persons), tuple(orgs), tuple(identifiers), tuple(attributions))
 
 
-def _extract_sentence(
-    source: SourceRef,
-    sentence: str,
-    shared_scope: str | None,
-    previous_holder: PersonMention | OrgMention | None,
-) -> tuple[TextRecords, list[PersonMention | OrgMention]]:
-    hedged = is_hedged(sentence)
-    confidence = CONFIDENCE_HEDGED if is_illegible(sentence) else CONFIDENCE_CLEAR
-    shared = has_shared_wording(shared_scope if shared_scope is not None else sentence)
-    idents = _find_identifiers(sentence)
-    candidates = _find_candidates(sentence, idents)
-    _bind_facts(sentence, candidates)
+def _fragment_reach(parsed: list[_Parsed], index: int) -> list[int]:
+    reach = [index]
+    following = index + 1
+    while following < len(parsed) and parsed[following].is_fragment:
+        reach.append(following)
+        following += 1
+    return reach
 
+
+def _finish(
+    source: SourceRef,
+    item: _Parsed,
+    hedged: bool,
+    illegible: bool,
+    shared: bool,
+    previous: list[PersonMention | OrgMention],
+    statement: str,
+) -> tuple[TextRecords, list[PersonMention | OrgMention]]:
+    sentence = item.sentence
+    confidence = CONFIDENCE_HEDGED if illegible else CONFIDENCE_CLEAR
     holders: list[PersonMention | OrgMention] = [
-        _build_holder(source, sentence, c, confidence) for c in candidates
+        _build_holder(source, sentence, c, confidence) for c in item.candidates
     ]
     mentions = [
         IdentifierMention(
@@ -195,11 +260,9 @@ def _extract_sentence(
             shared_wording=shared,
             ifsc=i.ifsc,
         )
-        for i in idents
+        for i in item.idents
     ]
-    attributions = _attribute(
-        source, sentence, hedged, idents, candidates, holders, mentions, previous_holder
-    )
+    attributions = _attribute(source, item, hedged, statement, holders, mentions, previous)
     records = TextRecords(
         tuple(h for h in holders if isinstance(h, PersonMention)),
         tuple(h for h in holders if isinstance(h, OrgMention)),
@@ -303,6 +366,7 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
             raw = sentence[r_start:r_end]
             relation = _relation_code(match["rel"])
             holder.relative = Relative(relation, Value(raw, normalize_name(raw)))
+            holder.fact_ends.append(r_end)
             reserved.append((r_start, r_end))
     for match in NAME_THEN_FACT.finditer(sentence):
         add(match.start("name"), match.end("name"))
@@ -310,15 +374,17 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
         add(match.start("name"), match.end("name"))
     for pattern in (USED_BY, USED_BY_DEV):
         for match in pattern.finditer(sentence):
-            if candidate := add(match.start("name"), match.end("name")):
+            for candidate, or_listed in _used_by_names(sentence, match, add):
                 candidate.used_by = _nearest_before(idents, match.start())
-                candidate.negated = NEGATION_BEFORE.search(sentence[: match.start()]) is not None
+                candidate.or_hedged = or_listed
     for match in IN_NAME_OF.finditer(sentence):
         if candidate := add(match.start("name"), match.end("name")):
+            candidate.registered = True
             candidate.registered_for = _nearest_before(idents, match.start())
     for match in NAME_KE_NAAM.finditer(sentence):
         group = "name" if match["name"] else "lname"
         if candidate := add(match.start(group), match.end(group)):
+            candidate.registered = True
             candidate.registered_for = _nearest_before(idents, match.start())
 
     for candidate in candidates:
@@ -328,7 +394,28 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
             raw = sentence[a_start:a_end]
             if normalize_name(raw):
                 candidate.aliases.append(Value(raw, normalize_name(raw)))
+                candidate.fact_ends.append(a_end)
     return sorted(candidates, key=lambda c: c.start)
+
+
+def _used_by_names(
+    sentence: str,
+    match: re.Match[str],
+    add: Callable[[int, int], _Candidate | None],
+) -> list[tuple[_Candidate, bool]]:
+    """Every person named after `used by`: a comma or `and` list; `or` marks them hedged."""
+    found: list[tuple[_Candidate, bool]] = []
+    spans = [(match.start("name"), match.end("name"), False)]
+    position = match.end("name")
+    while following := LIST_NEXT.match(sentence, position):
+        spans.append((following.start("name"), following.end("name"), "or" in following["sep"]))
+        position = following.end("name")
+    or_after = OR_AFTER.match(sentence, position) is not None
+    any_or = or_after or any(flag for *_, flag in spans)
+    for start, end, _ in spans:
+        if candidate := add(start, end):
+            found.append((candidate, any_or))
+    return found
 
 
 def _relation_code(token: str) -> str:
@@ -388,16 +475,19 @@ def _bind_facts(sentence: str, candidates: list[_Candidate]) -> None:
         owner = _preceding(candidates, match.start(), person_only=True)
         if owner and owner.age is None and _MIN_AGE <= years <= _MAX_AGE:
             owner.age = Value(match.group(), str(years))
+            owner.fact_ends.append(match.end())
     for match in DOB.finditer(sentence):
         born = parse_date(match["date"])
         owner = _preceding(candidates, match.start(), person_only=True)
         if owner and owner.dob is None and born:
             owner.dob = Value(match.group(), born.isoformat())
+            owner.fact_ends.append(match.end())
     for match in GENDER.finditer(sentence):
         owner = _preceding(candidates, match.start(), person_only=True)
         if owner and owner.gender is None:
             female = (match["en"] or "").lower() == "female" or match["hi"] == "महिला"
             owner.gender = Value(match.group(), "female" if female else "male")
+            owner.fact_ends.append(match.end())
     for match in LOCALITY.finditer(sentence):
         owner = _preceding(candidates, match.start(), person_only=False)
         if owner and owner.locality is None:
@@ -405,6 +495,7 @@ def _bind_facts(sentence: str, candidates: list[_Candidate]) -> None:
             if match["kw"].lower() in WARD_WORDS:
                 place = f"ward {place}"
             owner.locality = Value(match.group(), place)
+            owner.fact_ends.append(match.end())
 
 
 # --- attribution ---------------------------------------------------------------------------
@@ -412,26 +503,39 @@ def _bind_facts(sentence: str, candidates: list[_Candidate]) -> None:
 
 def _attribute(
     source: SourceRef,
-    sentence: str,
+    item: _Parsed,
     hedged: bool,
-    idents: list[_Ident],
-    candidates: list[_Candidate],
+    statement: str,
     holders: list[PersonMention | OrgMention],
     mentions: list[IdentifierMention],
-    previous_holder: PersonMention | OrgMention | None,
+    previous: list[PersonMention | OrgMention],
 ) -> list[Attribution]:
+    """Tie identifiers to people. OWNS only when nothing is in doubt (module docstring)."""
+    sentence, idents, candidates = item.sentence, item.idents, item.candidates
+    negated = is_negated(sentence)
     result: list[Attribution] = []
-    statement = sentence.strip()
     pairs = list(zip(candidates, holders, strict=True))
 
-    def emit(holder: PersonMention | OrgMention, index: int, code: AttributionCode) -> None:
-        if hedged and code is AttributionCode.OWNS:
-            code = AttributionCode.MENTIONED_WITH
-        result.append(Attribution(holder, mentions[index], code, hedged, source, statement))
+    def emit(
+        holder: PersonMention | OrgMention,
+        index: int,
+        code: AttributionCode,
+        extra_hedge: bool = False,
+    ) -> None:
+        is_hedged_here = hedged or extra_hedge
+        if code is AttributionCode.OWNS:
+            if negated:
+                return
+            if is_hedged_here:
+                code = AttributionCode.MENTIONED_WITH
+        result.append(Attribution(holder, mentions[index], code, is_hedged_here, source, statement))
 
     for candidate, holder in pairs:
-        if candidate.used_by is not None and not candidate.negated:
-            emit(holder, candidate.used_by, AttributionCode.OWNS)
+        if candidate.used_by is not None:
+            emit(holder, candidate.used_by, AttributionCode.OWNS, candidate.or_hedged)
+            continue
+        if candidate.registered and candidate.registered_for is None:
+            candidate.registered_for = _identifier_after(sentence, idents, candidate)
         if candidate.registered_for is not None:
             emit(holder, candidate.registered_for, AttributionCode.MENTIONED_WITH)
 
@@ -440,13 +544,83 @@ def _attribute(
         if index in stated:
             continue
         has_cue, pronoun = _ownership_cue(sentence, ident)
-        owner = next((h for c, h in reversed(pairs) if c.end <= ident.start), None)
-        if owner is None and pronoun:
-            owner = previous_holder
-        if owner is not None:
-            code = AttributionCode.OWNS if has_cue else AttributionCode.MENTIONED_WITH
-            emit(owner, index, code)
+        before = [(c, h) for c, h in pairs if c.end <= ident.start and not c.registered]
+        if not before:
+            _from_previous_sentence(emit, index, previous, has_cue and pronoun)
+            continue
+        owner_candidate, owner = before[-1]
+        group = _listed_group(sentence, idents, [c for c, _ in before])
+        alone = len(group) == 1
+        close = _in_apposition(sentence, idents, owner_candidate, ident)
+        if pronoun and len(before) >= 2:
+            for _, holder in before:
+                emit(holder, index, AttributionCode.MENTIONED_WITH)
+        elif has_cue and close and alone:
+            emit(owner, index, AttributionCode.OWNS)
+        elif not alone:
+            for member in group:
+                emit(holders[candidates.index(member)], index, AttributionCode.MENTIONED_WITH)
+        else:
+            emit(owner, index, AttributionCode.MENTIONED_WITH)
     return result
+
+
+def _from_previous_sentence(
+    emit: Callable[..., None],
+    index: int,
+    previous: list[PersonMention | OrgMention],
+    his_or_her_cue: bool,
+) -> None:
+    """`His number is X` with no person earlier in the sentence: only one candidate is safe."""
+    if not his_or_her_cue:
+        return
+    code = AttributionCode.OWNS if len(previous) == 1 else AttributionCode.MENTIONED_WITH
+    for holder in previous:
+        emit(holder, index, code)
+
+
+def _identifier_after(sentence: str, idents: list[_Ident], candidate: _Candidate) -> int | None:
+    """The identifier standing right after a name (`in the name of X, mobile Y`), if any."""
+    for index, ident in enumerate(idents):
+        if ident.start >= candidate.end:
+            gap = _gap_without(sentence, idents, candidate.extent(ident.start), ident.start)
+            return index if APPOSITION_GAP.match(gap) else None
+    return None
+
+
+def _gap_without(sentence: str, idents: list[_Ident], start: int, end: int) -> str:
+    """`sentence[start:end]` with the identifiers inside it cut out."""
+    pieces: list[str] = []
+    position = start
+    for ident in idents:
+        if start <= ident.start and ident.end <= end:
+            pieces.append(sentence[position : ident.start])
+            position = ident.end
+    pieces.append(sentence[position:end])
+    return "".join(pieces)
+
+
+def _in_apposition(
+    sentence: str, idents: list[_Ident], candidate: _Candidate, ident: _Ident
+) -> bool:
+    gap = _gap_without(sentence, idents, candidate.extent(ident.start), ident.start)
+    return APPOSITION_GAP.match(gap) is not None
+
+
+def _listed_group(
+    sentence: str, idents: list[_Ident], before: list[_Candidate]
+) -> list[_Candidate]:
+    """The nearest person and those joined to them by `and`/commas/role words with no
+    identifier in between: one identifier after such a group is ambiguous."""
+    group = [before[-1]]
+    for earlier in reversed(before[:-1]):
+        later = group[0]
+        gap = sentence[earlier.extent(later.start) : later.start]
+        between = any(earlier.end <= i.start and i.end <= later.start for i in idents)
+        if between or not CONNECTOR_GAP.match(gap):
+            break
+        group.insert(0, earlier)
+    return group
 
 
 def _ownership_cue(sentence: str, ident: _Ident) -> tuple[bool, bool]:

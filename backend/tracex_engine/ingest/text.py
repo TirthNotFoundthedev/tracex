@@ -24,9 +24,15 @@ def read_notes(case_id: str, file: str, text: str) -> NotesResult:
     lines: list[NoteLine] = []
     errors: list[RowError] = []
     for number, line in enumerate(split_lines(text), start=1):
-        if not line.strip() or line.startswith("#") or (number == 1 and _is_banner(line)):
+        if not line.strip() or (number == 1 and _is_banner(line)):
             continue
         source = SourceRef(case_id, file, number)
+        if line.startswith("#"):
+            if number != 2:
+                errors.append(
+                    RowError(source, line, "unexpected '#' line; only the title is allowed")
+                )
+            continue
         match = _NOTE.match(line)
         if match is None:
             errors.append(
@@ -61,7 +67,11 @@ def read_fir(case_id: str, file: str, text: str) -> FirResult:
         source = SourceRef(case_id, file, index + 1)
         match = _HEADER_FIELD.match(line)
         if match is not None:
-            header.setdefault(match["label"].strip(), (match["value"].strip(), source))
+            label = match["label"].strip()
+            if label in header:
+                errors.append(RowError(source, line, f"header label {label!r} is repeated"))
+            else:
+                header[label] = (match["value"].strip(), source)
         elif marker is not None:
             errors.append(RowError(source, line, "header line is not in the form 'Label: value'"))
     if marker is None:

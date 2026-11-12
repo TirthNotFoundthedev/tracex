@@ -27,17 +27,33 @@ HEDGE_PHRASES: tuple[str, ...] = (
     "partly illegible",
     "illegible",
     "unclear",
+    "allegedly",
+    "reportedly",
+    "suspected",
+    "likely",
+    "claims",
+    "claimed",
+    "doubtful",
+    "to be verified",
+    "not verified",
+    "yet to be verified",
+    "yet to be confirmed",
     # romanised Hindi
     "shayad",
     "sambhavtah",
     "apusht",
     "aspasht",
+    "kathit",
+    "sandeh",
     # Hindi (Devanagari)
     "शायद",
     "संभवतः",
     "हो सकता है",
     "अपुष्ट",
     "अस्पष्ट",
+    "कथित",
+    "संभावित",
+    "संदेह",
 )
 
 # The subset that says the text itself is unclear or unverified. Every mention in such a
@@ -49,6 +65,10 @@ LEGIBILITY_HEDGE_PHRASES: tuple[str, ...] = (
     "partly illegible",
     "illegible",
     "unclear",
+    "to be verified",
+    "not verified",
+    "yet to be verified",
+    "yet to be confirmed",
     "apusht",
     "aspasht",
     "अपुष्ट",
@@ -73,6 +93,22 @@ SHARED_WORDING: tuple[str, ...] = (
     "घर का नंबर",
 )
 
+# Negation words: a sentence containing one yields no OWNS.
+NEGATION_WORDS: tuple[str, ...] = (
+    "not",
+    "never",
+    "no longer",
+    "deny",
+    "denies",
+    "denied",
+    "denying",
+    "nahi",
+    "nahin",
+    "nahee",
+    "नहीं",
+    "नही",
+)
+
 _WORD_EDGE = r"(?<![\wऀ-ॿ]){}(?![\wऀ-ॿ])"
 
 
@@ -84,6 +120,13 @@ def _compile(phrases: tuple[str, ...]) -> re.Pattern[str]:
 _HEDGE = _compile(HEDGE_PHRASES)
 _LEGIBILITY = _compile(LEGIBILITY_HEDGE_PHRASES)
 _SHARED = _compile(SHARED_WORDING)
+_NEGATION = re.compile(
+    _WORD_EDGE.format(
+        "(?:" + "|".join(re.escape(w) for w in sorted(NEGATION_WORDS, key=len, reverse=True)) + ")"
+    )
+    + r"|n['’]t(?![A-Za-z])",
+    re.IGNORECASE,
+)
 
 
 def is_hedged(text: str) -> bool:
@@ -96,3 +139,7 @@ def is_illegible(text: str) -> bool:
 
 def has_shared_wording(text: str) -> bool:
     return _SHARED.search(text) is not None
+
+
+def is_negated(text: str) -> bool:
+    return _NEGATION.search(text) is not None

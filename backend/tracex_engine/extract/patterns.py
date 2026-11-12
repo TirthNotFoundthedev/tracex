@@ -114,11 +114,16 @@ NAME_KA_NUMBER = re.compile(
     rf"(?P<name>{NAME})\s+(?:(?i:ka|ki|ke)|का|की|के)\s+"
     r"(?:(?i:mobile\s+|phone\s+)|मोबाइल\s+|फोन\s+)?(?:(?i:number|no\.?)|नंबर|नम्बर)"
 )
-USED_BY = re.compile(rf"(?i:(?<![A-Za-z])used\s+by)\s+(?P<name>{NAME})")
-USED_BY_DEV = re.compile(rf"(?P<name>{NAME_DEV})\s+द्वारा\s+(?:इस्तेमाल|उपयोग|प्रयोग)")
-NEGATION_BEFORE = re.compile(
-    r"(?i:(?<![A-Za-z])(?:not|never|no\s+longer)(?![A-Za-z])|n't)\s*(?:\w+\s+){0,2}$"
+_BY_PREFIX = (
+    r"(?:(?i:(?:accused|suspect|complainant|witness|victim|informant|informer|arrested)"
+    r"|(?:his|her)\s+[a-z]+)\s+)?"
 )
+USED_BY = re.compile(rf"(?i:(?<![A-Za-z])used\s+by)\s+{_BY_PREFIX}(?P<name>{NAME})")
+LIST_NEXT = re.compile(
+    rf"(?P<sep>\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s*&\s*|\s+or\s+){_BY_PREFIX}(?P<name>{NAME})"
+)
+OR_AFTER = re.compile(r"\s+or\s+")
+USED_BY_DEV = re.compile(rf"(?P<name>{NAME_DEV})\s+द्वारा\s+(?:इस्तेमाल|उपयोग|प्रयोग)")
 IN_NAME_OF = re.compile(
     r"(?i:(?<![A-Za-z])(?:in\s+the\s+name\s+of|sim\s+subscriber|registered\s+to))"
     rf"\s+(?P<name>{NAME})"
@@ -173,4 +178,19 @@ OWNERSHIP_CUE = re.compile(
 SENTENCE_END = re.compile(r"[.!?;।॥]+(?=\s|$)")
 ABBREVIATIONS = frozenset(
     {"mohd", "md", "mr", "mrs", "ms", "smt", "dr", "shri", "st", "no", "vs", "pvt", "ltd", "co"}
+)
+
+CUE_WORDS = _CUE_WORDS
+_GAP_WORDS = rf"his|her|is|are|was|and|a/c|acct?\.?|account|खाता|है|{_CUE_WORDS}"
+# Text allowed between a person (with their facts) and an identifier for the cue to mean
+# "this person's": punctuation, his/her, 's, and further cue words (identifiers cut out).
+APPOSITION_GAP = re.compile(
+    rf"^(?:[\s,:;()&-]+|['’]s(?![A-Za-z])|(?<![A-Za-z])(?:{_GAP_WORDS})(?![A-Za-z]))*$",
+    re.IGNORECASE,
+)
+# Text allowed between two people for them to count as one listed group.
+CONNECTOR_GAP = re.compile(
+    r"^(?:[\s,&]+|(?<![A-Za-z])(?:and|accused|suspect|complainant|witness|victim|informant"
+    r"|informer|arrested)(?![A-Za-z]))*$",
+    re.IGNORECASE,
 )
