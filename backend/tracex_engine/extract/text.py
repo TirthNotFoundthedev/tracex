@@ -36,6 +36,7 @@ from tracex_engine.extract.patterns import (
     ALIAS_AFTER,
     APPOSITION_GAP,
     CONNECTOR_GAP,
+    DEV_ORG_SUFFIXES,
     DEV_USED_TAIL,
     DOB,
     GENDER,
@@ -53,7 +54,9 @@ from tracex_engine.extract.patterns import (
     NAME_THEN_FACT,
     OR_AFTER,
     ORG,
+    ORG_DEV,
     OWNERSHIP_CUE,
+    PERSON_FACT,
     PHONE,
     RELATION,
     ROLE_DEV,
@@ -363,6 +366,21 @@ def _cut_at_forbidden(sentence: str, start: int, end: int) -> int:
     return end
 
 
+def _is_org_by_suffix(raw: str) -> bool:
+    """True when the name ends in legal-suffix words that make it an organisation.
+
+    The suffix must be the trailing word(s): `Gupta Trading Co`, `Om Traders Pvt Ltd`. A single
+    suffix word after a single name word (`Ramesh Co`) or a leading one (`Pvt Ramesh Kumar`)
+    is a person's name. The caller rules out names that carry a person fact.
+    """
+    words = [w.strip(".,").lower() for w in raw.split()]
+    suffixes = ORG_SUFFIXES | DEV_ORG_SUFFIXES
+    run = 0
+    while run < len(words) and words[-1 - run] in suffixes:
+        run += 1
+    return run > 0 and (run >= 2 or len(words) - run >= 2)
+
+
 def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
     candidates: list[_Candidate] = []
     reserved = [(i.start, i.end) for i in idents]
@@ -370,6 +388,8 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
     def add(start: int, end: int, kind: str = "person") -> _Candidate | None:
         start, end = _trim(sentence, start, _cut_at_forbidden(sentence, start, end))
         raw = sentence[start:end]
+        if kind == "person" and _is_org_by_suffix(raw) and not PERSON_FACT.match(sentence, end):
+            kind = "org"
         if not raw or (normalize_org_name(raw) if kind == "org" else normalize_name(raw)) == "":
             return None
         for existing in candidates:
@@ -382,14 +402,12 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
         reserved.append((start, end))
         return candidate
 
-    for match in ORG.finditer(sentence):
-        add(match.start("name"), match.end("name"), "org")
+    for pattern in (ORG, ORG_DEV):
+        for match in pattern.finditer(sentence):
+            add(match.start("name"), match.end("name"), "org")
     for pattern in (ROLE_LATIN, ROLE_DEV):
         for match in pattern.finditer(sentence):
-            name = match["name"]
-            if set(re.findall(r"[a-z]+", name.lower())) & ORG_SUFFIXES:
-                add(match.start("name"), match.end("name"), "org")
-            elif candidate := add(match.start("name"), match.end("name")):
+            if candidate := add(match.start("name"), match.end("name")):
                 candidate.role = candidate.role or match["role"].lower()
 
     def attach_aliases() -> None:

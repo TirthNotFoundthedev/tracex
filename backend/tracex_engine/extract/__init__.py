@@ -27,8 +27,13 @@ word before it (`accused`, `complainant`, `आरोपी` ...), no leading `M/
 `urf`/`alias`/`उर्फ` clause (a person's alias goes to `aliases`), and none of the facts written
 beside it (age, `s/o`, village). Honorifics and spelling stay as written (`Mohd. Irfan`); legal
 suffixes of an organisation stay too (`Om Traders Pvt Ltd`), only `normalized` drops them.
-A role word followed by `M/s`, `Messrs` or a name carrying a legal suffix word (Pvt, Ltd, LLP,
-Traders, Trading, Enterprises, Co, Company ...) names an ORG; it never also yields a PERSON.
+A name introduced by `M/s`, `Messrs` or `मेसर्स` is an ORG, and a role word before it never
+also yields a PERSON. A name with no marker is an ORG only when it ends in legal-suffix words
+(Pvt, Ltd, LLP, Traders, Trading, Enterprises, Co, Company, and their Devanagari spellings)
+after at least two name words (`Shree Balaji Traders`) or as two or more suffix words
+(`Gupta Trading Co`), and carries no person fact (s/o, age, DOB, gender) right after it.
+`Ramesh Co`, `Rakesh Company` and `Pvt Ramesh Kumar` stay persons. This holds for role words,
+`used by` and `ka number` alike.
 
 Ownership contract. OWNS comes only from this closed set of clean patterns (English,
 romanised Hindi, Devanagari); everything else near a person is MENTIONED_WITH:
