@@ -40,7 +40,19 @@ class FixtureProvider:
     def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
         spec = self.pairs.get(frozenset({self._who(a), self._who(b)}), [])
         sources = (corpus.first_source(a.entity_id), corpus.first_source(b.entity_id))
-        return [EvidenceItem(kind, Decimal(s), {}, sources) for kind, s in spec]
+        return [EvidenceItem(kind, Decimal(s), _params(kind, a, b, s), sources) for kind, s in spec]
+
+
+def _params(kind: str, a: Entity, b: Entity, strength: str) -> dict[str, str | int | float]:
+    """Contract-shaped params for the fixture items (values only, never display text)."""
+    shapes: dict[str, dict[str, str | int | float]] = {
+        "PER_NAME_SIM": {"name_a": a.normalized, "name_b": b.normalized, "sim": float(strength)},
+        "PER_SHARED_NETWORK": {"k": 2, "list": ["9000021203", "9000028816"]},
+        "PER_RELATIVE_NAME": {"rel_a": "fixture", "rel_b": "fixture"},
+        "PER_LOCALITY": {"place": "fixture"},
+        "PER_AGE_CLOSE": {"age_a": 34, "age_b": 35},
+    }
+    return shapes.get(kind, {})
 
 
 IRFAN_A: Who = ("C-101", "mohammad irfan")
