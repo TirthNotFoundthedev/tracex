@@ -11,8 +11,8 @@ from collections.abc import Iterable, Sequence
 from decimal import Decimal
 
 from tests.engine.matching.support import account, build, clock, owns, person, phone, store_of
-from tracex_engine.graph import CaseGraph, Entity, InMemoryCaseGraphStore
-from tracex_engine.matching import InMemoryLinkStore, Matcher
+from tracex_engine.graph import CaseGraph, CaseGraphStore, Entity
+from tracex_engine.matching import InMemoryLinkStore, LinkStore, Matcher
 from tracex_engine.matching.corpus import Corpus
 from tracex_engine.scoring import EvidenceItem, Source
 from tracex_engine.scoring.evidence import ParamValue
@@ -93,8 +93,8 @@ _IDS = itertools.count(1)
 def matcher(
     *graphs: CaseGraph,
     fixture: dict[frozenset[Who], list[tuple[str, str]]] | None = None,
-    links: InMemoryLinkStore | None = None,
-    store: InMemoryCaseGraphStore | None = None,
+    links: LinkStore | None = None,
+    store: CaseGraphStore | None = None,
 ) -> Matcher:
     """A matcher with a fake clock and uuid4-shaped link ids from one process-wide counter."""
     providers = (FixtureProvider(fixture),) if fixture else ()

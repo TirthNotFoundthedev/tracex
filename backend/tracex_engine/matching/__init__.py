@@ -29,6 +29,7 @@ from tracex_engine.matching.model import (
     SameAsEdge,
     TransitionRecord,
 )
+from tracex_engine.matching.neo4j_links import Neo4jLinkStore
 from tracex_engine.matching.providers import EvidenceProvider, NotYetImplemented, pending_seams
 from tracex_engine.matching.result_export import engine_result, write_engine_result
 
@@ -41,6 +42,7 @@ __all__ = [
     "LinkState",
     "LinkStore",
     "Matcher",
+    "Neo4jLinkStore",
     "NotYetImplemented",
     "ReasonCode",
     "RunRecord",
