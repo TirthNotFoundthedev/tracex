@@ -27,6 +27,33 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
 
+  data-kit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data-kit
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip notice
+        if: hashFiles('data-kit/tests/**') == ''
+        run: echo "data-kit/tests not found; data-kit checks skipped until the data kit lands."
+      - uses: astral-sh/setup-uv@v5
+        if: hashFiles('data-kit/tests/**') != ''
+        with:
+          version: "0.12.16"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - if: hashFiles('data-kit/tests/**') != ''
+        run: uv sync --frozen --project ../backend
+      - if: hashFiles('data-kit/tests/**') != ''
+        run: uv run --project ../backend ruff check .
+      - if: hashFiles('data-kit/tests/**') != ''
+        run: uv run --project ../backend ruff format --check .
+      - if: hashFiles('data-kit/tests/**') != ''
+        run: uv run --project ../backend mypy
+      - if: hashFiles('data-kit/tests/**') != ''
+        run: uv run --project ../backend pytest
+
   frontend:
     runs-on: ubuntu-latest
     steps:
