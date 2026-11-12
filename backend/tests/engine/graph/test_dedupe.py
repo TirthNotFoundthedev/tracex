@@ -268,17 +268,14 @@ def test_agreeing_or_silent_attributes_do_not_stop_a_join(
     assert len(graph.entities) == 1
 
 
-def test_a_third_mention_is_checked_against_every_mention_of_the_entity() -> None:
+def test_two_conflicting_writings_chained_through_a_silent_one_are_not_joined() -> None:
     graph = persons(
         person("Ramesh Yadav", 12, gender="M"),
         person("Ramesh Yadav", 13, age="30"),
         person("Ramesh Yadav", 14, gender="F"),
     )
 
-    assert entity_groups(graph, EntityType.PERSON) == [
-        [("fir.txt", 12), ("fir.txt", 13)],
-        [("fir.txt", 14)],
-    ]
+    assert len(graph.entities) == 3
 
 
 def test_a_mention_that_fits_two_separate_people_starts_its_own_entity() -> None:
