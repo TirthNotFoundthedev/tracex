@@ -8,6 +8,8 @@ Owner: Iyer (Engine Lead) · Task P1.1 · Ruleset version: `engine-matching/1.1`
 
 **Errata 1 (2026-11-11, from the P1.5 data-kit review).** AC-03 numbers corrected (the old pair was not an adjacent swap and reused AC-01's phone). Filled gaps: run scope (`input_case_ids`), REGISTERED_TO source, `seen at` sources, person district, Tier 3 hop rules, identifier-pair run order and entity id order; from the P1.2 contract review: engine call signatures, `decision_id` in edge history, and a reopened pair may be rejected again. No weight, cap, band or flag changed; no engine code existed, so the ruleset version stays `engine-matching/1.1`.
 
+**Errata 2 (2026-11-12, from the P2.2 extraction review, PR #15).** OWNS row: a hedged, negated or ambiguous statement is never OWNS. PER_RELATIVE_NAME and PER_RELATIVE_CONFLICT: an unknown relation (SDR `relative_name`) never counts as the same relation. No weight, cap, band or flag changed; no matching code exists yet, so the ruleset version stays `engine-matching/1.1`.
+
 ## 1. Entity types and linkable pairs
 
 | Type | Comparable attributes (normalized form produced upstream) |
@@ -25,7 +27,7 @@ Rules: SAME_AS only between two entities of the **same type** from **different c
 
 | Edge | Code | Factor `a` | Can be an anchor (§5) |
 |---|---|---|---|
-| `owns` (stated user/holder in FIR or note; account holder field of a bank statement) | OWNS | 1.0 | yes |
+| `owns` (stated user/holder in FIR or note; account holder field of a bank statement; a hedged, negated, ambiguous or pronoun-ambiguous statement is never OWNS, see the hedge and negation lists in NLP `extract/hedges.py`) | OWNS | 1.0 | yes |
 | `registered to` (SIM subscriber record: a row of the subscriber file, `sdr.csv` in the data kit; never an OWNS source) | REGISTERED_TO | 0.5 | no |
 | `mentioned alongside` | MENTIONED_WITH | 0.2 | no |
 
@@ -84,7 +86,7 @@ Each item has contribution `c = round(weight × strength, 1)` with strength in [
 | SHARED_ACCOUNT | 1 | as above, accounts | min(a_A, a_B) × t | 50 | Both are linked to bank account {value} ({how_a} in {case_a}; {how_b} in {case_b}). |
 | SHARED_VEHICLE | 1 | as above, vehicles | min(a_A, a_B) × t | 35 | Both are linked to vehicle {value} ({how_a} in {case_a}; {how_b} in {case_b}). |
 | PER_NAME_SIM | 2 | `name_sim` ≥ 0.80 | name_sim × completeness × rarity | 30 | Names are similar: "{name_a}" and "{name_b}" (match {sim} out of 1, after converting Hindi spelling to English letters). |
-| PER_RELATIVE_NAME | 2 | both have relative name of same relation, `name_sim` ≥ 0.85 | name_sim | 15 | Father's (or relative's) names match: "{rel_a}" and "{rel_b}". |
+| PER_RELATIVE_NAME | 2 | both have relative name of same relation, `name_sim` ≥ 0.85. A relation recorded as unknown (SDR `relative_name`) is never the same relation as any other, unknown included | name_sim | 15 | Father's (or relative's) names match: "{rel_a}" and "{rel_b}". |
 | PER_DOB_MATCH | 2 | identical full DOB | 1.0 | 20 | Same date of birth: {dob}. |
 | PER_AGE_CLOSE | 2 | no full DOB on one side; ages at a common date differ ≤2 years | 1.0 if Δ≤1, 0.5 if Δ=2 | 10 | Ages are close: {age_a} and {age_b} years. |
 | PER_LOCALITY | 2 | same locality (1.0) or same district only (0.4); a person's district is the stated one, else the district of the case | as stated | 10 | Both are linked to the same area: {place}. |
@@ -103,7 +105,7 @@ Each item has contribution `c = round(weight × strength, 1)` with strength in [
 | PER_DOB_MISMATCH | both have full DOB, differ by ≤1 year | 15 | soft | Dates of birth are slightly different: {dob_a} and {dob_b}. |
 | PER_AGE_CONFLICT | ages at a common date differ >5 years (hard if >10) | 20 (40 if hard) | soft / hard | Ages do not fit: {age_a} and {age_b} years. |
 | PER_GENDER_CONFLICT | both genders stated and different | 50 | hard | Recorded as different genders. |
-| PER_RELATIVE_CONFLICT | same relation on both sides, `name_sim` < 0.6 | 20 | soft | Father's (or relative's) names differ: "{rel_a}" and "{rel_b}". |
+| PER_RELATIVE_CONFLICT | same relation on both sides, `name_sim` < 0.6. A relation recorded as unknown (SDR `relative_name`) is never the same relation as any other, unknown included | 20 | soft | Father's (or relative's) names differ: "{rel_a}" and "{rel_b}". |
 
 ## 4. Identifier links vs person links
 
