@@ -16,13 +16,16 @@ def _mention(ref: dict[str, Any]) -> dict[str, Any]:
     return {"case_id": ref["case_id"], "file": ref["file"], "line": ref["line"]}
 
 
+def _entity_mention(ref: dict[str, Any], raw_text: str) -> dict[str, Any]:
+    return {**_mention(ref), "raw_text": raw_text}
+
+
 def engine_entity(entity: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": eid(entity["gt_id"]),
         "type": entity["type"],
-        "raw_text": entity["raw_text"],
         "normalized": entity["normalized"],
-        "mentions": [_mention(r) for r in entity["mentions"]],
+        "mentions": [_entity_mention(r, entity["raw_text"]) for r in entity["mentions"]],
     }
 
 
@@ -137,3 +140,18 @@ def add_edge(
     }
     result["edges"].append(edge)
     return edge
+
+
+def engine_entity_of(result: dict[str, Any], gt_id: str) -> dict[str, Any]:
+    for entity in result["entities"]:
+        if entity["id"] == eid(gt_id):
+            found: dict[str, Any] = entity
+            return found
+    raise AssertionError(gt_id)
+
+
+def merge_mentions(result: dict[str, Any], gt: dict[str, Any], into: str, absorbed: str) -> None:
+    """Give the engine entity of `into` the mention lines of `absorbed`, as a wrong merge would."""
+    other = next(e for e in gt["entities"] if e["gt_id"] == absorbed)
+    target = engine_entity_of(result, into)
+    target["mentions"].extend(_entity_mention(r, other["raw_text"]) for r in other["mentions"])

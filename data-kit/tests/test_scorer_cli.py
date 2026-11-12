@@ -56,6 +56,14 @@ def test_a_result_derived_from_ground_truth_validates(
         lambda r: r.update(schema_version="engine-result/2"),
         lambda r: r["entities"][0].pop("mentions"),
         lambda r: r["entities"][0].update(type="CAR"),
+        lambda r: r["entities"][0].update(raw_text="x"),
+        lambda r: next(e for e in r["entities"] if e["type"] == "PERSON")["mentions"][0].pop(
+            "raw_text"
+        ),
+        lambda r: r["edges"][0].pop("evidence_kinds"),
+        lambda r: r["edges"][0].update(state="WITHDRAWN"),
+        lambda r: r.update(batches_loaded=["b02"]),
+        lambda r: r.update(batches_loaded=[]),
         lambda r: r["entities"][0]["mentions"][0].update(line=0),
         lambda r: r["edges"][0].update(state="MAYBE"),
         lambda r: r["edges"][0].update(band="HUGE"),
@@ -138,3 +146,20 @@ def test_module_entry_point_runs_the_score_command(files: dict[str, Path]) -> No
     )
     assert proc.returncode == 0, proc.stderr
     assert "PASS" in proc.stdout
+
+
+def test_optional_run_block_and_per_edge_link_id_validate(
+    schema: dict[str, Any], gt: dict[str, Any]
+) -> None:
+    result = perfect_result(gt)
+    result["run"] = {
+        "ruleset_version": "engine-matching/1.1",
+        "thresholds_version": 1,
+        "status": "SUCCEEDED",
+        "counts": {"AUTO": 4, "SUGGESTED": 0},
+    }
+    result["edges"][0]["link_id"] = "link-0001"
+    Draft202012Validator(schema).validate(result)
+    result["run"]["status"] = ""
+    with pytest.raises(ValidationError):
+        Draft202012Validator(schema).validate(result)

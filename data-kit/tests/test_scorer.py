@@ -14,6 +14,7 @@ from tests.scorer_helpers import (
     edge_of_link,
     eid,
     link_by_id,
+    merge_mentions,
     perfect_result,
 )
 
@@ -132,6 +133,24 @@ def test_confirmed_state_satisfies_an_auto_link_whose_harness_confirms_it(
     assert _wrong_kinds(score(gt, other)) == ["state"]
 
 
+def test_confirmed_state_is_accepted_only_when_the_applied_harness_confirms_that_link(
+    gt: dict[str, Any], perfect: dict[str, Any]
+) -> None:
+    changed = copy.deepcopy(gt)
+    scenario = next(s for s in changed["scenarios"] if s["id"] == "HS-AC13")
+    for step in scenario["steps"]:
+        if step["action"] == "CONFIRM":
+            step["action"] = "RERUN"
+    result = copy.deepcopy(perfect)
+    edge_of_link(result, gt, "EL-FX13-Q1Q2")["state"] = "CONFIRMED"
+    assert _wrong_kinds(score(changed, result)) == ["state"]
+    retargeted = copy.deepcopy(gt)
+    for step in next(s for s in retargeted["scenarios"] if s["id"] == "HS-AC13")["steps"]:
+        if step["action"] == "CONFIRM":
+            step["target"] = "EL-FX13-Q3Q4"
+    assert _wrong_kinds(score(retargeted, result)) == ["state"]
+
+
 # --- deliberately broken results fail in exactly the right place ----------------------------
 
 
@@ -177,7 +196,7 @@ def test_suggested_edge_on_a_must_not_auto_trap_is_allowed(
     assert report["forbidden_hits"] == []
 
 
-@pytest.mark.parametrize("state", ["AUTO", "SUGGESTED", "CONFIRMED", "REJECTED", "WITHDRAWN"])
+@pytest.mark.parametrize("state", ["AUTO", "SUGGESTED", "CONFIRMED", "REJECTED"])
 def test_any_stored_edge_on_an_any_edge_non_link_is_a_forbidden_hit(
     gt: dict[str, Any], broken: dict[str, Any], state: str
 ) -> None:
@@ -320,9 +339,8 @@ def test_auto_edge_on_an_engine_entity_with_no_ground_truth_counterpart_breaks_t
         {
             "id": "ghost",
             "type": "PHONE",
-            "raw_text": "9999999999",
             "normalized": "9999999999",
-            "mentions": [{"case_id": "C-101", "file": "fir.txt", "line": 99}],
+            "mentions": [{"case_id": "C-999", "file": "fir.txt", "line": 99}],
         }
     )
     broken["edges"].append(
@@ -341,13 +359,18 @@ def test_auto_edge_on_an_engine_entity_with_no_ground_truth_counterpart_breaks_t
     assert _wrong_kinds(report) == ["closed_world"]
 
 
-def test_second_edge_on_the_same_pair_does_not_hide_a_correct_one(
+def test_second_edge_on_the_same_pair_does_not_hide_a_correct_one_it_fails_the_link(
     gt: dict[str, Any], broken: dict[str, Any]
 ) -> None:
     link = link_by_id(gt, "EL-FX01-PER")
     wrong = add_edge(broken, link["a"], link["b"], "SUGGESTED", band="MEDIUM", score=50)
     wrong["sources"] = []
-    assert score(gt, broken)["ok"] is True
+    report = score(gt, broken)
+    assert report["ok"] is False
+    assert {w["id"] for w in report["wrong_links"] if w["kind"] != "duplicate_edge"} == {
+        "EL-FX01-PER"
+    }
+    assert _failing_acs(report) == {"AC-01"}
 
 
 def test_expected_link_is_satisfied_by_an_engine_entity_matching_any_group_member(
@@ -447,3 +470,201 @@ def test_text_report_names_the_failures_and_the_verdict(
     assert "AC-01" in text
     clean = format_report(score(gt, perfect_result(gt)))
     assert "PASS" in clean and "FAIL" not in clean
+
+
+# --- integrity: a clearly wrong engine must not pass ----------------------------------------
+
+
+def _entity_id(gt: dict[str, Any], raw_text: str, case_id: str) -> str:
+    found: str = next(
+        e["gt_id"]
+        for e in gt["entities"]
+        if e["type"] == "PERSON" and e["raw_text"] == raw_text and e["case_id"] == case_id
+    )
+    return found
+
+
+def _only_integrity_failure(report: dict[str, Any], kind: str) -> None:
+    assert report["ok"] is False
+    assert _wrong_kinds(report) == [kind]
+    assert report["missed_links"] == [] and report["forbidden_hits"] == []
+    assert _failing_acs(report) == set()
+
+
+def test_two_people_merged_into_one_engine_entity_fail_as_an_entity_conflict(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    witness = _entity_id(gt, "Sunil Pandey", "C-101")
+    merge_mentions(broken, gt, "FX-01.PER.IRFAN_A", witness)
+    report = score(gt, broken)
+    _only_integrity_failure(report, "entity_conflict")
+    assert report["wrong_links"][0]["entity"] == eid("FX-01.PER.IRFAN_A")
+    assert report["checks"]["S4"]["failed"] == 1
+
+
+def test_the_family_phone_merge_of_ramesh_and_sunita_fails_as_an_entity_conflict(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    merge_mentions(broken, gt, "FX-07.PER.RAMESH", "FX-07.PER.SUNITA")
+    _only_integrity_failure(score(gt, broken), "entity_conflict")
+
+
+def test_one_engine_entity_with_mentions_in_two_cases_fails_as_an_entity_conflict(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    entity = next(e for e in broken["entities"] if e["id"] == eid("FX-02.VEH.A"))
+    entity["mentions"].append({"case_id": "C-104", "file": "notes.txt", "line": 3, "raw_text": "x"})
+    report = score(gt, broken)
+    assert report["ok"] is False
+    assert "entity_conflict" in _wrong_kinds(report)
+
+
+def test_an_entity_whose_mentions_partly_map_and_partly_do_not_fails(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    entity = next(e for e in broken["entities"] if e["id"] == eid("FX-01.PER.IRFAN_B"))
+    entity["mentions"].append({"case_id": "C-201", "file": "fir.txt", "line": 99, "raw_text": "Z"})
+    _only_integrity_failure(score(gt, broken), "entity_conflict")
+
+
+def test_an_engine_entity_that_maps_to_nothing_and_has_no_edge_is_not_a_failure(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    broken["entities"].append(
+        {
+            "id": "stray",
+            "type": "PHONE",
+            "normalized": "9999999999",
+            "mentions": [{"case_id": "C-999", "file": "fir.txt", "line": 1}],
+        }
+    )
+    assert score(gt, broken)["ok"] is True
+
+
+def test_an_identical_second_edge_between_the_same_two_engine_entities_fails(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    edge = edge_of_link(broken, gt, "EL-FX01-PER")
+    broken["edges"].append({**edge, "a": edge["b"], "b": edge["a"]})
+    _only_integrity_failure(score(gt, broken), "duplicate_edge")
+
+
+def test_a_different_second_edge_on_the_ac01_person_pair_fails_the_link_too(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    link = link_by_id(gt, "EL-FX01-PER")
+    extra = add_edge(broken, link["a"], link["b"], "SUGGESTED", band="MEDIUM", score=50)
+    extra["gates_failed"] = ["G2"]
+    report = score(gt, broken)
+    assert report["ok"] is False
+    assert "duplicate_edge" in _wrong_kinds(report)
+    assert _failing_acs(report) == {"AC-01"}
+
+
+def test_an_extra_edge_from_an_unmerged_duplicate_entity_in_one_case_fails_the_link(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    add_edge(broken, "FX-01.PER.IRFAN_A_BANK", "FX-01.PER.IRFAN_B", "SUGGESTED", "MEDIUM", 50)
+    report = score(gt, broken)
+    assert report["ok"] is False
+    assert {w["id"] for w in report["wrong_links"]} == {"EL-FX01-PER"}
+    assert {"state", "band"} <= set(_wrong_kinds(report))
+    assert _failing_acs(report) == {"AC-01"}
+
+
+def test_the_same_extra_edge_passes_when_it_equals_the_expected_link(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    template = edge_of_link(broken, gt, "EL-FX01-PER")
+    broken["edges"].append({**template, "a": eid("FX-01.PER.IRFAN_A_BANK")})
+    assert score(gt, broken)["ok"] is True
+
+
+def test_a_stored_edge_with_band_low_fails_even_between_unrelated_entities(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    persons = [e for e in gt["entities"] if e["gt_id"].startswith("NZ-") and e["type"] == "PERSON"]
+    first = persons[0]
+    other = next(p for p in persons if p["case_id"] != first["case_id"])
+    add_edge(broken, first["gt_id"], other["gt_id"], "SUGGESTED", band="LOW", score=20)
+    _only_integrity_failure(score(gt, broken), "low_stored")
+
+
+def test_an_auto_edge_must_be_band_high(gt: dict[str, Any], broken: dict[str, Any]) -> None:
+    noise = next(
+        e
+        for e in broken["edges"]
+        if e["a"].startswith("E|NZ-") and e["state"] == "AUTO" and e["band"] == "HIGH"
+    )
+    noise["band"] = "MEDIUM"
+    _only_integrity_failure(score(gt, broken), "auto_band")
+
+
+def test_an_auto_edge_inside_one_case_fails(gt: dict[str, Any], broken: dict[str, Any]) -> None:
+    add_edge(broken, "FX-01.PER.IRFAN_A", "FX-01.PER.IRFAN_A_BANK", "AUTO")
+    _only_integrity_failure(score(gt, broken), "same_case")
+
+
+def test_a_self_loop_fails(gt: dict[str, Any], broken: dict[str, Any]) -> None:
+    add_edge(broken, "FX-01.PER.IRFAN_A", "FX-01.PER.IRFAN_A", "AUTO")
+    _only_integrity_failure(score(gt, broken), "self_loop")
+
+
+def test_edge_evidence_kinds_must_include_the_expected_kinds(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    link = link_by_id(gt, "EL-FX01-PER")
+    edge = edge_of_link(broken, gt, "EL-FX01-PER")
+    edge["evidence_kinds"] = ["PER_NAME_SIM"]
+    report = score(gt, broken)
+    assert [(w["id"], w["kind"]) for w in report["wrong_links"]] == [
+        ("EL-FX01-PER", "evidence_kinds")
+    ]
+    assert _failing_acs(report) == {"AC-01"}
+    edge["evidence_kinds"] = [*reversed(link["evidence_kinds"]), "EXTRA_KIND"]
+    assert score(gt, broken)["ok"] is True
+
+
+def test_batches_loaded_must_be_a_prefix_of_the_batch_order(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    for bad in (["b02"], [], ["b02", "b01"]):
+        broken["batches_loaded"] = bad
+        with pytest.raises(ScoreInputError, match="batches_loaded"):
+            score(gt, broken)
+
+
+def test_withdrawn_is_not_a_state_an_engine_can_report(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    broken["edges"][0]["state"] = "WITHDRAWN"
+    with pytest.raises(ScoreInputError, match="state"):
+        score(gt, broken)
+
+
+def test_edge_without_evidence_kinds_is_rejected(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    del broken["edges"][0]["evidence_kinds"]
+    with pytest.raises(ScoreInputError, match="evidence_kinds"):
+        score(gt, broken)
+
+
+def test_person_mention_without_raw_text_is_rejected(
+    gt: dict[str, Any], broken: dict[str, Any]
+) -> None:
+    person = next(e for e in broken["entities"] if e["type"] == "PERSON")
+    del person["mentions"][0]["raw_text"]
+    with pytest.raises(ScoreInputError, match="raw_text"):
+        score(gt, broken)
+
+
+def test_scenario_only_acceptance_cases_are_listed_apart_from_passes(
+    gt: dict[str, Any], perfect: dict[str, Any]
+) -> None:
+    report = score(gt, perfect)
+    assert report["not_evaluated_acs"] == [f"AC-{n}" for n in (16, 18, 20, 23, 24, 25, 27)]
+    assert not set(report["not_evaluated_acs"]) & {
+        ac for ac, row in report["per_ac"].items() if row["status"] == "pass"
+    }
+    assert "Not scored (scenario-only): AC-16, AC-18" in format_report(report)

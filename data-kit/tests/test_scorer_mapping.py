@@ -25,12 +25,13 @@ def _gt_entity(
 
 
 def _engine(entity: dict[str, Any], **changes: Any) -> dict[str, Any]:
+    """An engine entity written as the entity's own mentions; `raw_text` sets every mention's."""
+    raw_text = changes.pop("raw_text", entity["raw_text"])
     base: dict[str, Any] = {
         "id": "opaque-1",
         "type": entity["type"],
-        "raw_text": entity["raw_text"],
         "normalized": entity["normalized"],
-        "mentions": [dict(r) for r in entity["mentions"]],
+        "mentions": [{**r, "raw_text": raw_text} for r in entity["mentions"]],
     }
     base.update(changes)
     return base
@@ -107,7 +108,7 @@ def test_identifier_with_another_normalized_form_does_not_map_even_on_the_same_l
 
 def test_entity_on_another_line_does_not_map(gt: dict[str, Any], index: GroundTruthIndex) -> None:
     phone = _gt_entity(gt, "PHONE", "C-101", "fir.txt", 12)
-    moved = [{"case_id": "C-101", "file": "fir.txt", "line": 13}]
+    moved = [{"case_id": "C-101", "file": "fir.txt", "line": 13, "raw_text": phone["raw_text"]}]
     assert index.map_engine_entity(_engine(phone, mentions=moved)) == frozenset()
 
 
@@ -128,8 +129,9 @@ def test_engine_entity_with_several_mentions_maps_through_any_of_them(
     gt: dict[str, Any], index: GroundTruthIndex
 ) -> None:
     phone = _gt_entity(gt, "PHONE", "C-101", "fir.txt", 12)
-    far = {"case_id": "C-999", "file": "x.txt", "line": 1}
-    engine = _engine(phone, mentions=[far, *phone["mentions"]])
+    far = {"case_id": "C-999", "file": "x.txt", "line": 1, "raw_text": "x"}
+    engine = _engine(phone)
+    engine["mentions"].insert(0, far)
     assert phone["gt_id"] in index.map_engine_entity(engine)
 
 
@@ -203,3 +205,20 @@ def test_every_entity_mention_line_writes_the_raw_text_of_person_and_org_entitie
                 except FileNotFoundError:
                     continue
             assert entity["raw_text"] in lines[ref["line"] - 1], entity["gt_id"]
+
+
+def test_each_mention_of_an_engine_entity_maps_on_its_own_raw_text(
+    gt: dict[str, Any], index: GroundTruthIndex
+) -> None:
+    fir = _gt_entity(gt, "PERSON", "C-101", "fir.txt", 12)
+    witness = next(
+        e for e in gt["entities"] if e["type"] == "PERSON" and e["raw_text"] == "Sunil Pandey"
+    )
+    merged = _engine(fir)
+    merged["mentions"].append({**witness["mentions"][0], "raw_text": witness["raw_text"]})
+    per_mention = index.map_mentions(merged)
+    assert per_mention == [
+        frozenset({fir["gt_id"]}),
+        frozenset({witness["gt_id"]}),
+    ]
+    assert index.closure(per_mention[0]) != index.closure(per_mention[1])

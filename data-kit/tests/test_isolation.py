@@ -9,7 +9,16 @@ from typing import Any
 
 import pytest
 
-from tests.isolation import CATEGORIES, CaseEvidence, collect_evidence, shared
+from tests.helpers import phones_in
+from tests.isolation import (
+    AGE_RE,
+    CATEGORIES,
+    DOB_RE,
+    LOCALITY_RE,
+    CaseEvidence,
+    collect_evidence,
+    shared,
+)
 
 # Section 5 and 5.1 rows: the end cases of each fixture.
 ROWS: dict[str, list[str]] = {
@@ -159,3 +168,19 @@ def test_shared_detects_planted_leaks() -> None:
     }
     far = CaseEvidence(place_dates={("p", date(2026, 1, 13))})
     assert shared(a, far)["place_dates"] == set()
+
+
+def test_ac15_b02_notes_files_are_inside_the_isolation_evidence_and_add_only_the_phone(
+    small_dir: Path,
+) -> None:
+    texts = []
+    for case_id in ("C-107", "C-108"):
+        path = small_dir / "batches" / "b02" / "cases" / case_id / "notes-02.txt"
+        assert path.is_file(), case_id
+        assert path in set(path.parent.glob("notes*.txt"))
+        texts.append(path.read_text("utf-8"))
+    for text in texts:
+        phones = {p for line in text.splitlines() for p in phones_in(line)}
+        assert phones == {"9000079900"}
+        assert not AGE_RE.findall(text) and not DOB_RE.findall(text)
+        assert not LOCALITY_RE.findall(text)
