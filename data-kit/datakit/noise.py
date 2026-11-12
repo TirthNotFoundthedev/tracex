@@ -248,6 +248,7 @@ def build_noise(world: World, tier: str, seed: int, alloc: Allocators) -> None:
         first.age = second.age = None
         look_pairs.append((first, second))
     _top_up_common_names(noise, plan)
+    _distinct_names_per_case(noise, Stream(seed, "noise:names"))
 
     # designated material
     en_cases = [n for n in noise if n.case.lang == "en"]
@@ -280,6 +281,26 @@ def build_noise(world: World, tier: str, seed: int, alloc: Allocators) -> None:
                 "why": "Same common name, different date of birth, different people",
             }
         )
+
+
+def _distinct_names_per_case(noise: list[NoiseCase], stream: Stream) -> None:
+    """No two noise persons of one case share a normalized name, and no alias equals another
+    person's name: from the case text they would read as one person. A colliding identity that
+    is not protected (recurring across cases, or half of a look-alike pair) gets another
+    surname, redrawn from its own stream so no other draw moves."""
+    pools = load_pools()
+    for n in noise:
+        kept: dict[str, Ident] = {}
+        for ident in sorted(n.persons, key=lambda p: not p.protected):
+            while ident.normalized in kept and not ident.protected:
+                ident.surname = stream.choice(pools.surnames)
+            kept.setdefault(ident.normalized, ident)
+        names = {p.normalized for p in n.persons}
+        for ident in n.persons:
+            while ident.alias is not None and ident.alias.roman.lower() in names - {
+                ident.normalized
+            }:
+                ident.alias = stream.zipf(pools.first_m)
 
 
 def _language_quota(plan: Stream, total: int) -> list[str]:
