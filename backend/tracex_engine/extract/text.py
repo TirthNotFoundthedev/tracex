@@ -143,6 +143,7 @@ class _Candidate:
     registered: bool = False  # named by "in the name of": never an owner
     registered_for: int | None = None  # identifier of an "in the name of" statement
     fact_spans: list[tuple[int, int]] = field(default_factory=list)  # stated facts, by position
+    alias_end: int = -1  # where an `urf <alias>` after the name ends
 
 
 @dataclass
@@ -385,9 +386,23 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
         for match in pattern.finditer(sentence):
             if candidate := add(match.start("name"), match.end("name")):
                 candidate.role = candidate.role or match["role"].lower()
+
+    def attach_aliases() -> None:
+        for candidate in candidates:
+            alias = ALIAS_AFTER.match(sentence, candidate.end)
+            if alias and candidate.kind == "person" and not candidate.aliases:
+                a_start, a_end = _trim(sentence, alias.start("alias"), alias.end("alias"))
+                raw = sentence[a_start:a_end]
+                if normalize_name(raw):
+                    candidate.aliases.append(Value(raw, normalize_name(raw)))
+                    candidate.fact_spans.append((candidate.end, a_end))
+                    candidate.alias_end = a_end
+                    reserved.append((a_start, a_end))
+
+    attach_aliases()
     for match in RELATION.finditer(sentence):
         _, name_end = _trim(sentence, match.start("name"), match.end("name"))
-        holder = next((c for c in candidates if c.end == name_end), None)
+        holder = next((c for c in candidates if name_end in (c.end, c.alias_end)), None)
         holder = holder or add(match.start("name"), match.end("name"))
         r_start, r_end = _trim(sentence, match.start("relname"), match.end("relname"))
         if holder is not None and holder.relative is None and r_end > r_start:
@@ -413,14 +428,7 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
             candidate.registered = True
             candidate.registered_for = _nearest_before(idents, match.start())
 
-    for candidate in candidates:
-        alias = ALIAS_AFTER.match(sentence, candidate.end)
-        if alias and candidate.kind == "person":
-            a_start, a_end = _trim(sentence, alias.start("alias"), alias.end("alias"))
-            raw = sentence[a_start:a_end]
-            if normalize_name(raw):
-                candidate.aliases.append(Value(raw, normalize_name(raw)))
-                candidate.fact_spans.append((candidate.end, a_end))
+    attach_aliases()
     return sorted(candidates, key=lambda c: c.start)
 
 

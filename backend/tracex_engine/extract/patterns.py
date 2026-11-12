@@ -138,7 +138,9 @@ LIST_NEXT = re.compile(
     rf"(?P<sep>\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+aur\s+|\s*&\s*|\s+or\s+){_BY_PREFIX}(?P<name>{NAME})"
 )
 OR_AFTER = re.compile(r"\s+or\s+")
-USED_BY_DEV = re.compile(rf"(?P<name>{NAME})\s+द्वारा\s+(?:इस्तेमाल|उपयोग|प्रयोग)")
+USED_BY_DEV = re.compile(
+    rf"(?P<name>{NAME})(?:\s+(?:(?i:urf|alias)|उर्फ)\s+{NAME})?\s+द्वारा\s+(?:इस्तेमाल|उपयोग|प्रयोग)"
+)
 IN_NAME_OF = re.compile(
     r"(?i:(?<![A-Za-z])(?:in\s+the\s+name\s+of|sim\s+subscriber|registered\s+to))"
     rf"\s+(?P<name>{NAME})"
@@ -167,7 +169,7 @@ GENDER = re.compile(
 _LOCALITY_WORD = rf"[A-Z][A-Za-z'’-]*|{DEV}+"
 LOCALITY = re.compile(
     r"(?P<kw>(?i:village|gram|gaon|mohalla|ward)|ग्राम|गांव|मोहल्ला|वार्ड)[ \t]+"
-    rf"(?P<loc>\d{{1,3}}(?!\d)|(?:{_LOCALITY_WORD})(?:[ \t]+(?:{_LOCALITY_WORD}))?)"
+    rf"(?P<loc>\d{{1,3}}(?!\d)|(?:{_LOCALITY_WORD})(?:[ \t]+(?:{_LOCALITY_WORD})){{0,2}})"
 )
 WARD_WORDS = frozenset({"ward", "वार्ड"})
 
@@ -208,7 +210,7 @@ _ROLE_WORD = (
 _WORD_EDGE_LEFT = r"(?<![A-Za-zऀ-ॿ])"
 _WORD_EDGE_RIGHT = r"(?![A-Za-zऀ-ॿ])"
 _CUE_PHRASE = (
-    rf"{_WORD_EDGE_LEFT}(?:a/c|acct?\.?|account|khata\s+sankhya|khata|खाता|{_CUE_WORDS})"
+    rf"{_WORD_EDGE_LEFT}(?:a/c|acct?\.?|account|khata\s+sankhya|khata|खाता(?:\s+(?:संख्या|नंबर))?|{_CUE_WORDS})"
     rf"{_WORD_EDGE_RIGHT}[\s:.\-]*"
 )
 # Pattern A: text allowed between a person phrase and an identifier (identifiers cut out): a
