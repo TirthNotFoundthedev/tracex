@@ -81,6 +81,7 @@ from tracex_engine.extract.records import (
 )
 from tracex_engine.ingest import SourceRef
 from tracex_engine.normalize import (
+    ORG_SUFFIXES,
     Value,
     normalize_account,
     normalize_ifsc,
@@ -385,7 +386,10 @@ def _find_candidates(sentence: str, idents: list[_Ident]) -> list[_Candidate]:
         add(match.start("name"), match.end("name"), "org")
     for pattern in (ROLE_LATIN, ROLE_DEV):
         for match in pattern.finditer(sentence):
-            if candidate := add(match.start("name"), match.end("name")):
+            name = match["name"]
+            if set(re.findall(r"[a-z]+", name.lower())) & ORG_SUFFIXES:
+                add(match.start("name"), match.end("name"), "org")
+            elif candidate := add(match.start("name"), match.end("name")):
                 candidate.role = candidate.role or match["role"].lower()
 
     def attach_aliases() -> None:

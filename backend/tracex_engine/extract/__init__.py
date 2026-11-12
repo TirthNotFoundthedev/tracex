@@ -9,6 +9,9 @@ in `CaseRecords.errors`, never dropped silently.
 
 Exposed:
     extract_case                 files of one case -> CaseRecords
+    file_load_key                sort key of a file name in load order: fir, notes, sdr, cdr, bank;
+                                 later batches (`notes-02.txt`) after every baseline file, by
+                                 batch number; unknown names last
     CaseRecords                  persons, orgs, identifiers, attributions, cdr/bank/sdr rows, errors
     PersonMention                name, role, aliases, relative, age, dob, gender, locality, district
     OrgMention                   organisation name without legal suffixes, locality
@@ -18,6 +21,14 @@ Exposed:
     IdKind, AttributionCode      the enums
     CONFIDENCE_CLEAR (0.9), CONFIDENCE_HEDGED (0.5)
     HEDGE_PHRASES, LEGIBILITY_HEDGE_PHRASES, SHARED_WORDING   the wording rules (hedges.py)
+
+`raw_text` rule (PERSON and ORG mentions). It is the name as written and nothing else: no role
+word before it (`accused`, `complainant`, `आरोपी` ...), no leading `M/s` or `Messrs`, no
+`urf`/`alias`/`उर्फ` clause (a person's alias goes to `aliases`), and none of the facts written
+beside it (age, `s/o`, village). Honorifics and spelling stay as written (`Mohd. Irfan`); legal
+suffixes of an organisation stay too (`Om Traders Pvt Ltd`), only `normalized` drops them.
+A role word followed by `M/s`, `Messrs` or a name carrying a legal suffix word (Pvt, Ltd, LLP,
+Traders, Trading, Enterprises, Co, Company ...) names an ORG; it never also yields a PERSON.
 
 Ownership contract. OWNS comes only from this closed set of clean patterns (English,
 romanised Hindi, Devanagari); everything else near a person is MENTIONED_WITH:
@@ -42,6 +53,7 @@ line) get confidence 0.5, else 0.9 (gate G5 needs 0.7).
 
 from tracex_engine.extract.case import extract_case
 from tracex_engine.extract.hedges import HEDGE_PHRASES, LEGIBILITY_HEDGE_PHRASES, SHARED_WORDING
+from tracex_engine.extract.order import file_load_key
 from tracex_engine.extract.records import (
     CONFIDENCE_CLEAR,
     CONFIDENCE_HEDGED,
@@ -70,4 +82,5 @@ __all__ = [
     "PersonMention",
     "Relative",
     "extract_case",
+    "file_load_key",
 ]

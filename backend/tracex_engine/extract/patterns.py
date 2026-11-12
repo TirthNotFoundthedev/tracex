@@ -111,14 +111,16 @@ LEADING_NON_NAME = frozenset(
     }
 )
 
+ORG_MARKER = r"(?:M/[sS]|Messrs)"
+
 ROLE_LATIN = re.compile(
     r"(?i:(?<![A-Za-z])(?P<role>accused|suspect|complainant|witness|victim|informant|informer"
     r"|arrested|aaropi|abhiyukt|shikayatkarta|gawah|sandigdh))(?![A-Za-z])"
-    rf"[\s,:]*(?:(?i:person|named|namely)\s+)?(?P<name>{NAME})"
+    rf"[\s,:]*(?:(?i:person|named|namely)\s+)?(?!{ORG_MARKER}(?![A-Za-z]))(?P<name>{NAME})"
 )
 ROLE_DEV = re.compile(
     r"(?P<role>आरोपी|अभियुक्त|शिकायतकर्ता|गवाह|संदिग्ध|मुखबिर|पी(?:ड़|ड़)ित)"
-    rf"[\s,:]*(?P<name>{NAME})"
+    rf"[\s,:]*(?!{ORG_MARKER}(?![A-Za-z]))(?P<name>{NAME})"
 )
 _RELATION = r"(?:(?i:[sdw]/o|son\s+of|daughter\s+of|wife\s+of|putra|putri|patni)|पुत्र|पुत्री|पत्नी)"
 RELATION = re.compile(rf"(?P<name>{NAME})\s*,?\s*(?P<rel>{_RELATION})\s+(?P<relname>{NAME})")
@@ -150,7 +152,7 @@ NAME_KE_NAAM = re.compile(
 )
 ALIAS_AFTER = re.compile(rf"\s+(?:(?i:urf|alias)|उर्फ)\s+(?P<alias>{NAME})")
 ORG = re.compile(
-    r"(?<![A-Za-z])M/[sS]\.?[ \t]+"
+    rf"(?<![A-Za-z]){ORG_MARKER}\.?[ \t]+"
     r"(?P<name>[A-Z][A-Za-z0-9&'’.-]*(?:[ \t]+[A-Z][A-Za-z0-9&'’.-]*){0,5})"
 )
 
@@ -199,7 +201,24 @@ OWNERSHIP_CUE = re.compile(
 
 SENTENCE_END = re.compile(r"[.!?;।॥]+(?=\s|$)")
 ABBREVIATIONS = frozenset(
-    {"mohd", "md", "mr", "mrs", "ms", "smt", "dr", "shri", "st", "no", "vs", "pvt", "ltd", "co"}
+    {
+        "mohd",
+        "md",
+        "mr",
+        "mrs",
+        "ms",
+        "smt",
+        "dr",
+        "shri",
+        "st",
+        "no",
+        "vs",
+        "pvt",
+        "ltd",
+        "co",
+        "m/s",
+        "messrs",
+    }
 )
 
 CUE_WORDS = _CUE_WORDS

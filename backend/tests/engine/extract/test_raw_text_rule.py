@@ -69,9 +69,7 @@ def test_org_raw_text_has_no_urf_clause() -> None:
 
 
 def test_org_raw_text_keeps_the_legal_suffix_as_written_and_normalized_drops_it() -> None:
-    [org] = [
-        o for o in _line("M/s Om Traders Pvt Ltd, Sector 4.").orgs if o.source.line == 12
-    ]
+    [org] = [o for o in _line("M/s Om Traders Pvt Ltd, Sector 4.").orgs if o.source.line == 12]
 
     assert org.raw_text == "Om Traders Pvt Ltd"
     assert org.normalized == "om"

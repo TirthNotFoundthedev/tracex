@@ -76,7 +76,10 @@ def test_complainant_header_line_naming_an_org_gives_the_org_only() -> None:
 
 
 def test_generated_c122_line_gives_the_org_and_its_account_and_no_junk_person() -> None:
-    line = "Complainant M/s Shree Balaji Traders, Mohalla Subhash Nagar, a/c 5010000066602 (IFSC SYNB0000123)."
+    line = (
+        "Complainant M/s Shree Balaji Traders, Mohalla Subhash Nagar, "
+        "a/c 5010000066602 (IFSC SYNB0000123)."
+    )
 
     records = _line(line)
 

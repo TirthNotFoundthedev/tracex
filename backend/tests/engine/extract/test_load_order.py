@@ -35,7 +35,7 @@ def test_batch_numbers_compare_as_numbers_not_text() -> None:
     assert file_load_key("notes-9.txt") < file_load_key("notes-10.txt")
 
 
-@pytest.mark.parametrize("name", ["readme.txt", "fir.csv", "notes-x.txt", "FIR.txt", ""])
+@pytest.mark.parametrize("name", ["readme.txt", "fir.json", "notes-x.txt", "FIR.txt", ""])
 def test_unknown_names_sort_last_by_name(name: str) -> None:
     assert file_load_key(name) > file_load_key("bank-99.csv")
     assert file_load_key(name)[2] == name
