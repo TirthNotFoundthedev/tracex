@@ -81,3 +81,60 @@ def test_devanagari_used_by_with_a_roman_name_and_upyog() -> None:
     records = in_note("नंबर 9000051234 Irfan bhai द्वारा उपयोग किया जाता है।")
 
     assert owners(records, "9000051234") == {"irfan"}
+
+
+# --- shapes found by running the extractor over real generator output ---------------------------
+
+
+@pytest.mark.parametrize(
+    ("line", "owner", "values"),
+    [
+        (
+            "अभियुक्त Nitin Sethi urf Anil, पुत्र Renu Sethi, उम्र 20 वर्ष, पुरुष, "
+            "मोबाइल नंबर 9100202238, वाहन UP87ZZ5639।",
+            "nitin sethi",
+            {"9100202238", "UP87ZZ5639"},
+        ),
+        (
+            "Witness Rahul Thakur urf Rajesh, aged 48, a/c 5019245368145 (IFSC SYNB0000123).",
+            "rahul thakur",
+            {"5019245368145"},
+        ),
+        (
+            "गवाह Rajesh Srivastava, पुत्र Ravi Srivastava, ग्राम Yamunapar, खाता संख्या 5019437919770।",
+            "rajesh srivastava",
+            {"5019437919770"},
+        ),
+        (
+            "Accused Ravi Saxena, male, Mohalla Peepal Wali Gali, mobile 91001 29857.",
+            "ravi saxena",
+            {"9100129857"},
+        ),
+        (
+            "Witness Seema Garg urf Manoj, w/o Neelam Garg, village Bhagwanpur, mobile 9100861494.",
+            "seema garg",
+            {"9100861494"},
+        ),
+    ],
+)
+def test_alias_relative_and_locality_before_the_cue_keep_the_apposition(
+    line: str, owner: str, values: set[str]
+) -> None:
+    records = in_fir(line)
+
+    assert {p.normalized for p in records.persons if p.source.line == 12} == {owner}
+    for value in values:
+        assert owners(records, value) == {owner}
+
+
+def test_a_three_word_locality_is_read_whole() -> None:
+    line = "Accused Ravi Saxena, male, Mohalla Peepal Wali Gali, mobile 91001 29857."
+    [person] = [p for p in in_fir(line).persons if p.source.line == 12]
+
+    assert person.locality is not None and person.locality.normalized == "peepal wali gali"
+
+
+def test_devanagari_used_by_with_a_roman_name_and_alias() -> None:
+    records = in_note("नंबर 9100202238 Nitin Sethi urf Anil द्वारा उपयोग किया जाता है।")
+
+    assert owners(records, "9100202238") == {"nitin sethi"}
