@@ -161,3 +161,64 @@ def test_bare_marker_with_no_name_gives_no_mention_at_all(line: str) -> None:
 
     assert _on_line_12(records) == ([], [])
     assert all(a.code is not AttributionCode.OWNS for a in records.attributions)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Accused Ramesh Co, mobile 9000012345.",
+        "Accused Rakesh Company, mobile 9000012345.",
+        "Accused Pvt Ramesh Kumar, mobile 9000012345.",
+        "Accused Ramesh Co, s/o Mohan Co, mobile 9000012345.",
+        "Accused Sunil Trading, aged 40, mobile 9000012345.",
+        "Accused Mohan Enterprises, male, mobile 9000012345.",
+        "Accused Ramesh Llp, DOB 12-04-1990.",
+    ],
+)
+def test_suffix_only_as_a_trailing_token_or_with_a_person_fact_stays_a_person(line: str) -> None:
+    persons, orgs = _on_line_12(_line(line))
+
+    assert len(persons) == 1
+    assert orgs == []
+
+
+def test_person_with_a_suffix_word_and_a_relative_keeps_the_relative() -> None:
+    records = _line("Accused Ramesh Co, s/o Mohan Co, mobile 9000012345.")
+
+    [person] = [p for p in records.persons if p.source.line == 12]
+    assert person.raw_text == "Ramesh Co"
+    assert person.relative is not None and person.relative.name.raw_text == "Mohan Co"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Number 9000012345 is used by Gupta Trading Co.",
+        "Gupta Trading Co ka number 9000012345 hai.",
+        "Accused Gupta Trading Co, mobile 9000012345.",
+    ],
+)
+def test_org_by_suffix_is_read_the_same_in_used_by_ka_number_and_role_patterns(
+    line: str,
+) -> None:
+    persons, orgs = _on_line_12(_line(line))
+
+    assert persons == []
+    assert orgs == ["Gupta Trading Co"]
+
+
+@pytest.mark.parametrize(
+    "line", ["अभियुक्त राम ट्रेडर्स प्राइवेट लिमिटेड, मोबाइल 9000012345।", "आरोपी श्री राम ट्रेडिंग कंपनी।"]
+)
+def test_devanagari_legal_suffix_names_are_orgs(line: str) -> None:
+    persons, orgs = _on_line_12(_line(line))
+
+    assert persons == []
+    assert len(orgs) == 1
+
+
+@pytest.mark.parametrize("role", ["शिकायतकर्ता", "आरोपी", "गवाह"])
+def test_devanagari_messrs_marker_gives_the_org_and_no_person(role: str) -> None:
+    records = _line(f"{role} मेसर्स श्री बालाजी ट्रेडर्स, मोबाइल 9000012345।")
+
+    assert _on_line_12(records) == ([], ["श्री बालाजी ट्रेडर्स"])
