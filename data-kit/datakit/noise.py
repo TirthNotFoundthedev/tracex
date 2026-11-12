@@ -285,22 +285,45 @@ def build_noise(world: World, tier: str, seed: int, alloc: Allocators) -> None:
 
 def _distinct_names_per_case(noise: list[NoiseCase], stream: Stream) -> None:
     """No two noise persons of one case share a normalized name, and no alias equals another
-    person's name: from the case text they would read as one person. A colliding identity that
-    is not protected (recurring across cases, or half of a look-alike pair) gets another
-    surname, redrawn from its own stream so no other draw moves."""
+    person's name: from the case text they would read as one person. The later colliding
+    identity gets another surname, redrawn from its own stream so no other draw moves. A
+    protected identity (recurring, or half of a look-alike pair) takes its twins along, so
+    true cross-case groups and look-alike pairs keep their shared name; the pass repeats until
+    no case collides."""
     pools = load_pools()
-    for n in noise:
-        kept: dict[str, Ident] = {}
-        for ident in sorted(n.persons, key=lambda p: not p.protected):
-            while ident.normalized in kept and not ident.protected:
-                ident.surname = stream.choice(pools.surnames)
-            kept.setdefault(ident.normalized, ident)
-        names = {p.normalized for p in n.persons}
-        for ident in n.persons:
-            while ident.alias is not None and ident.alias.roman.lower() in names - {
-                ident.normalized
-            }:
-                ident.alias = stream.zipf(pools.first_m)
+    everyone = [p for n in noise for p in n.persons]
+    changed = True
+    for _ in range(100):
+        if not changed:
+            break
+        changed = False
+        for n in noise:
+            kept: set[str] = set()
+            for ident in sorted(n.persons, key=lambda p: not p.protected):
+                if ident.normalized in kept:
+                    old = (ident.given.roman, ident.surname.roman)
+                    twins = [
+                        p
+                        for p in everyone
+                        if (p is ident)
+                        or (
+                            ident.protected
+                            and p not in n.persons
+                            and (p.given.roman, p.surname.roman) == old
+                        )
+                    ]
+                    surname = stream.choice(pools.surnames)
+                    for p in twins:
+                        p.surname = surname
+                    changed = True
+                kept.add(ident.normalized)
+        names_by_case = {id(n): {p.normalized for p in n.persons} for n in noise}
+        for n in noise:
+            for ident in n.persons:
+                while ident.alias is not None and ident.alias.roman.lower() in names_by_case[
+                    id(n)
+                ] - {ident.normalized}:
+                    ident.alias = stream.zipf(pools.first_m)
 
 
 def _language_quota(plan: Stream, total: int) -> list[str]:
@@ -538,7 +561,7 @@ def _write_case(
     accounts.append(BankAccount(account, ifsc, holder_row, holder_row.raw_text))
     f.fill_bank("bank.csv", stream.between(*params.bank_rows), accounts)
     if n.sdr:
-        _write_sdr(world, f, case_phones, stream)
+        _write_sdr(world, f, case_phones, stream, {p.normalized for p in n.persons})
 
 
 def _account_for(f: Filler, cache: dict[str, Entity], value: str) -> Entity:
@@ -577,12 +600,14 @@ def _attributes(ident: Ident, text: PersonText) -> dict[str, Any]:
     return attrs
 
 
-def _write_sdr(world: World, f: Filler, case_phones: list[Entity], stream: Stream) -> None:
+def _write_sdr(
+    world: World, f: Filler, case_phones: list[Entity], stream: Stream, used: set[str]
+) -> None:
     case = f.case
     rows = stream.between(1, 3)
     for i in range(rows):
         phone = case_phones[i] if i < len(case_phones) else f.new_phone()
-        name = draw_name(stream, "en")
+        name = _unique_name(stream, "en", used)
         subscriber = f.noise_entity("PERSON", name.display, name.normalized)
         cells = [phone.raw_text, name.display, "", "", case.district, "2023-05-17"]
         world.put_row(case, "sdr.csv", cells, [phone, subscriber],
