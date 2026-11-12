@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-11-12, later in session S2. P2.1 and P2.2 are merged; 2.3 and the reference scorer are in review; 2.4 has not started.
+Last updated: 2026-11-12, late in session S2. P2.1, 2.2 and 2.3 are merged with the reference scorer; 2.4 (Tier 1 matcher) is being built; no PR is open except this checkpoint.
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
@@ -9,26 +9,22 @@ Last updated: 2026-11-12, later in session S2. P2.1 and P2.2 are merged; 2.3 and
 - P1 specs merged, tag `m1-specs`: `docs/specs/engine-matching.md` (Iyer), `api-access-control.md` + `api-audit-log.md` (Khan, gated by Dutta), `DESIGN_RULES.md`, `design-flows.md`, tokens, specimen (Sen).
 - S1 merged with the owner's OK (PRs #12, #10, #11, #9, #13), `main` green, tag `m1-contracts` pushed: matching-spec errata (Iyer), `docs/specs/data-kit.md` (Bose, hired), `contracts/` + `docs/architecture.md` + access/audit spec amendments (Khan; Iyer approved, Dutta's security gate passed on the third round), review-queue filter Waiting / Rejected / Undone with Reopen, Approvals page and real-font specimen (Sen). Decisions D43-D49.
 - S2 merged (PRs #17, #19, #16, #18, #15), `main` green: `data-kit` CI job + seed placeholders + Prettier pin (Rao), data kit generator small + demo tiers with golden hashes verified on Linux (Bose, 2.1), spec errata from the reviews (Iyer), parsers + extraction + normalization (Naidu, 2.2; ownership from closed patterns, D51). Decisions D50-D54.
+- Later in S2, merged with the owner's OK by number (PRs #22, #24, #23, #20, #26, #25, #21), `main` green: Neo4j service in backend CI with Neo4j pinned to `5.26.12-community` and root devDependencies exact-pinned (Rao); extractor fix for role word + `M/s` and the raw_text rule (Naidu); reference scorer `python -m datakit score`, `engine-result/1` schema, G-09 isolation, ground-truth bare-name `raw_text` (Bose); noise persons in one case have distinct names, G-17 (Bose); spec errata 2/3 (Iyer); per-case graphs, order-independent within-case dedupe, Neo4j store and `docs/specs/engine-graph.md` (Bose, 2.3). The 9 Neo4j tests run in GitHub CI (822 backend tests, none skipped). Decisions D55-D56.
 
 ## In progress
-- PR #20 (Bose, data-kit reference scorer G-16, §8.1 mapping, G-09 isolation): Iyer CHANGES (4 blockers, 5 minors: a wrong engine could pass). Fix round running, plus two additions: ground-truth `raw_text` for PERSON/ORG without role word, leading `M/s` or alias clause (golden hashes will change), and a transliteration split inside one within_case group is allowed.
-- PR #21 (Bose, 2.3 per-case graphs, `docs/specs/engine-graph.md`, Neo4j store, `neo4j==5.28.2`): two review rounds; one blocker left (a shared bare alias merges two full names depending on load order). Fix round 2 running: dedupe must be order-independent by construction, with a permutation test.
-- PR #22 (Rao: Neo4j service in backend CI, Neo4j pinned to `5.26.12-community` in CI and compose, six root devDependencies exact-pinned): approved by Fable, CI green. Needs the owner's OK by number; the merge was blocked by the permission check.
-- PR #23 (Naidu: no junk PERSON from "Complainant: M/s ...", raw_text rule pinned, `file_load_key` exported, placeholder bank holders blank): CI green, Iyer's review running. Iyer must explain the noise-OWNS count ("254 of 273" now, "211 of 215" before).
-- Two Bose agents ran in parallel on disjoint paths (`data-kit/` and `backend/tracex_engine/graph/`).
+- Iyer (Opus, fresh hire this session): 2.4 Tier 1 + scoring skeleton + SAME_AS on branch `feat/engine-tier1-matching` (own worktree). Cut off once by the 5-hour limit and resumed; told to commit and push early. No PR yet when this was written. If the agent cannot be resumed, hire a fresh Iyer and point it at that branch.
 
 ## Next
-1. Owner OK by number for #22, then for #20, #21, #23 once Iyer approves each. Merge #22 first, then have #21 merge main so its 9 Neo4j tests run in GitHub CI (so far only proven locally).
-2. Iyer: one errata PR after #20 lands. Pending items: matching §5 G5 (entity confidence = highest mention confidence; an attribution below 0.7 is never an anchor); data-kit §4.3 (`tower_place` is the calling number's cell), §8.1 (per-mention `raw_text`; one engine entity sits in one within_case group in one case), §8.2 (`raw_text` convention), §8.3 (S4 integrity clauses, `evidence_kinds` checked in S1, CONFIRMED-by-harness, superseded links skipped, ANY_EDGE fails in every stored state).
-3. Iyer (Opus): 2.4 Tier 1 + scoring skeleton + SAME_AS, from `main` after #20, #21, #23 land; reviewed by Khan. Gate: scorer `ok` on b01 and on b01+b02, plus Iyer's own engine tests for the scenario-only ACs (16, 18, 20, 23, 24, 25, 27) and for the extractor follow-ups he listed.
-4. Tag `m2-slice`, then P3 onward as in PLAN.md §5.
+1. When Iyer's PR is up: Khan (Sonnet, hire fresh with the ROSTER card) reviews it as integration reviewer: engine API the Backend will import, transition and run records against `docs/architecture.md`, explanation payload against `contracts/explanation.schema.json`, no Postgres or access knowledge in the engine. Fable reads the gate: Tier-1-reachable acceptance cases pass S1; zero-tolerance checks (S3, S4, traps) hold over the whole kit; worked scenario AC-01 links end to end; every other AC is listed with the tier it waits for.
+2. Owner OK by PR number, merge, tag `m2-slice`, update this file.
+3. P3 as in PLAN.md §5: 3.1 Tier 2 (Naidu, Iyer reviews), 3.2 Tier 3 (Bose, Iyer reviews), 3.3 composite + review queue + undo + clusters (Iyer), 3.4 API/auth/access/audit (Khan) in parallel, 3.5 security gate (Dutta).
 
 ## Carried forward (not blocking)
 - Dutta, for P3 implementation: a rejected transition record's Neo4j edge must be reverted, not only alerted; reword the Reconciliation text in `docs/architecture.md`; U47-U54 and A49-A53 must become tests against the running API.
 - Sen: Hindi strings need a native-speaker review; checklist item 16 must be repeated on the real app screens; queue and approval i18n keys are listed in design-flows for the screen builders to add in both languages. A string for "a matching run is in progress, try again shortly" (409 RUN_IN_PROGRESS, D49) is needed in both apps.
 - Rao: `smoke` and `data-kit` as required checks (ask the owner first). Workspace packages under `apps/*` and `packages/*` were not audited for range pins.
-- Naidu follow-ups (safe-side misses): family-note owners in parentheses, the Devanagari pronoun "उसका नंबर", a Devanagari name swallowing a following verb, a name directly after a locality with no comma, landlines in CDR rows, `OrgMention` has no aliases field. Devanagari-vs-Roman transliteration differences ("saksena" vs "saxena") are a P3 comparator matter (Iyer's ruling).
-- Bose follow-up on #21: a witness sharing a name with both a complainant and an accused should start its own entity (in fix round 2). Replacing an uploaded case is a later Backend + Graph slice; files are immutable until then.
+- Naidu follow-ups (safe-side misses): family-note owners in parentheses, the Devanagari pronoun "उसका नंबर", a Devanagari name swallowing a following verb, a name directly after a locality with no comma, `M/s.` at a sentence end turning the next sentence's name into an ORG, landlines in CDR rows, `OrgMention` has no aliases field, Devanagari legal suffixes are not stripped by `normalized`, a bare two-word suffix name without `M/s` ("Om Traders") reads as a PERSON. Devanagari-vs-Roman transliteration differences ("saksena" vs "saxena") are a P3 comparator matter. PR #23's final suffix-rule tightening was merged without a second look by Iyer (output on the small tier was identical).
+- Bose: the noise-name pass in `data-kit/datakit/noise.py` ends silently after 100 passes if it never converges (G-17 would catch it; an explicit error would be clearer); G-10 public-figure name check before demo readiness; replacing an uploaded case is a later Backend + Graph slice (files are immutable until then). `KIT_VERSION` was not bumped for the G-17 change.
 - Bose: G-10 public-figure name check before the demo-readiness checklist.
 
 ## Blockers
@@ -47,14 +43,13 @@ Last updated: 2026-11-12, later in session S2. P2.1 and P2.2 are merged; 2.3 and
 - Do not `cd` into an agent worktree from the main session; use `git show origin/<branch>:<path>`.
 - Usage in S2: the 5-hour limit was hit twice mid-task (agents fail with a rate-limit error and keep their work; resume them with SendMessage after the reset). Roughly one window buys two Sonnet authors with fix rounds plus four or five Opus review passes. Weekly was 69% late in S2. Checkpoint STATE.md before a window reaches about 80%.
 - A subagent whose branch was merged and deleted cannot be resumed (its worktree is gone): hire a fresh one with the role card.
-- Merges: the owner said "make sure it's good and push it" about #17 and #19; the permission check still blocked a later merge (#22) as unreviewed, so keep asking by PR number (D53).
+- Merges: keep asking the owner by PR number in one batch (D53); the owner answers quickly with "yes, merge them". Use `gh pr update-branch <n>` to bring a PR up to date with main before its final CI check. `gh pr merge` can fail with a transient GraphQL error: check the PR state and retry.
+- Always re-run a PR's CI on top of current main before merging when other PRs landed since its review: #21 passed alone and failed in combination (D56).
 - Leftover Neo4j containers from reviews may be running (`docker ps`); agents were denied permission to remove containers that were not theirs.
 - Review pattern that worked: when adversarial review keeps finding holes in a deny-list, switch the author to an allow-list (closed patterns) instead of another patch round.
 - Authors built against specs without seeing each other's output; have the reviewer run one against the other before approving.
 
 ## Open questions for the owner
-- OK to merge #22 now?
-- OK to merge #20, #21 and #23 once Iyer approves each and CI is green?
 - OK to make `smoke` and `data-kit` required checks on `main`?
 
 ## Resume prompt (paste into a new session in this folder)
