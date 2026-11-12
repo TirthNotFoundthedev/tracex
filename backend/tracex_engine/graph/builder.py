@@ -34,13 +34,14 @@ type _MentionKey = tuple[EntityType, SourceRef, str, str | None]
 def build_case_graph(records: CaseRecords) -> CaseGraph:
     """Group the case's mentions into entities and draw its edges, each citing its line."""
     case_id = records.case_id
-    index = EntityIndex()
+    ordered = _in_load_order(records)
+    index = EntityIndex(ordered)
     mention_entity: dict[Extracted, str] = {}
     key_entity: dict[_MentionKey, str] = {}
     mentions: list[Mention] = []
     line_count: dict[tuple[str, int], int] = defaultdict(int)
 
-    for extracted in _in_load_order(records):
+    for extracted in ordered:
         entity_id = _entity_id(case_id, index.place(extracted))
         mention_entity[extracted] = entity_id
         if isinstance(extracted, IdentifierMention):

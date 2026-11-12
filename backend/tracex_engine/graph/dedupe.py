@@ -7,6 +7,8 @@ mention and only groups them.
 """
 
 import re
+import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from tracex_engine.extract import IdentifierMention, OrgMention, PersonMention
@@ -20,6 +22,19 @@ AGE_TOLERANCE = 2
 UNKNOWN_RELATION = "relative"
 
 _WORD = re.compile(r"\w+")
+
+# Roles (extract/patterns.py, English, romanised Hindi, Devanagari) by side of a case. A
+# complainant-side and an accused-side writing are never one person; witnesses are neutral.
+_COMPLAINANT_SIDE = frozenset(
+    unicodedata.normalize("NFC", w)
+    for w in ("complainant", "victim", "informant", "informer", "shikayatkarta", "शिकायतकर्ता",
+              "मुखबिर", "पीड़ित")
+)  # fmt: skip
+_ACCUSED_SIDE = frozenset(
+    unicodedata.normalize("NFC", w)
+    for w in ("accused", "suspect", "arrested", "aaropi", "abhiyukt", "sandigdh", "आरोपी",
+              "अभियुक्त", "संदिग्ध")
+)  # fmt: skip
 
 
 @dataclass
@@ -36,6 +51,7 @@ class _Traits:
     localities: set[str] = field(default_factory=set)
     districts: set[str] = field(default_factory=set)
     ifscs: set[str] = field(default_factory=set)
+    sides: set[str] = field(default_factory=set)
 
     def absorb(self, other: "_Traits") -> None:
         self.names |= other.names
@@ -48,6 +64,7 @@ class _Traits:
         self.localities |= other.localities
         self.districts |= other.districts
         self.ifscs |= other.ifscs
+        self.sides |= other.sides
 
 
 @dataclass
@@ -82,6 +99,12 @@ def _traits(mention: Extracted) -> _Traits:
     if isinstance(mention, PersonMention):
         traits.writings.add(_writing(mention.raw_text))
         traits.aliases = {a.normalized for a in mention.aliases if a.normalized}
+        if mention.role is not None:
+            role = unicodedata.normalize("NFC", mention.role.casefold())
+            if role in _COMPLAINANT_SIDE:
+                traits.sides.add("complainant")
+            elif role in _ACCUSED_SIDE:
+                traits.sides.add("accused")
         if mention.relative is not None and mention.relative.name.normalized:
             traits.relatives.add((mention.relative.relation, mention.relative.name.normalized))
         if mention.age is not None and mention.age.normalized.isdigit():
@@ -125,6 +148,7 @@ def _vetoed(new: _Traits, entity: _Traits) -> bool:
             (new.localities, entity.localities),
             (new.districts, entity.districts),
             (new.ifscs, entity.ifscs),
+            (new.sides, entity.sides),
         )
     )
 
@@ -142,13 +166,33 @@ def _same_name(type_: EntityType, new: _Traits, entity: _Traits) -> bool:
 
 
 class EntityIndex:
-    """Places mentions one by one, in load order, into entities."""
+    """Places mentions one by one, in load order, into entities.
 
-    def __init__(self) -> None:
+    `mentions` is every mention of the case, so that ambiguity checks do not depend on which
+    of two competing writings happens to load first.
+    """
+
+    def __init__(self, mentions: Iterable[Extracted]) -> None:
         self.drafts: list[Draft] = []
         self._placed: dict[Extracted, int] = {}
         self._by_name: dict[tuple[EntityType, str], set[int]] = {}
         self._by_alias: dict[tuple[EntityType, str], set[int]] = {}
+        self._full_names: dict[str, set[str]] = {}
+        ifscs: dict[str, set[str]] = {}
+        for mention in mentions:
+            if isinstance(mention, PersonMention):
+                for name in {mention.normalized, *(a.normalized for a in mention.aliases)}:
+                    if len(name.split()) >= 2:
+                        for token in name.split():
+                            self._full_names.setdefault(token, set()).add(name)
+            elif (
+                isinstance(mention, IdentifierMention)
+                and mention.ifsc is not None
+                and mention.ifsc.normalized
+            ):
+                ifscs.setdefault(mention.normalized, set()).add(mention.ifsc.normalized)
+        # Account digits written with two different IFSCs: IFSC-less writings fit both.
+        self._split_accounts = {digits for digits, found in ifscs.items() if len(found) > 1}
 
     def place(self, mention: Extracted) -> int:
         """Index in `drafts` of the entity this mention belongs to (created when needed)."""
@@ -177,7 +221,15 @@ class EntityIndex:
 
     def _joins(self, index: int, traits: _Traits) -> bool:
         draft = self.drafts[index]
-        return _same_name(draft.type, traits, draft.traits) and not _vetoed(traits, draft.traits)
+        if not _same_name(draft.type, traits, draft.traits) or _vetoed(traits, draft.traits):
+            return False
+        [name] = traits.names
+        if draft.type is EntityType.ACCOUNT and name in self._split_accounts:
+            return bool(traits.ifscs) == bool(draft.traits.ifscs)
+        if draft.type is EntityType.PERSON and len(name.split()) == 1:
+            own = draft.traits.names | draft.traits.aliases
+            return self._full_names.get(name, set()) <= own
+        return True
 
     def _create(self, type_: EntityType) -> int:
         self.drafts.append(Draft(type_, len(self.drafts) + 1))
