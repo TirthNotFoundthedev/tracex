@@ -6,7 +6,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from tracex_engine.scoring.ruleset import CATALOGUE, EvidenceSpec, Severity
 
-ParamValue = str | int | float
+ParamValue = str | int | float | list[str]
 
 ONE_DECIMAL = Decimal("0.1")
 

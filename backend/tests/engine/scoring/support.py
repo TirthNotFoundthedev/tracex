@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 from tracex_engine.scoring import EvidenceItem, Modifier, Source
+from tracex_engine.scoring.evidence import ParamValue
 
 A = Source("C-901", "fir.txt", 12)
 B = Source("C-902", "notes.txt", 3)
@@ -14,7 +15,7 @@ def item(
     *,
     anchor: bool = False,
     trap: str | None = None,
-    params: dict[str, str | int | float] | None = None,
+    params: dict[str, ParamValue] | None = None,
 ) -> EvidenceItem:
     return EvidenceItem(
         kind=kind,
