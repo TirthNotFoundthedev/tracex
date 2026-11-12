@@ -10,6 +10,8 @@ Owner: Iyer (Engine Lead) · Task P1.1 · Ruleset version: `engine-matching/1.1`
 
 **Errata 2 (2026-11-12, from the P2.2 extraction review, PR #15).** OWNS row: a hedged, negated or ambiguous statement is never OWNS. PER_RELATIVE_NAME and PER_RELATIVE_CONFLICT: an unknown relation (SDR `relative_name`) never counts as the same relation. No weight, cap, band or flag changed; no matching code exists yet, so the ruleset version stays `engine-matching/1.1`.
 
+**Errata 3 (2026-11-13, from the P2.3 case-graph review, PR #21).** G5: an entity's extraction confidence is the highest confidence among its mentions, and an attribution below 0.7 is never an anchor (G2). No weight, cap, band or flag changed; no matching code exists yet, so the ruleset version stays `engine-matching/1.1`.
+
 ## 1. Entity types and linkable pairs
 
 | Type | Comparable attributes (normalized form produced upstream) |
@@ -146,7 +148,7 @@ Caps for PERSON and ORG pairs: T1 60, T2 55, T3 35. No single tier reaches 80, s
 | G2 anchor | PERSON: at least one SHARED_* item with both attributions OWNS and t = 1.0 | `match.gate.no_anchor`: Needs officer review: no phone, account or vehicle clearly belongs to both. |
 | G3 two tiers | PERSON: at least two tiers each contributing ≥15 after caps | `match.gate.single_tier`: Needs officer review: the evidence comes from only one kind of check. |
 | G4 no hard conflict | no hard or veto item | `match.gate.hard_conflict`: Needs officer review: some evidence disagrees. |
-| G5 legible | both entities' extraction confidence ≥ 0.7 | `match.gate.low_extraction`: Needs officer review: one record was hard to read. |
+| G5 legible | both entities' extraction confidence ≥ 0.7 (an entity's confidence is the highest among its mentions; an attribution with confidence below 0.7 is never an anchor for G2) | `match.gate.low_extraction`: Needs officer review: one record was hard to read. |
 | G6 cluster safe | C3 and C4 (§6) pass | `match.gate.cluster_conflict` / `_bridge` / `_same_case`: Needs officer review: this would join records that may not belong together. |
 | G7 type | ORG pairs never AUTO in this version | `match.gate.org_review_only`: Organisation links always need officer review. |
 
