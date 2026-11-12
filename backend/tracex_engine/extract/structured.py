@@ -28,6 +28,9 @@ from tracex_engine.normalize import (
     normalize_place,
 )
 
+# Account holders that say nothing: treated like a blank cell (no owner).
+PLACEHOLDER_HOLDERS = frozenset({"-", "n/a", "na", "nil", "none", "null", "unknown", "अज्ञात"})
+
 
 @dataclass(frozen=True)
 class StructuredRecords:
@@ -72,7 +75,7 @@ def extract_bank(row: BankRow) -> StructuredRecords:
                 confidence=CONFIDENCE_CLEAR,
             )
         )
-    if not row.holder.strip():
+    if not normalize_name(row.holder) or row.holder.strip().lower() in PLACEHOLDER_HOLDERS:
         return StructuredRecords(identifiers=tuple(identifiers))
     org_name = normalize_org_name(row.holder)
     persons: tuple[PersonMention, ...] = ()

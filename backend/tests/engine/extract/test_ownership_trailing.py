@@ -48,7 +48,8 @@ def test_words_after_the_identifier_that_can_reverse_ownership_void_it(
             {PHONE, ACCOUNT},
         ),
         (
-            f"The accused Ramesh Yadav, mobile {PHONE}, and witness Sunil Verma, mobile 9000022311.",
+            f"The accused Ramesh Yadav, mobile {PHONE}, and witness Sunil Verma, "
+            "mobile 9000022311.",
             {PHONE, "9000022311"},
         ),
     ],

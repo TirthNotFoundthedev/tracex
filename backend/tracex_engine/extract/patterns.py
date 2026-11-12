@@ -135,7 +135,7 @@ _BY_PREFIX = (
 )
 USED_BY = re.compile(rf"(?i:(?<![A-Za-z])used\s+by)\s+{_BY_PREFIX}(?P<name>{NAME})")
 LIST_NEXT = re.compile(
-    rf"(?P<sep>\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+aur\s+|\s*&\s*|\s+or\s+){_BY_PREFIX}(?P<name>{NAME})"
+    rf"(?P<sep>\s*,\s*(?:and\s+|or\s+)?|\s+and\s+(?:also\s+)?(?:by\s+)?|\s+aur\s+|\s*&\s*|\s+or\s+){_BY_PREFIX}(?P<name>{NAME})"
 )
 OR_AFTER = re.compile(r"\s+or\s+")
 USED_BY_DEV = re.compile(
@@ -180,7 +180,9 @@ ACCOUNT = re.compile(
     r"(?i:(?<![A-Za-z])(?:a/c|acct?\.?|account|khata)|खाता)\s*(?i:(?:no\.?|number|sankhya)|नंबर|संख्या)?\s*:?\s*"
     r"(?P<acc>\d{4,}(?:[ -]\d{2,}){0,4})(?!\d)"
 )
-IFSC_AFTER = re.compile(r"\s*[,(]?\s*(?i:ifsc)\s*[:-]?\s*(?P<code>[A-Za-z]{4}0[A-Za-z0-9]{6})")
+IFSC_AFTER = re.compile(
+    r"\s*[,(]?\s*(?i:ifsc)\s*[:-]?\s*(?P<code>[A-Za-z]{4}0[A-Za-z0-9]{6})(?:\s*\))?"
+)
 PHONE = re.compile(r"(?<![\d@.\w])(?:\+?91[ -]?|0)?[6-9]\d{4}[ -]?\d{5}(?![\d\w@])")
 VEHICLE = re.compile(
     r"(?<![A-Za-z0-9])[A-Za-z]{2}[ -]?\d{2}[ -]?[A-Za-z]{1,3}[ -]?\d{4}(?![A-Za-z0-9])"
@@ -231,13 +233,13 @@ APPOSITION_GAP = re.compile(
     + _SEPARATOR
     + r"\s*|\s*['’]s\s+)"
     + _PAIR
-    + r"(?:\s*(?:"
+    + r"(?:(?:\s*(?:"
     + _SEPARATOR
     + r"|"
     + _WORD_EDGE_LEFT
     + _CONNECTOR
     + _WORD_EDGE_RIGHT
-    + r")\s*"
+    + r"))+\s*"
     + _PAIR
     + r")*\s*$",
     re.IGNORECASE,
@@ -279,8 +281,30 @@ CONNECTOR_GAP = re.compile(
 # would belong to a list of people, one of whom the extractor did not recognise.
 _NAME_TOKEN = rf"(?:{_WORD_EDGE_LEFT}[A-Z][A-Za-z.'’-]*|{_DEV_TOKEN})"
 JOINED_TO_NAME = re.compile(
-    _NAME_TOKEN + r"\s*(?:[,&]|" + _CONNECTOR + r")\s*(?:" + _ROLE_WORD + r"\s*)*$",
+    r"(?:urf|alias|उर्फ)\s*(?:"
+    + _ROLE_WORD
+    + r"\s*)+$|"
+    + _NAME_TOKEN
+    + r"\s*(?:[,&]|"
+    + _CONNECTOR
+    + r")\s*(?:"
+    + _ROLE_WORD
+    + r"\s*)*$",
 )
 
 # `used by <name> (shop number, PCO)`: a closing parenthesis holding only shared-number wording.
 SHARED_NOTE_TAIL = re.compile(r"^\s*\((?P<inside>[^()]*)\)\s*$")
+
+# After the identifier of pattern A (and its optional IFSC): a closing bracket, `hai`/`है`, then
+# only commas, connectors, role words or the next cue. Any other word may change the meaning
+# (`se dhamki mili`, `में पैसे भेजे`, `of the accused`), so the statement is not an ownership.
+A_TAIL = re.compile(
+    r"^\s*\)?\s*(?:(?:hai|hain|है|हैं)\s*)?(?:(?:[,;]|"
+    + _CONNECTOR
+    + "|"
+    + _ROLE_WORD
+    + "|"
+    + _CUE_PHRASE
+    + r")\s*)*$",
+    re.IGNORECASE,
+)

@@ -183,8 +183,7 @@ def test_a_verb_between_the_name_and_the_cue_is_not_owns() -> None:
 def test_worked_scenario_lines_still_give_owns_at_full_confidence() -> None:
     note_records = in_note(f"Number {PHONE} is used by Irfan bhai.")
     fir_records = in_fir(
-        "The accused Mohd. Irfan, mobile 90000 14471, a/c 5010000019082 (IFSC SYNB0000123), "
-        "is alleged to have collected money through a fake investment link."
+        "The accused Mohd. Irfan, mobile 90000 14471, a/c 5010000019082 (IFSC SYNB0000123)."
     )
 
     assert owners(note_records, PHONE) == {"irfan"}

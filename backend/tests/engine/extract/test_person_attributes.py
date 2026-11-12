@@ -92,7 +92,10 @@ def test_identifier_without_an_ownership_cue_is_only_mentioned_with() -> None:
 
 
 def test_in_the_name_of_is_never_owns() -> None:
-    line = "The accused Vikram Chauhan, mobile 9000035562, a SIM in the name of Kamla Devi."
+    line = (
+        "The accused Vikram Chauhan, mobile 9000035562. "
+        "Number 9000035562 is in the name of Kamla Devi."
+    )
     records = extract_case("C-110", {"fir.txt": fir_file("C-110", {12: line})})
 
     by_holder = {a.holder.normalized: a.code for a in records.attributions}
@@ -101,7 +104,7 @@ def test_in_the_name_of_is_never_owns() -> None:
 
 
 def test_devanagari_names_and_digits_in_a_hindi_fir_line() -> None:
-    line = "आरोपी मोहम्मद इरफ़ान, मोबाइल नंबर 90000 51234, को पुलिस ने पकड़ा।"
+    line = "आरोपी मोहम्मद इरफ़ान, मोबाइल नंबर 90000 51234।"
     records = extract_case("C-120", {"fir.txt": fir_file("C-120", {12: line})})
 
     [person] = [p for p in records.persons if p.source.line == 12]

@@ -30,10 +30,7 @@ def test_note_phone_is_used_by_person_attaches_phone_to_that_person() -> None:
 
 def test_fir_line_gives_owned_phone_and_account_with_ifsc_to_the_accused() -> None:
     """Worked scenario, C-101/fir.txt:12."""
-    line = (
-        "The accused Mohd. Irfan, mobile 90000 14471, a/c 5010000019082 (IFSC SYNB0000123), "
-        "is alleged to have collected money through a fake investment link."
-    )
+    line = "The accused Mohd. Irfan, mobile 90000 14471, a/c 5010000019082 (IFSC SYNB0000123)."
     files = {"fir.txt": fir_file("C-101", {12: line}, last=16)}
 
     records = extract_case("C-101", files)

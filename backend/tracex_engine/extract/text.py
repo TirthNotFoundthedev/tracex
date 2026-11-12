@@ -29,6 +29,7 @@ from tracex_engine.extract.hedges import (
     is_negated,
 )
 from tracex_engine.extract.patterns import (
+    A_TAIL,
     ABBREVIATIONS,
     ACCOUNT,
     AGE,
@@ -602,8 +603,11 @@ def _attribute(
         before = [(c, h) for c, h in pairs if c.end <= ident.start and not c.registered]
         _, pronoun = _ownership_cue(sentence, ident)
         if not before:
-            only_his_number = pronoun and HIS_GAP.match(_cut(sentence, idents, 0, ident.start))
-            _from_previous_sentence(emit, index, previous, bool(only_his_number))
+            lead = _cut(sentence, idents, 0, ident.start)
+            his_number = bool(HIS_GAP.match(lead)) and bool(
+                A_TAIL.match(sentence[ident.full_end :])
+            )
+            _from_previous_sentence(emit, index, previous, pronoun if his_number else None)
             continue
         nearest, owner = before[-1]
         group_members = _listed_group(sentence, idents, [c for c, _ in before])
@@ -613,7 +617,7 @@ def _attribute(
         elif len(group_members) > 1:
             for member in group_members:
                 emit(holders[candidates.index(member)], index, AttributionCode.MENTIONED_WITH)
-        elif _owns_shape(sentence, idents, candidates, nearest, ident):
+        elif _owns_shape(sentence, idents, candidates, nearest, ident, pronoun):
             emit(owner, index, AttributionCode.OWNS)
         else:
             emit(owner, index, AttributionCode.MENTIONED_WITH)
@@ -624,13 +628,14 @@ def _from_previous_sentence(
     emit: Callable[..., None],
     index: int,
     previous: list[PersonMention | OrgMention],
-    his_or_her_number: bool,
+    pronoun: str | None,
 ) -> None:
     """Pattern D: `His number is X` binds only to a single person of the previous sentence."""
-    if not his_or_her_number:
+    if not pronoun:
         return
-    code = AttributionCode.OWNS if len(previous) == 1 else AttributionCode.MENTIONED_WITH
-    for holder in previous:
+    eligible = [h for h in previous if not _gender_conflict(h, pronoun)]
+    code = AttributionCode.OWNS if len(eligible) == 1 else AttributionCode.MENTIONED_WITH
+    for holder in eligible:
         emit(holder, index, code)
 
 
@@ -640,12 +645,15 @@ def _owns_shape(
     candidates: list[_Candidate],
     person: _Candidate,
     ident: _Ident,
+    pronoun: str | None = None,
 ) -> bool:
     """Pattern A (apposition) or C (`<name> ka number <identifier>`) matches cleanly."""
     if JOINED_TO_NAME.search(sentence[: person.start]):
         return False
+    if pronoun and _gender_conflict(person, pronoun):
+        return False
     if _apposed(sentence, idents, person, ident):
-        return True
+        return _clean_ending(sentence, idents, candidates, person, ident)
     gap = _cut(sentence, idents, _phrase_end(sentence, idents, person, ident.start), ident.start)
     if not KA_GAP.match(gap):
         return False
@@ -655,13 +663,55 @@ def _owns_shape(
     return KA_TAIL.match(tail) is not None
 
 
+def _gender_conflict(holder: object, pronoun: str) -> bool:
+    """`her` after a person stated male, or `his` after one stated female."""
+    gender = getattr(holder, "gender", None)
+    if gender is None:
+        return False
+    return (pronoun == "her" and gender.normalized == "male") or (
+        pronoun == "his" and gender.normalized == "female"
+    )
+
+
+def _clean_ending(
+    sentence: str,
+    idents: list[_Ident],
+    candidates: list[_Candidate],
+    person: _Candidate,
+    ident: _Ident,
+) -> bool:
+    """Only a clean ending may follow the identifier (see `A_TAIL`); the person's own facts
+    written after it do not count."""
+    following = [c.start for c in candidates if c.start >= ident.full_end]
+    following += [i.start for i in idents if i.start >= ident.full_end]
+    limit = min(following, default=len(sentence))
+    pieces: list[str] = []
+    position = ident.full_end
+    for start, end in sorted(person.fact_spans):
+        if start >= position and end <= limit:
+            pieces.append(sentence[position:start])
+            position = end
+    pieces.append(sentence[position:limit])
+    return A_TAIL.match("".join(pieces)) is not None
+
+
 def _apposed(sentence: str, idents: list[_Ident], person: _Candidate, ident: _Ident) -> bool:
-    """Pattern A: `person, cue identifier` and every identifier between them is such a pair too."""
+    """Pattern A: `person, cue identifier` and every identifier between them is such a pair too.
+
+    The person's own facts (age, locality ...) written between the pairs do not count."""
     start = _phrase_end(sentence, idents, person, ident.start)
     between = [i for i in idents if start <= i.start and i.full_end <= ident.start]
     if not all(_apposed(sentence, idents, person, i) for i in between):
         return False
-    return APPOSITION_GAP.match(_cut(sentence, idents, start, ident.start)) is not None
+    spans = [(i.start, i.full_end) for i in between]
+    spans += [(a, b) for a, b in person.fact_spans if a >= start and b <= ident.start]
+    pieces: list[str] = []
+    position = start
+    for a, b in sorted(spans):
+        pieces.append(sentence[position:a])
+        position = max(position, b)
+    pieces.append(sentence[position : ident.start])
+    return APPOSITION_GAP.match("".join(pieces)) is not None
 
 
 def _identifier_after(sentence: str, idents: list[_Ident], candidate: _Candidate) -> int | None:
@@ -718,9 +768,10 @@ def _listed_group(
     return group
 
 
-def _ownership_cue(sentence: str, ident: _Ident) -> tuple[bool, bool]:
+def _ownership_cue(sentence: str, ident: _Ident) -> tuple[bool, str | None]:
     """Whether an ownership cue sits right before the identifier, and whether it is his or her."""
     if ident.kind is IdKind.ACCOUNT:
-        return True, False
+        return True, None
     match = OWNERSHIP_CUE.search(sentence[max(0, ident.start - 40) : ident.start])
-    return match is not None, bool(match and match.group("pron"))
+    pronoun = match.group("pron").strip().lower() if match and match.group("pron") else None
+    return match is not None, pronoun
