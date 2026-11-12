@@ -111,14 +111,17 @@ LEADING_NON_NAME = frozenset(
     }
 )
 
+ORG_MARKER = r"(?:M/[sS]|Messrs)"
+_ANY_ORG_MARKER = rf"(?:{ORG_MARKER}|मेसर्स)"
+
 ROLE_LATIN = re.compile(
     r"(?i:(?<![A-Za-z])(?P<role>accused|suspect|complainant|witness|victim|informant|informer"
     r"|arrested|aaropi|abhiyukt|shikayatkarta|gawah|sandigdh))(?![A-Za-z])"
-    rf"[\s,:]*(?:(?i:person|named|namely)\s+)?(?P<name>{NAME})"
+    rf"[\s,:]*(?:(?i:person|named|namely)\s+)?(?!{_ANY_ORG_MARKER}(?![A-Za-zऀ-ॿ]))(?P<name>{NAME})"
 )
 ROLE_DEV = re.compile(
     r"(?P<role>आरोपी|अभियुक्त|शिकायतकर्ता|गवाह|संदिग्ध|मुखबिर|पी(?:ड़|ड़)ित)"
-    rf"[\s,:]*(?P<name>{NAME})"
+    rf"[\s,:]*(?!{_ANY_ORG_MARKER}(?![A-Za-zऀ-ॿ]))(?P<name>{NAME})"
 )
 _RELATION = r"(?:(?i:[sdw]/o|son\s+of|daughter\s+of|wife\s+of|putra|putri|patni)|पुत्र|पुत्री|पत्नी)"
 RELATION = re.compile(rf"(?P<name>{NAME})\s*,?\s*(?P<rel>{_RELATION})\s+(?P<relname>{NAME})")
@@ -150,8 +153,25 @@ NAME_KE_NAAM = re.compile(
 )
 ALIAS_AFTER = re.compile(rf"\s+(?:(?i:urf|alias)|उर्फ)\s+(?P<alias>{NAME})")
 ORG = re.compile(
-    r"(?<![A-Za-z])M/[sS]\.?[ \t]+"
+    rf"(?<![A-Za-z]){ORG_MARKER}\.?[ \t]+"
     r"(?P<name>[A-Z][A-Za-z0-9&'’.-]*(?:[ \t]+[A-Z][A-Za-z0-9&'’.-]*){0,5})"
+)
+
+ORG_DEV = re.compile(rf"मेसर्स[ \t]+(?P<name>{NAME_DEV})")
+
+# Legal suffix words of an organisation name in Devanagari (the Roman ones are ORG_SUFFIXES).
+DEV_ORG_SUFFIXES = frozenset(
+    {
+        "ट्रेडर्स",
+        "ट्रेडिंग",
+        "एंटरप्राइजेज",
+        "एंटरप्राइज",
+        "प्राइवेट",
+        "लिमिटेड",
+        "कंपनी",
+        "कम्पनी",
+        "एलएलपी",
+    }
 )
 
 AGE = re.compile(
@@ -171,6 +191,7 @@ LOCALITY = re.compile(
     r"(?P<kw>(?i:village|gram|gaon|mohalla|ward)|ग्राम|गांव|मोहल्ला|वार्ड)[ \t]+"
     rf"(?P<loc>\d{{1,3}}(?!\d)|(?:{_LOCALITY_WORD})(?:[ \t]+(?:{_LOCALITY_WORD})){{0,2}})"
 )
+PERSON_FACT = re.compile(rf"\s*,?\s*(?:{_RELATION}|{AGE.pattern}|{DOB.pattern}|{GENDER.pattern})")
 WARD_WORDS = frozenset({"ward", "वार्ड"})
 
 UPI_PHONE = re.compile(
@@ -199,7 +220,24 @@ OWNERSHIP_CUE = re.compile(
 
 SENTENCE_END = re.compile(r"[.!?;।॥]+(?=\s|$)")
 ABBREVIATIONS = frozenset(
-    {"mohd", "md", "mr", "mrs", "ms", "smt", "dr", "shri", "st", "no", "vs", "pvt", "ltd", "co"}
+    {
+        "mohd",
+        "md",
+        "mr",
+        "mrs",
+        "ms",
+        "smt",
+        "dr",
+        "shri",
+        "st",
+        "no",
+        "vs",
+        "pvt",
+        "ltd",
+        "co",
+        "m/s",
+        "messrs",
+    }
 )
 
 CUE_WORDS = _CUE_WORDS

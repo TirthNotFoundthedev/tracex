@@ -1,8 +1,8 @@
 """Extraction for one case: every file in load order, one `CaseRecords` out."""
 
-import re
 from collections.abc import Callable, Mapping
 
+from tracex_engine.extract.order import FILE_NAME, file_load_key
 from tracex_engine.extract.records import (
     Attribution,
     CaseRecords,
@@ -25,12 +25,6 @@ from tracex_engine.ingest import (
     read_notes,
 )
 from tracex_engine.ingest.tabular import split_lines
-
-# Load order within a case (data-kit section 2): fir, notes, sdr, cdr, bank; later batches
-# (`notes-02.txt`, `cdr-02.csv`) after every baseline file, by number.
-_KINDS = ("fir", "notes", "sdr", "cdr", "bank")
-_FILE_NAME = re.compile(r"^(?P<kind>fir|notes|sdr|cdr|bank)(?:-(?P<batch>\d+))?\.(?:txt|csv)$")
-_EXTENSION = {"fir": "txt", "notes": "txt", "sdr": "csv", "cdr": "csv", "bank": "csv"}
 
 
 class _Collector:
@@ -58,18 +52,16 @@ def extract_case(case_id: str, files: Mapping[str, str]) -> CaseRecords:
     follow. A file whose name is not one of the data-kit kinds is reported, not read.
     """
     out = _Collector()
-    ordered: list[tuple[tuple[int, int], str, str]] = []
+    readable: list[tuple[str, str]] = []
     for name in sorted(files):
-        match = _FILE_NAME.match(name)
+        match = FILE_NAME.match(name)
         if match is None:
             out.errors.append(
                 RowError(SourceRef(case_id, name, 1), "", "file name not recognised; not read")
             )
             continue
-        kind = match["kind"]
-        batch = int(match["batch"]) if match["batch"] else 1
-        ordered.append(((batch, _KINDS.index(kind)), kind, name))
-    for _, kind, name in sorted(ordered):
+        readable.append((match["kind"], name))
+    for kind, name in sorted(readable, key=lambda item: file_load_key(item[1])):
         _READERS[kind](case_id, name, files[name], out)
     return CaseRecords(
         case_id=case_id,

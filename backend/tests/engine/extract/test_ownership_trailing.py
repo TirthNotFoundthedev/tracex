@@ -87,7 +87,23 @@ def test_his_number_with_trailing_words_is_void() -> None:
 # --- follow-ups --------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("holder", ["-", "UNKNOWN", "N/A", "NA", "nil", "अज्ञात", "  "])
+@pytest.mark.parametrize(
+    "holder",
+    [
+        "-",
+        "UNKNOWN",
+        "N/A",
+        "NA",
+        "nil",
+        "अज्ञात",
+        "  ",
+        "UNKNOWN PERSON",
+        "Unknown   Person",
+        "NOT KNOWN",
+        "Not Available",
+        "अज्ञात व्यक्ति",
+    ],
+)
 def test_a_placeholder_bank_holder_is_blank(holder: str) -> None:
     text = pinned_file({1: BANK_HEADER, 2: bank_row(2, holder=holder)}, lambda n: "")
 
