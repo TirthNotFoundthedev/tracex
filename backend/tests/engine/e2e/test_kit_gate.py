@@ -12,9 +12,12 @@ The scorer's `ok` cannot say "expected link not reached yet, nothing wrong store
 test reads its report (see the PR for the request to the kit owner).
 """
 
+from typing import Any
+
 import pytest
 
 from tests.engine.e2e.conftest import KitRun
+from tests.engine.e2e.kit import failures_by_link
 
 # (a) Expected links Tier 1 reaches: identifier pairs with ID_EXACT only (G5 and G6 included).
 TIER1_REACHABLE = {
@@ -116,10 +119,8 @@ def kit_run(request: pytest.FixtureRequest) -> tuple[str, KitRun]:
     return batch, request.getfixturevalue(f"run_{batch}")
 
 
-def failures(report: dict[str, object]) -> dict[str, set[str]]:
-    from tests.engine.e2e.kit import failures_by_link
-
-    return failures_by_link(report)  # type: ignore[arg-type]
+def failures(report: dict[str, Any]) -> dict[str, set[str]]:
+    return failures_by_link(report)
 
 
 def test_every_tier1_reachable_link_passes_s1(kit_run: tuple[str, KitRun]) -> None:
