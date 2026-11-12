@@ -248,16 +248,21 @@ def test_names_written_with_an_alias_clause_keep_the_alias_in_attributes(
         entity = named[gt_id]
         assert " urf " not in entity["raw_text"]
         assert alias in entity["attributes"]["aliases"]
-    with_alias = [
-        e
-        for e in gt["entities"]
-        if e["type"] == "PERSON" and e.get("attributes", {}).get("aliases")
-    ]
-    assert len(with_alias) >= 30
-    for entity in with_alias:
-        ref = entity["mentions"][0]
-        lines = read_case_file(ref["case_id"], ref["file"])
-        assert f"{entity['raw_text']} urf " in lines[ref["line"] - 1], entity["gt_id"]
+    # The property, not a count: a PERSON is written with an alias clause on its line exactly
+    # when it carries aliases, and then its raw_text stops before the clause.
+    for entity in gt["entities"]:
+        if entity["type"] != "PERSON":
+            continue
+        written_with_alias = False
+        for ref in entity["mentions"]:
+            try:
+                lines = read_case_file(ref["case_id"], ref["file"])
+            except FileNotFoundError:
+                lines = read_case_file(ref["case_id"], ref["file"], "b02")
+            line = lines[ref["line"] - 1]
+            written_with_alias |= f"{entity['raw_text']} urf " in line
+        has_aliases = bool(entity.get("attributes", {}).get("aliases"))
+        assert written_with_alias == has_aliases, entity["gt_id"]
 
 
 def test_the_org_raw_text_drops_the_m_s_prefix_but_stays_on_the_line(

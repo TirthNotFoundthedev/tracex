@@ -29,6 +29,31 @@ def nfc(text: str) -> str:
     return unicodedata.normalize("NFC", text)
 
 
+_ROLE_WORDS = (
+    "Accused", "Complainant", "Witness", "Abhiyukt", "Shikayatkarta", "Gawah",
+    "अभियुक्त", "शिकायतकर्ता", "गवाह",
+)  # fmt: skip
+_ALIAS_MARKERS = (" urf ", " उर्फ ", " alias ")
+
+
+def bare_name(raw: str) -> str:
+    """A PERSON or ORG name as the extractor reads it: no role word, no `M/s`, no alias clause.
+
+    Used for the ground truth only: the alias stays in `attributes.aliases`, and the case files
+    keep the full text the generator renders from `Entity.raw_text`.
+    """
+    name = raw.strip()
+    for word in _ROLE_WORDS:
+        if name.startswith(word + " "):
+            name = name[len(word) :].lstrip()
+    if name.startswith("M/s "):
+        name = name[4:].lstrip()
+    for marker in _ALIAS_MARKERS:
+        if marker in name:
+            name = name.split(marker, 1)[0]
+    return name.strip()
+
+
 def csv_line(cells: list[str]) -> str:
     buffer = io.StringIO()
     csv.writer(buffer, lineterminator="").writerow(cells)
