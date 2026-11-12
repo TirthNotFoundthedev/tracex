@@ -6,8 +6,8 @@ import copy
 from typing import Any
 
 import pytest
-from datakit.scorer import ScoreInputError, format_report, score
 
+from datakit.scorer import ScoreInputError, format_report, score
 from tests.scorer_helpers import (
     add_edge,
     drop_edge_of_link,
@@ -39,7 +39,13 @@ def _wrong_kinds(report: dict[str, Any]) -> list[str]:
 
 
 def _non_link(gt: dict[str, Any], forbid: str) -> dict[str, Any]:
-    found: dict[str, Any] = next(n for n in gt["expected_non_links"] if n["forbid"] == forbid)
+    """A non-link of the given kind whose pair no other non-link row also names."""
+    pairs = [frozenset({n["a"], n["b"]}) for n in gt["expected_non_links"]]
+    found: dict[str, Any] = next(
+        n
+        for n in gt["expected_non_links"]
+        if n["forbid"] == forbid and pairs.count(frozenset({n["a"], n["b"]})) == 1
+    )
     return found
 
 
@@ -54,7 +60,7 @@ def test_a_result_derived_from_ground_truth_passes_every_check(
     assert report["missed_links"] == []
     assert report["wrong_links"] == []
     assert report["forbidden_hits"] == []
-    assert report["skipped"] == []
+    assert [item["id"] for item in report["skipped"]] == ["EL-SF07-PER-B01"]
     assert _failing_acs(report) == set()
 
 
@@ -198,9 +204,9 @@ def test_wrong_band_fails_only_that_link(gt: dict[str, Any], broken: dict[str, A
 
 
 def test_wrong_state_fails_only_that_link(gt: dict[str, Any], broken: dict[str, Any]) -> None:
-    edge_of_link(broken, gt, "EL-FX02-VEH")["state"] = "SUGGESTED"
+    edge_of_link(broken, gt, "EL-FX02-0-1")["state"] = "SUGGESTED"
     report = score(gt, broken)
-    assert [(w["id"], w["kind"]) for w in report["wrong_links"]] == [("EL-FX02-VEH", "state")]
+    assert [(w["id"], w["kind"]) for w in report["wrong_links"]] == [("EL-FX02-0-1", "state")]
     assert _failing_acs(report) == {"AC-02"}
 
 
@@ -284,7 +290,10 @@ def test_auto_edge_on_a_suggested_link_that_carries_a_trap_is_a_forbidden_hit(
     edge_of_link(broken, gt, link["id"])["state"] = "AUTO"
     report = score(gt, broken)
     assert [(h["id"], h["trap"]) for h in report["forbidden_hits"]] == [(link["id"], "TR-05")]
-    assert [(w["id"], w["kind"]) for w in report["wrong_links"]] == [(link["id"], "state")]
+    assert [(w["id"], w["kind"]) for w in report["wrong_links"] if w["id"]] == [
+        (link["id"], "state")
+    ]
+    assert _wrong_kinds(report) == ["closed_world", "state"]
     assert _failing_acs(report) == set(link["ac"])
 
 

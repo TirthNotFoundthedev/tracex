@@ -123,8 +123,8 @@ def test_evidence_reader_finds_the_values_the_isolation_check_depends_on(
     assert evidence["C-101"].names >= {"mohammad irfan", "harish arora"}
 
 
-def test_the_reader_sees_ages_dobs_and_localities_written_only_in_text(
-    evidence: dict[str, CaseEvidence], gt: dict[str, Any], small_dir: Path
+def test_the_reader_sees_every_age_ground_truth_records(
+    evidence: dict[str, CaseEvidence], gt: dict[str, Any]
 ) -> None:
     attrs_age = {
         str(e["attributes"]["age"])

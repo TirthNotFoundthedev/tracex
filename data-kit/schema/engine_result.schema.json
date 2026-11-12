@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "engine-result/1",
+  "title": "TraceX engine result, input of the data kit scorer",
+  "description": "What `python -m datakit score --result` reads. Independent of the engine's internal types and of the API contract: an adapter maps the engine's entities and SAME_AS edges to this shape. Entity ids are opaque and are never used to match ground truth; entities map by mention lines and value (spec section 8.1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "batches_loaded", "harness_applied", "entities", "edges"],
+  "properties": {
+    "schema_version": { "const": "engine-result/1" },
+    "batches_loaded": {
+      "description": "Batches loaded and matched before this result was taken. Expected links whose batch_min is later are skipped.",
+      "type": "array",
+      "items": { "enum": ["b01", "b02"] }
+    },
+    "harness_applied": {
+      "description": "Ids of ground-truth scenarios[] whose human actions were applied before this result was taken (for example HS-AC13). Expected links that name a harness not listed here are skipped.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entities": { "type": "array", "items": { "$ref": "#/$defs/entity" } },
+    "edges": {
+      "description": "Every stored SAME_AS edge, in any state. A pair the engine scored Low and did not store has no edge.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "oversized_block_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "file", "line"],
+      "properties": {
+        "case_id": { "type": "string" },
+        "file": { "type": "string", "description": "File name inside the case directory, e.g. notes.txt, cdr-02.csv" },
+        "line": { "type": "integer", "minimum": 1, "description": "1-based line number" }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "raw_text", "normalized", "mentions"],
+      "properties": {
+        "id": { "type": "string", "description": "Opaque, unique inside this document" },
+        "type": { "enum": ["PERSON", "ORG", "PHONE", "ACCOUNT", "VEHICLE"] },
+        "raw_text": { "type": "string", "description": "The text as written. PERSON and ORG map on this." },
+        "normalized": { "type": "string", "description": "The engine's normalized form. PHONE, ACCOUNT and VEHICLE map on this." },
+        "mentions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ref" },
+          "description": "Every source line that writes this entity"
+        }
+      }
+    },
+    "gate": {
+      "description": "A failed gate: its id (G1..G7), or an object with the template key for G6 sub-cases. Compared as a set.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gate", "template_key"],
+          "properties": {
+            "gate": { "type": "string" },
+            "template_key": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a", "b", "state", "band", "score", "gates_failed", "sources"],
+      "properties": {
+        "a": { "type": "string", "description": "Entity id" },
+        "b": { "type": "string", "description": "Entity id; endpoint order does not matter" },
+        "state": { "enum": ["AUTO", "SUGGESTED", "CONFIRMED", "REJECTED", "UNDONE", "WITHDRAWN"] },
+        "band": { "enum": ["HIGH", "MEDIUM", "LOW"] },
+        "score": {
+          "description": "A number or a decimal string; compared by decimal equality where ground truth says exact",
+          "oneOf": [{ "type": "number" }, { "type": "string", "pattern": "^-?[0-9]+(\\.[0-9]+)?$" }]
+        },
+        "gates_failed": { "type": "array", "items": { "$ref": "#/$defs/gate" } },
+        "evidence_kinds": { "type": "array", "items": { "type": "string" } },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref" },
+          "description": "Every (case, file, line) the edge's explanation cites"
+        }
+      }
+    }
+  }
+}
