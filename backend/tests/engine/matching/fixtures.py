@@ -63,14 +63,24 @@ AC01_FIXTURE = {
 }
 
 
-def ac01_graphs() -> tuple[CaseGraph, CaseGraph]:
-    """AC-01: C-101 FIR line 12 and bank rows 4 and 7; C-201 CDR rows 33 and 41 and note 3."""
+def ac01_graphs(extra_phone: str | None = None) -> tuple[CaseGraph, CaseGraph]:
+    """AC-01: C-101 FIR line 12 and bank rows 4 and 7; C-201 CDR rows 33 and 41 and note 3.
+
+    `extra_phone`: a later batch (`notes-02.txt`) in both cases says the person also owns this
+    phone; existing entity ids do not move."""
+    later = []
+    if extra_phone:
+        later = [
+            owns(person(name, 3, "notes-02.txt"), phone(extra_phone, 3, "notes-02.txt"))
+            for name in ("Mohd. Irfan", "Irfan bhai")
+        ]
     c101 = build(
         "C-101",
         identifiers=[phone("9000021203", 4, "bank.csv"), phone("9000028816", 7, "bank.csv")],
         attributions=[
             owns(person("Mohd. Irfan"), phone("9000014471", raw="90000 14471")),
             owns(person("Mohd. Irfan"), account("5010000019082", ifsc="SYNB0000123")),
+            *later[:1],
         ],
     )
     c201 = build(
@@ -81,7 +91,8 @@ def ac01_graphs() -> tuple[CaseGraph, CaseGraph]:
             phone("9000028816", 41, "cdr.csv"),
         ],
         attributions=[
-            owns(person("Irfan bhai", 3, "notes.txt"), phone("9000014471", 3, "notes.txt"))
+            owns(person("Irfan bhai", 3, "notes.txt"), phone("9000014471", 3, "notes.txt")),
+            *later[1:],
         ],
     )
     return c101, c201

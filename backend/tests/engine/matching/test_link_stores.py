@@ -159,3 +159,20 @@ def test_the_matcher_gives_the_same_edges_over_neo4j_and_in_memory() -> None:
     finally:
         clean(d)
         d.close()
+
+
+@pytest.mark.parametrize("stores", STORES, indirect=True)
+def test_a_conditional_write_loses_against_a_newer_edge(
+    stores: tuple[CaseGraphStore, LinkStore],
+) -> None:
+    graphs, links = stores
+    loaded(graphs)
+    edge = first_edge(graphs, links)
+    newer = replace(edge, state=LinkState.CONFIRMED, updated_at="2026-11-21T00:00:00Z")
+    links.put(newer)
+
+    won = links.put_if_unchanged(replace(edge, state=LinkState.UNDONE), edge.updated_at)
+
+    assert not won and links.get(edge.link_id) == newer
+    assert links.put_if_unchanged(replace(newer, state=LinkState.UNDONE), newer.updated_at)
+    assert links.get(edge.link_id) == replace(newer, state=LinkState.UNDONE)
