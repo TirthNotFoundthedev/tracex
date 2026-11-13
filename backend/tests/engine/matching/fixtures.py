@@ -52,6 +52,8 @@ def _params(kind: str, a: Entity, b: Entity, strength: str) -> dict[str, ParamVa
         "PER_RELATIVE_NAME": {"rel_a": "fixture", "rel_b": "fixture"},
         "PER_LOCALITY": {"place": "fixture"},
         "PER_AGE_CLOSE": {"age_a": 34, "age_b": 35},
+        "PER_DOB_MATCH": {"dob": "1990-04-12"},
+        "PER_CO_LOCATION": {"k": 3},
     }
     return shapes.get(kind, {})
 
