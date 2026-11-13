@@ -2,7 +2,10 @@
 
 The engine checks only that `expected_from` is the edge's current state and that the transition
 is legal; role and jurisdiction checks are the API's. The call is idempotent on `decision_id`: a
-replay returns the recorded transition and changes nothing.
+replay with the same arguments returns the recorded transition and changes nothing; the same
+`decision_id` with other arguments is refused (REPLAY_CONFLICT). The write is a compare-and-set
+on the `updated_at` read, so a concurrent replay or another decision cannot both win: the loser
+re-reads the edge and answers from what is stored.
 """
 
 from collections.abc import Callable
@@ -12,6 +15,7 @@ from tracex_engine.matching.model import (
     DecisionError,
     HistoryEntry,
     LinkState,
+    SameAsEdge,
     TransitionRecord,
 )
 
@@ -38,12 +42,14 @@ def apply_decision(
     reason_code: str | None,
     reason_text: str | None,
 ) -> TransitionRecord | DecisionError:
+    wanted = (expected_from, to_state, actor_user_id, reason_code, reason_text)
     edge = links.get(link_id)
-    if edge is not None:
-        for entry in edge.history:
-            if entry.decision_id == decision_id:
-                return _record(link_id, entry)
-    if edge is None or edge.state is not expected_from:
+    if edge is None:
+        return DecisionError.NOT_FOUND
+    replayed = _replay(edge, decision_id, wanted)
+    if replayed is not None:
+        return replayed
+    if edge.state is not expected_from:
         return DecisionError.STATE_MISMATCH
     if (expected_from, to_state) not in LEGAL_DECISIONS:
         return DecisionError.ILLEGAL_TRANSITION
@@ -51,8 +57,34 @@ def apply_decision(
     entry = HistoryEntry(
         expected_from, to_state, actor_user_id, at, reason_code, reason_text, decision_id
     )
-    links.put(edge.with_changes(state=to_state, updated_at=at, history=(*edge.history, entry)))
-    return _record(link_id, entry)
+    changed = edge.with_changes(state=to_state, updated_at=at, history=(*edge.history, entry))
+    if links.put_if_unchanged(changed, edge.updated_at):
+        return _record(link_id, entry)
+    current = links.get(link_id)
+    if current is None:
+        return DecisionError.NOT_FOUND
+    return _replay(current, decision_id, wanted) or DecisionError.STATE_MISMATCH
+
+
+def _replay(
+    edge: SameAsEdge,
+    decision_id: str,
+    wanted: tuple[LinkState, LinkState, str, str | None, str | None],
+) -> TransitionRecord | DecisionError | None:
+    """The stored outcome of `decision_id` on this edge, or None if it was never applied."""
+    for entry in edge.history:
+        if entry.decision_id == decision_id:
+            stored = (
+                entry.from_state,
+                entry.to_state,
+                entry.actor,
+                entry.reason_code,
+                entry.reason_text,
+            )
+            if stored != wanted:
+                return DecisionError.REPLAY_CONFLICT
+            return _record(edge.link_id, entry)
+    return None
 
 
 def _record(link_id: str, entry: HistoryEntry) -> TransitionRecord:

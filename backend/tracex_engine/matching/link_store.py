@@ -3,6 +3,11 @@
 At most one edge per canonical pair at any time. Edges are replaced whole, keyed by `link_id`;
 `remove` exists only for WITHDRAWN (spec section 6: apart from withdrawal the engine never
 deletes an edge). Case graphs are never touched, so a case rewrite keeps every edge.
+
+`put_if_unchanged` is the compare-and-set human decisions use: it writes only when the stored
+edge still has the `updated_at` the caller read. Pair uniqueness in `put` is a read-then-write
+check; it relies on the API's guard that at most one matching run is RUNNING and no decision
+is accepted meanwhile (spec section 6), so two writers never race on one pair.
 """
 
 from typing import Protocol
@@ -24,6 +29,10 @@ class LinkStore(Protocol):
 
     def put(self, edge: SameAsEdge) -> None:
         """Create the edge, or replace the edge with the same `link_id` (same pair)."""
+        ...
+
+    def put_if_unchanged(self, edge: SameAsEdge, expected_updated_at: str) -> bool:
+        """Replace the stored edge only if its `updated_at` is still `expected_updated_at`."""
         ...
 
     def remove(self, link_id: str) -> None:
@@ -61,6 +70,13 @@ class InMemoryLinkStore:
             raise LinkConflictError("a link id never moves to another pair")
         self._by_id[edge.link_id] = edge
         self._by_pair[edge.pair] = edge.link_id
+
+    def put_if_unchanged(self, edge: SameAsEdge, expected_updated_at: str) -> bool:
+        current = self._by_id.get(edge.link_id)
+        if current is None or current.updated_at != expected_updated_at:
+            return False
+        self.put(edge)
+        return True
 
     def remove(self, link_id: str) -> None:
         edge = self._by_id.pop(link_id, None)

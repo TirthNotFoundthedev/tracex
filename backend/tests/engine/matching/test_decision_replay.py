@@ -8,7 +8,6 @@ with other arguments is refused, and a link id with no edge is NOT_FOUND.
 import pytest
 
 from tests.engine.matching.fixtures import AC01_FIXTURE, ac01_graphs, matcher
-from tests.engine.matching.support import clock
 from tracex_engine.matching import (
     DecisionError,
     InMemoryLinkStore,
@@ -40,7 +39,7 @@ class RacingLinks(InMemoryLinkStore):
         edge = super().get(link_id)
         if self.racer is not None:
             racer, self.racer = self.racer, None
-            outcome = apply_decision(self, clock(), *racer)  # type: ignore[arg-type]
+            outcome = apply_decision(self, lambda: "2026-12-01T00:00:00Z", *racer)  # type: ignore[arg-type]
             assert isinstance(outcome, TransitionRecord)
         return edge
 

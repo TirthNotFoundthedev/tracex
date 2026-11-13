@@ -85,7 +85,10 @@ class MatchRun:
     ) -> None:
         self.graphs, self.links, self.providers = graphs, links, providers
         self.clock, self.new_id, self.thresholds = clock, new_id, thresholds
+        # Filled only after the store write that makes each one true (never ahead of it).
         self.transitions: list[TransitionRecord] = []
+        self.updated: list[str] = []
+        self.created: Counter[str] = Counter({"AUTO": 0, "SUGGESTED": 0})
         self.by_state: Counter[str] = Counter()
         self.by_band: Counter[str] = Counter()
 
@@ -135,8 +138,9 @@ class MatchRun:
             counts_by_band=dict(self.by_band),
             oversized_block=id_found.oversized_block + party_found.oversized_block,
             status=RunStatus.SUCCEEDED,
+            created_by_state=dict(self.created),
         )
-        return RunResult(run, tuple(self.transitions))
+        return RunResult(run, tuple(self.transitions), tuple(self.updated))
 
     def _add(self, pair: Pair, scope: frozenset[str], ids: set[Pair], parties: set[Pair]) -> None:
         entities = self.corpus.entities
@@ -204,18 +208,15 @@ class MatchRun:
             "medium_min": self.thresholds.medium_min,
         }
 
-    def _record(
+    def _transition(
         self,
         edge: SameAsEdge,
         frm: LinkState | None,
         to: LinkState | None,
         reason: str | None,
         at: str,
-    ) -> HistoryEntry:
-        self.transitions.append(
-            TransitionRecord(edge.link_id, frm, to, ENGINE_ACTOR, self.run_id, None, reason, at)
-        )
-        return HistoryEntry(frm, to, ENGINE_ACTOR, at, reason)
+    ) -> TransitionRecord:
+        return TransitionRecord(edge.link_id, frm, to, ENGINE_ACTOR, self.run_id, None, reason, at)
 
     def _create(
         self, s: Scored, failed: tuple[FailedGate, ...], state: LinkState, now: str
@@ -234,8 +235,10 @@ class MatchRun:
             updated_at=now,
             **content,  # type: ignore[arg-type]
         )
-        entry = self._record(edge, None, state, None, now)
-        self.links.put(edge.with_changes(history=(entry,)))
+        record = self._transition(edge, None, state, None, now)
+        self.links.put(edge.with_changes(history=(_entry(record),)))
+        self.transitions.append(record)
+        self.created[state.value] += 1
         return state
 
     def _update(
@@ -250,17 +253,33 @@ class MatchRun:
         content = self._content(s, failed)
         if state is edge.state and all(getattr(edge, k) == v for k, v in content.items()):
             return
-        history = edge.history
-        for reason in reasons:
-            history += (self._record(edge, edge.state, state, reason.value, now),)
+        records = [self._transition(edge, edge.state, state, r.value, now) for r in reasons]
+        history = edge.history + tuple(_entry(r) for r in records)
         self.links.put(
             edge.with_changes(
                 state=state, match_run_id=self.run_id, updated_at=now, history=history, **content
             )
         )
+        self.transitions.extend(records)
+        if not records:
+            self.updated.append(edge.link_id)
 
     def _withdraw(self, edge: SameAsEdge, now: str) -> None:
+        records = []
         if edge.state is LinkState.AUTO:
-            self._record(edge, LinkState.AUTO, LinkState.SUGGESTED, ReasonCode.DEMOTED.value, now)
-        self._record(edge, LinkState.SUGGESTED, None, ReasonCode.WITHDRAWN.value, now)
+            records.append(
+                self._transition(
+                    edge, LinkState.AUTO, LinkState.SUGGESTED, ReasonCode.DEMOTED.value, now
+                )
+            )
+        records.append(
+            self._transition(edge, LinkState.SUGGESTED, None, ReasonCode.WITHDRAWN.value, now)
+        )
         self.links.remove(edge.link_id)
+        self.transitions.extend(records)
+
+
+def _entry(record: TransitionRecord) -> HistoryEntry:
+    return HistoryEntry(
+        record.from_state, record.to_state, ENGINE_ACTOR, record.at, record.reason_code
+    )

@@ -4,6 +4,11 @@ The relationship runs from `entity_a_id` to `entity_b_id`; nothing is written on
 nodes. Structured properties (gates, evidence, history) are stored as JSON strings and scores as
 decimal strings, so a read gives back exactly the edge that was written. Case-graph writes never
 touch SAME_AS relationships, so edges survive a case rewrite.
+
+`put` is one idempotent write transaction (MERGE on `link_id`, unique constraint), so replaying
+an edge is safe. Its pair check is read-then-write without a lock: one edge per pair relies on
+the API's one-RUNNING-run guard. `put_if_unchanged` compares `updated_at` inside the write
+transaction, so two decisions on one edge cannot both win.
 """
 
 import json
@@ -73,6 +78,10 @@ class Neo4jLinkStore:
         with self._driver.session() as session:
             session.execute_write(_put, edge)
 
+    def put_if_unchanged(self, edge: SameAsEdge, expected_updated_at: str) -> bool:
+        with self._driver.session() as session:
+            return bool(session.execute_write(_put_if_unchanged, edge, expected_updated_at))
+
     def remove(self, link_id: str) -> None:
         with self._driver.session() as session:
             session.run(_REMOVE, link_id=link_id).consume()
@@ -90,6 +99,17 @@ def _put(tx: ManagedTransaction, edge: SameAsEdge) -> None:
     ).single()
     if not written or written["n"] != 1:
         raise LinkConflictError("both entities must exist before they are linked")
+
+
+_SWAP: LiteralString = (
+    "MATCH (:Entity)-[r:SAME_AS {link_id: $link_id}]->(:Entity) "
+    "WHERE r.updated_at = $expected SET r = $props RETURN count(r) AS n"
+)
+
+
+def _put_if_unchanged(tx: ManagedTransaction, edge: SameAsEdge, expected: str) -> bool:
+    record = tx.run(_SWAP, link_id=edge.link_id, expected=expected, props=_props(edge)).single()
+    return bool(record and record["n"] == 1)
 
 
 def _props(edge: SameAsEdge) -> dict[str, Any]:

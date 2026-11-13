@@ -185,7 +185,7 @@ def test_illegal_transitions_change_nothing(first: LinkState, then: LinkState) -
 
 
 def test_an_auto_link_cannot_be_rejected_and_a_stale_state_is_refused() -> None:
-    """AC-24: AUTO -> REJECTED is illegal; an expected_from that is not current is a mismatch."""
+    """AC-24: AUTO -> REJECTED is illegal; an expected_from that is not current is a mismatch; no edge is NOT_FOUND."""
     m = ac01()
     edge = person_edge(m)
 
@@ -203,7 +203,7 @@ def test_an_auto_link_cannot_be_rejected_and_a_stale_state_is_refused() -> None:
         m.apply_decision(
             "no-such-link", LinkState.AUTO, LinkState.CONFIRMED, "u", "d-3", None, None
         )
-        is DecisionError.STATE_MISMATCH
+        is DecisionError.NOT_FOUND
     )
     assert person_edge(m) == edge
 

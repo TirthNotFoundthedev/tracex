@@ -32,8 +32,10 @@ from tracex_engine.matching.model import (
 from tracex_engine.matching.neo4j_links import Neo4jLinkStore
 from tracex_engine.matching.providers import EvidenceProvider, NotYetImplemented, pending_seams
 from tracex_engine.matching.result_export import engine_result, write_engine_result
+from tracex_engine.scoring import DEFAULT_THRESHOLDS, Thresholds, ThresholdsError
 
 __all__ = [
+    "DEFAULT_THRESHOLDS",
     "DecisionError",
     "EvidenceProvider",
     "HistoryEntry",
@@ -49,6 +51,8 @@ __all__ = [
     "RunResult",
     "RunStatus",
     "SameAsEdge",
+    "Thresholds",
+    "ThresholdsError",
     "TransitionRecord",
     "build_explanation",
     "cited_sources",

@@ -126,17 +126,30 @@ class RunRecord:
     oversized_block: int
     status: RunStatus
     error_code: str | None = None
+    # Edges this run created, by state (AUTO, SUGGESTED): the totals an ADMIN may see.
+    created_by_state: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class RunResult:
+    """`transitions`: one record per state change. `updated_link_ids`: edges the run rewrote
+    without a state change (score, band, gates, evidence, thresholds, run id); the API refreshes
+    its link rows and cited lines from `explanation(link_id)` for both."""
+
     run: RunRecord
     transitions: tuple[TransitionRecord, ...]
+    updated_link_ids: tuple[str, ...] = ()
 
 
 class DecisionError(StrEnum):
-    """Why `apply_decision` changed nothing. A link id with no edge (never created, or
-    withdrawn) is a STATE_MISMATCH: `expected_from` is not its current state."""
+    """Why `apply_decision` changed nothing.
+
+    NOT_FOUND: no edge has this link id (never created, or withdrawn).
+    STATE_MISMATCH: `expected_from` is not the edge's current state (also after losing a race).
+    ILLEGAL_TRANSITION: the transition is not in the spec section 6 table.
+    REPLAY_CONFLICT: the `decision_id` is already applied with other arguments."""
 
     ILLEGAL_TRANSITION = "ILLEGAL_TRANSITION"
     STATE_MISMATCH = "STATE_MISMATCH"
+    NOT_FOUND = "NOT_FOUND"
+    REPLAY_CONFLICT = "REPLAY_CONFLICT"

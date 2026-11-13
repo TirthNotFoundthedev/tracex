@@ -32,7 +32,7 @@ from tracex_engine.matching.model import (
 )
 from tracex_engine.matching.providers import EvidenceProvider, default_providers
 from tracex_engine.matching.run import MatchRun
-from tracex_engine.scoring import DEFAULT_THRESHOLDS, RULESET_VERSION, Thresholds
+from tracex_engine.scoring import DEFAULT_THRESHOLDS, RULESET_VERSION, Thresholds, ThresholdsError
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,8 @@ class Matcher:
                 DEFAULT_THRESHOLDS.high_min, DEFAULT_THRESHOLDS.medium_min, thresholds_version
             )
         else:
+            if "high_min" not in thresholds or "medium_min" not in thresholds:
+                raise ThresholdsError("thresholds need high_min and medium_min")
             limits = Thresholds.validated(
                 thresholds["high_min"], thresholds["medium_min"], thresholds_version
             )
@@ -99,8 +101,9 @@ class Matcher:
                 oversized_block=0,
                 status=RunStatus.FAILED,
                 error_code="ENGINE_ERROR",
+                created_by_state=dict(run.created),
             )
-            return RunResult(record, tuple(run.transitions))
+            return RunResult(record, tuple(run.transitions), tuple(run.updated))
 
     def apply_decision(
         self,
@@ -129,6 +132,7 @@ class Matcher:
         return build_explanation(edge) if edge else None
 
     def cluster_of(self, entity_id: str) -> set[str]:
+        # Loads every edge per call: fine at kit scale; revisit with a traversal at scale.
         graph = ActiveGraph()
         for edge in self.links.edges():
             if edge.state in ACTIVE_STATES:

@@ -169,4 +169,4 @@ def test_invalid_or_incomplete_thresholds_raise_thresholds_error(
 
 
 def test_thresholds_types_are_exported_for_the_api() -> None:
-    assert DEFAULT_THRESHOLDS == Thresholds.validated(80, 45, 1)
+    assert Thresholds.validated(80, 45, 1) == DEFAULT_THRESHOLDS
