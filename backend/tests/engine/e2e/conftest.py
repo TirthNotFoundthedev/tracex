@@ -1,5 +1,6 @@
 """Session fixtures: the small kit is generated once, and each batch run is made once."""
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ class KitRun:
     results: list[RunResult]
     document: dict[str, Any]
     report: dict[str, Any]
+    truth: dict[str, Any]
 
 
 @pytest.fixture(scope="session")
@@ -31,7 +33,8 @@ def _run(kit: Path, upto: str, workdir: Path) -> KitRun:
     matcher, results = run_batches(graphs, links, kit, upto)
     batches = ["b01"] if upto == "b01" else ["b01", "b02"]
     document = result_document(graphs, links, batches, results[-1])
-    return KitRun(matcher, results, document, score(kit, document, workdir))
+    truth = json.loads((kit / "ground_truth.json").read_text("utf-8"))
+    return KitRun(matcher, results, document, score(kit, document, workdir), truth)
 
 
 @pytest.fixture(scope="session")

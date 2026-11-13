@@ -5,19 +5,22 @@ evidence cannot pass yet. The gate is therefore:
   (a) every expected link reachable with Tier 1 passes the scorer's S1 checks;
   (b) the zero-tolerance checks hold over the whole kit, noise included: no forbidden-trap hit,
       no AUTO edge outside a cross_case group, every S4 integrity clause;
-  (d) every expected link not reachable yet is listed with the tier it waits for, and what is
-      stored for it is not wrong: no AUTO where a SUGGESTED link is expected, no source outside
-      its two end cases.
+  (d) every expected link not reachable yet is pinned per batch in `waiting.py` with the tier
+      it waits for and its exact failure kinds (equality, as are the skipped links), and what is
+      stored for it is never above its expected state or score and cites nothing outside its
+      two end cases.
 The scorer's `ok` cannot say "expected link not reached yet, nothing wrong stored", so this
 test reads its report (see the PR for the request to the kit owner).
 """
 
+from decimal import Decimal
 from typing import Any
 
 import pytest
 
 from tests.engine.e2e.conftest import KitRun
 from tests.engine.e2e.kit import failures_by_link
+from tests.engine.e2e.waiting import FAILING, MISSED, SKIPPED
 
 # (a) Expected links Tier 1 reaches: identifier pairs with ID_EXACT only (G5 and G6 included).
 TIER1_REACHABLE = {
@@ -70,35 +73,6 @@ TIER1_REACHABLE = {
     ],
 }
 
-# (d) Expected links that wait for a later tier: the highest tier each needs.
-WAITING = {
-    "EL-FX01-PER": 3,  # PER_NAME_SIM (2) + PER_SHARED_NETWORK (3)
-    "EL-FX03-PHN": 2,  # PHONE_TRANSPOSED, B2 blocking
-    "EL-FX05-PER": 2,  # name, age, locality; no shared identifier until b02
-    "EL-FX08-PER": 3,  # PER_SHARED_NETWORK k=4, PER_LOCALITY
-    "EL-FX10-PER": 2,  # PER_NAME_SIM, PER_LOCALITY (DOB conflict already applied)
-    "EL-FX11-PER": 3,  # every item is Tier 2 or 3
-    "EL-FX12-P1P2": 3,
-    "EL-FX12-P2P3": 3,
-    "EL-FX13-Q1Q2": 3,  # also needs harness HS-AC13
-    "EL-FX13-Q3Q4": 3,
-    "EL-FX13-Q2Q3": 3,
-    "EL-FX14-R1R2": 3,
-    "EL-FX14-R3R2": 3,
-    "EL-FX17-PER": 2,  # PER_NAME_SIM 30 on top of SHARED_PHONE 45
-    "EL-FX21-ORG": 2,  # ORG_NAME_SIM, PER_LOCALITY
-    "EL-FX22-PER": 3,
-    "EL-SF06-PER": 3,
-    "EL-SF07-PER-B01": 2,
-    "EL-SF07-PER-B02": 2,
-    "EL-ACC-E1E7": 2,  # PHONE_TRANSPOSED
-    "EL-ACC-E3E7": 2,
-    "EL-ACC-E8E7": 2,
-}
-
-# Failure kinds a waiting link may show: missing or incomplete, never wrong.
-NOT_REACHED_YET = {"missed", "state", "band", "gates", "score", "evidence_kinds", "provenance"}
-
 PASS_NOW = {
     "b01": {"AC-02", "AC-04", "AC-06", "AC-07", "AC-09", "AC-19", "AC-26"},
     "b02": {"AC-02", "AC-04", "AC-06", "AC-07", "AC-09", "AC-15", "AC-19", "AC-26"},
@@ -144,29 +118,54 @@ def test_zero_tolerance_checks_hold_over_the_whole_kit(kit_run: tuple[str, KitRu
     assert report["checks"]["S4"]["passed"] > 1000
 
 
-def test_every_expected_link_is_either_reachable_or_listed_as_waiting(
+def test_failing_links_are_exactly_the_pinned_waiting_list(kit_run: tuple[str, KitRun]) -> None:
+    """Equality: a waiting link that starts passing, or fails another way, or a new failure,
+    stops CI by name (update `waiting.py` with the tier that changed it)."""
+    batch, run = kit_run
+
+    found = {k: frozenset(v) for k, v in failures(run.report).items()}
+
+    assert found == {k: kinds for k, (_, kinds) in FAILING[batch].items()}
+
+
+def test_skipped_links_are_exactly_the_pinned_list(kit_run: tuple[str, KitRun]) -> None:
+    batch, run = kit_run
+
+    assert {s["id"]: s["reason"] for s in run.report["skipped"]} == SKIPPED[batch]
+
+
+def test_a_waiting_link_is_never_above_its_expected_state_or_score(
     kit_run: tuple[str, KitRun],
 ) -> None:
+    """For every waiting link with a stored edge: state rank and score not above the expected
+    ones, and no source outside the two end cases."""
     batch, run = kit_run
     report = run.report
-    skipped = {s["id"] for s in report["skipped"]}
-    judged = set(failures(report)) | reachable(batch)
-
-    assert judged - skipped <= reachable(batch) | set(WAITING)
-    assert set(failures(report)) <= set(WAITING)
-
-
-def test_a_waiting_link_is_incomplete_but_never_wrong(kit_run: tuple[str, KitRun]) -> None:
-    _, run = kit_run
-    report = run.report
-
-    for link_id, kinds in failures(report).items():
-        assert kinds <= NOT_REACHED_YET, (link_id, kinds)
+    waiting = set(FAILING[batch])
+    expected = {e["id"]: e for e in run.truth["expected_links"]}
+    actual_state: dict[str, str] = {}
+    actual_score: dict[str, Decimal] = {}
     for item in report["wrong_links"]:
+        if item["id"] not in waiting:
+            continue
         if item["kind"] == "state":
-            assert (item["expected"], item["actual"]) != ("SUGGESTED", "AUTO"), item
+            actual_state[item["id"]] = item["actual"]
+        if item["kind"] == "score":
+            actual_score[item["id"]] = Decimal(str(item["actual"]))
         if item["kind"] == "provenance":
             assert item["actual"]["outside_end_cases"] == [], item
+    for link_id, row in report["reported"]["band_mode_scores"].items():
+        if link_id in waiting:
+            actual_score[link_id] = Decimal(str(row["actual"]))
+    rank = {"SUGGESTED": 1, "AUTO": 2}
+    stored = [k for k in waiting if FAILING[batch][k][1] != MISSED]
+    assert stored
+    for link_id in stored:
+        link = expected[link_id]
+        state = actual_state.get(link_id, link["state"])
+        assert rank[state] <= rank[link["state"]], link_id
+        score = actual_score.get(link_id, Decimal(str(link["score"]["value"])))
+        assert score <= Decimal(str(link["score"]["value"])), link_id
 
 
 def test_acceptance_cases_pass_or_wait_for_their_tier(kit_run: tuple[str, KitRun]) -> None:
