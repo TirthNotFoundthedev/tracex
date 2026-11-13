@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
-from tests.engine.matching.fixtures import matcher
+from tests.engine.matching.fixtures import AC01_FIXTURE, ac01_graphs, matcher
 from tests.engine.matching.support import build, owns, person, phone
 from tracex_engine.matching import build_explanation
 
@@ -139,3 +139,14 @@ def test_every_shape_validates_and_keeps_the_invariant() -> None:
 def test_contract_examples_validate_against_the_schema(example: Path) -> None:
     assert len(EXAMPLES) == 4
     assert list(VALIDATOR.iter_errors(json.loads(example.read_text("utf-8")))) == []
+
+
+def test_records_are_in_canonical_entity_order() -> None:
+    """records[0] is entity_a_id, records[1] entity_b_id (minor 9)."""
+    m = matcher(*ac01_graphs(), fixture=AC01_FIXTURE)
+    m.run_matching(input_case_ids=(), triggered_by="u-admin")
+
+    for edge in m.links.edges():
+        records = build_explanation(edge)["records"]
+        assert [r["entity_id"] for r in records] == [edge.entity_a_id, edge.entity_b_id]
+        assert [r["case_id"] for r in records] == [edge.case_a, edge.case_b]
