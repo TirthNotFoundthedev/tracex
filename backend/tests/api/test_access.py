@@ -449,10 +449,16 @@ def rows_of_links(api: Api) -> list[Any]:
 
 def test_a52_a_withdrawn_link_does_not_exist_for_anyone(world: World) -> None:
     api = world.api
+    # Whatever the tiers score a SUGGESTED person link today, put medium_min just above it.
+    top = max(float(r["score"]) for r in rows_of_links(api) if r["entity_type"] == "PERSON")
+    medium = int(top) + 1
     proposed = api.post(
         "hari",
         "/pending-changes",
-        {"kind": "THRESHOLDS", "new_value": {"high_min": 80, "medium_min": 50}},
+        {
+            "kind": "THRESHOLDS",
+            "new_value": {"high_min": max(80, medium + 10), "medium_min": medium},
+        },
     ).json()
     assert (
         api.post(
