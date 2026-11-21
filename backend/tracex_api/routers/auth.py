@@ -128,14 +128,15 @@ def login(ctx: Ctx = Depends(public_ctx)) -> dict[str, Any]:
     settings = ctx.state.settings
     now = ctx.now()
     ip = ctx.client_ip() or "unknown"
-    key = keyed_hash(settings.hmac_key, f"{body.username}|{ip}")
+    username = body.username.strip().lower()
+    key = keyed_hash(settings.hmac_key, f"{username}|{ip}")
     failures = one(
         ctx.conn,
         "SELECT count(*) AS n FROM login_attempts WHERE key = %s AND at > %s",
         (key, now - THROTTLE_WINDOW),
     )
     throttled = failures is not None and int(failures["n"]) >= THROTTLE_FAILURES
-    user = one(ctx.conn, "SELECT * FROM users WHERE username = %s", (body.username.lower(),))
+    user = one(ctx.conn, "SELECT * FROM users WHERE username = %s", (username,))
     ok = verify_password(body.password, user["password_hash"] if user else None)
     if throttled or not ok or user is None or not user["active"]:
         if not throttled:
@@ -227,7 +228,19 @@ def refresh_token(ctx: Ctx = Depends(public_ctx)) -> dict[str, Any]:
     session = need(session)
     token = need(token)
     user = need(user)
-    if token["used_at"] is not None:
+    new_jti = uuid.uuid4()
+    ctx.conn.execute(
+        "INSERT INTO refresh_tokens (jti, sid, issued_at) VALUES (%s, %s, %s)",
+        (new_jti, session["sid"], ctx.now()),
+    )
+    won = one(
+        ctx.conn,
+        "UPDATE refresh_tokens SET used_at = %s, replaced_by = %s "
+        "WHERE jti = %s AND used_at IS NULL RETURNING jti",
+        (ctx.now(), new_jti, token["jti"]),
+    )
+    if won is None:
+        ctx.conn.rollback()
         ctx.conn.execute(
             "UPDATE sessions SET revoked_at = %s, revoke_reason = 'REFRESH_REUSED' WHERE sid = %s",
             (ctx.now(), session["sid"]),
@@ -241,15 +254,6 @@ def refresh_token(ctx: Ctx = Depends(public_ctx)) -> dict[str, Any]:
             target_id=str(user["id"]),
         )
         raise ApiError("UNAUTHENTICATED", audits=[reused])
-    new_jti = uuid.uuid4()
-    ctx.conn.execute(
-        "INSERT INTO refresh_tokens (jti, sid, issued_at) VALUES (%s, %s, %s)",
-        (new_jti, session["sid"], ctx.now()),
-    )
-    ctx.conn.execute(
-        "UPDATE refresh_tokens SET used_at = %s, replaced_by = %s WHERE jti = %s",
-        (ctx.now(), new_jti, token["jti"]),
-    )
     ctx.audit("AUTH_REFRESHED", actor=actor, target_type="USER", target_id=str(user["id"]))
     return _token_pair(ctx, user, sid, session["expires_at"], str(new_jti), insert=False)
 
