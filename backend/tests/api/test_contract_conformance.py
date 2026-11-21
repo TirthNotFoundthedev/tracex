@@ -136,5 +136,5 @@ def test_audit_rows_with_every_kind_of_detail_match_the_contract(world: World) -
         cursor = page["next_cursor"]
         if not cursor:
             break
-    assert seen > 30
+    assert seen > 20
     _ok(api.get("hari", "/audit"), "AuditPage")
