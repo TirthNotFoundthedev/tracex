@@ -19,6 +19,7 @@ from decimal import Decimal
 from tracex_engine.graph import Entity, EntityType
 from tracex_engine.matching.corpus import Corpus, Tie
 from tracex_engine.matching.flags import ValueKey
+from tracex_engine.normalize.facts import HARD_CONFLICT_AGE_YEARS, closest_ages, parse_age
 from tracex_engine.scoring import EvidenceItem, Modifier
 from tracex_engine.scoring.ruleset import ATTRIBUTION_FACTOR, MIN_CONFIDENCE, TRAP_FACTOR
 
@@ -151,10 +152,22 @@ def person_conflicts(corpus: Corpus, a: Entity, b: Entity) -> list[EvidenceItem]
 
 
 def hard_conflict(corpus: Corpus, a: Entity, b: Entity) -> bool:
-    """C3: does any opposing item between these two entities block AUTO?"""
+    """C3: does any opposing item between these two entities block AUTO?
+
+    Persons: a DOB or gender conflict, or stated ages more than 10 years apart (the hard
+    PER_AGE_CONFLICT of Tier 2, compared as written like the Tier 2 item)."""
     if a.type is EntityType.PERSON:
-        return any(
+        return _hard_age_gap(corpus, a, b) or any(
             i.kind in ("PER_DOB_CONFLICT", "PER_GENDER_CONFLICT")
             for i in person_conflicts(corpus, a, b)
         )
     return bool(a.type is EntityType.ACCOUNT and a.ifsc and b.ifsc and a.ifsc != b.ifsc)
+
+
+def _hard_age_gap(corpus: Corpus, a: Entity, b: Entity) -> bool:
+    ages = [
+        {n for v in corpus.attribute(e.entity_id, "age") if (n := parse_age(v)) is not None}
+        for e in (a, b)
+    ]
+    closest = closest_ages(ages[0], ages[1])
+    return closest is not None and abs(closest[0] - closest[1]) > HARD_CONFLICT_AGE_YEARS
