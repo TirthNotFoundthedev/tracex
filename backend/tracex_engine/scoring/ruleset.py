@@ -109,29 +109,28 @@ CATALOGUE: dict[str, EvidenceSpec] = {
     for s in (
         # 3.1 identifier pairs
         _spec("ID_EXACT", 1, 100),
-        _spec("PHONE_TRANSPOSED", 2, 55, waits_for=2),
+        _spec("PHONE_TRANSPOSED", 2, 55),
         _spec("ACCT_BANK_CONFLICT", None, 0, _VETO),
         # 3.2 person and org pairs, supporting
         _spec("SHARED_PHONE", 1, 45),
         _spec("SHARED_ACCOUNT", 1, 50),
         _spec("SHARED_VEHICLE", 1, 35),
-        _spec("PER_NAME_SIM", 2, 30, waits_for=2),
-        _spec("PER_RELATIVE_NAME", 2, 15, waits_for=2),
-        _spec("PER_DOB_MATCH", 2, 20, waits_for=2),
-        _spec("PER_AGE_CLOSE", 2, 10, waits_for=2),
-        _spec("PER_LOCALITY", 2, 10, waits_for=2),
+        _spec("PER_NAME_SIM", 2, 30),
+        _spec("PER_RELATIVE_NAME", 2, 15),
+        _spec("PER_DOB_MATCH", 2, 20),
+        _spec("PER_AGE_CLOSE", 2, 10),
+        _spec("PER_LOCALITY", 2, 10),
+        # Not emitted until providers can read CONFIRMED links (P3.3, errata 5).
         _spec("PER_NEAR_PHONE", 2, 15, waits_for=2),
-        _spec("PER_SHARED_NETWORK", 3, 30, waits_for=3),
-        _spec("PER_CO_LOCATION", 3, 20, waits_for=3),
-        _spec("ORG_NAME_SIM", 2, 40, waits_for=2),
-        # 3.3 person pairs, opposing. Exact DOB and gender comparisons need no comparator and
-        # only ever lower a score, so they run now; age needs the case dates and the relative
-        # conflict needs the Tier 2 name comparator.
+        _spec("PER_SHARED_NETWORK", 3, 30),
+        _spec("PER_CO_LOCATION", 3, 20),
+        _spec("ORG_NAME_SIM", 2, 40),
+        # 3.3 person pairs, opposing
         _spec("PER_DOB_CONFLICT", None, 40, _HARD),
         _spec("PER_DOB_MISMATCH", None, 15, _SOFT),
-        _spec("PER_AGE_CONFLICT", None, 20, _SOFT, waits_for=2),
+        _spec("PER_AGE_CONFLICT", None, 20, _SOFT),
         _spec("PER_GENDER_CONFLICT", None, 50, _HARD),
-        _spec("PER_RELATIVE_CONFLICT", None, 20, _SOFT, waits_for=2),
+        _spec("PER_RELATIVE_CONFLICT", None, 20, _SOFT),
     )
 }
 

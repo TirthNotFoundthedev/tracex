@@ -24,9 +24,19 @@ class Allocators:
         stream = self._stream(purpose)
         while True:
             value = _MAKERS[make](stream, purpose)
-            if value not in self._used:
+            if value not in self._used and not (make == "phone" and self._near_used(value)):
                 self._used.add(value)
                 return value
+
+    def _near_used(self, phone: str) -> bool:
+        """Is a phone one adjacent-digit swap away from one already allocated? Such a pair reads
+        as a transposed number (PHONE_TRANSPOSED), so only planted cases may contain one."""
+        for i in range(len(phone) - 1):
+            if phone[i] != phone[i + 1]:
+                swapped = phone[:i] + phone[i + 1] + phone[i] + phone[i + 2 :]
+                if swapped in self._used:
+                    return True
+        return False
 
     def phone(self, region: str) -> str:
         """`region` is `planted` (inside planted cases) or `noise`."""

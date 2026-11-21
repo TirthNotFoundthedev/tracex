@@ -560,13 +560,11 @@ def test_every_item_cites_only_the_two_end_cases_and_at_least_one_line() -> None
         assert item.sources and {s.case_id for s in item.sources} <= {"C-101", "C-102"}
 
 
-def test_default_providers_run_tier2_and_leave_only_tier3_as_seams() -> None:
+def test_default_providers_run_tier2_and_leave_no_seams() -> None:
     providers = default_providers()
 
     assert any(isinstance(p, Tier2Provider) for p in providers)
-    seams = [p for p in providers if isinstance(p, NotYetImplemented)]
-    assert {s.kind for s in seams} == {"PER_SHARED_NETWORK", "PER_CO_LOCATION"}
-    assert all(s.tier == 3 for s in seams)
+    assert not any(isinstance(p, NotYetImplemented) for p in providers)
 
 
 def test_the_provider_never_adds_items_for_pairs_of_other_types() -> None:

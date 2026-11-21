@@ -124,6 +124,12 @@ def fx05_06(b: Builder, cs: dict[str, Case]) -> None:
     b.link("EL-FX05-PER", ["AC-05"], "PERSON", j1, j2,
            "SUGGESTED", "MEDIUM", 48.2, "band", ["G1", "G2", "G3"], ["PER_NAME_SIM", "PER_AGE_CLOSE",
                                                                     "PER_LOCALITY"])  # fmt: skip
+    # b02: the harness REJECTs the pair before b02 (AC-15) and the engine keeps it REJECTED,
+    # with the b01 score, band and gates; the scorer accepts REJECTED here because that step
+    # is applied (the pair's human steps are keyed on the pair, not on this id).
+    b.link("EL-FX05-PER-B02", ["AC-05", "AC-15"], "PERSON", j1, j2, "REJECTED", "MEDIUM", 48.2, "band",
+           ["G1", "G2", "G3"], ["PER_NAME_SIM", "PER_AGE_CLOSE", "PER_LOCALITY"],
+           batch_min="b02", harness="SC-AC15-AC25")  # fmt: skip
     # b02: the same number in both cases (AC-15, AC-25)
     n1 = b.phn(c7, "FX-05.PHN.A", "9000079900")
     n2 = b.phn(c8, "FX-05.PHN.B", "9000079900")
@@ -584,7 +590,8 @@ def access(b: Builder, cs: dict[str, Case]) -> None:
     bmin = {(0, 3): "b02", (1, 3): "b02", (2, 3): "b02"}
     b.ident_links("ACC-4471", ["AC-01"], ents, ac_map=ac_map, bmin=bmin)
     for x, y, tag in ((ph_a, e7, "E1E7"), (e3, e7, "E3E7"), (e8, e7, "E8E7")):
-        b.link(f"EL-ACC-{tag}", [], "PHONE", x, y, "SUGGESTED", "MEDIUM", 55, "band", ["G1"],
+        b.link(f"EL-ACC-{tag}", [], "PHONE", x, y, "SUGGESTED", "MEDIUM", 55, "band",
+               ["G1", ("G6", "match.gate.cluster_same_case")],
                ["PHONE_TRANSPOSED"], batch_min="b02")  # fmt: skip
     e4 = b.veh(a, "ACC.VEH.E4", "UP32AC5678")
     b.fir(a, vehicle_seen("en", "UP32AC5678"), [e4], line=16)

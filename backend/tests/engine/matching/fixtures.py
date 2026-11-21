@@ -65,6 +65,9 @@ AC01_FIXTURE = {
 }
 
 
+AC01_NAME_ONLY = {frozenset({IRFAN_A, IRFAN_B}): [("PER_NAME_SIM", "0.75")]}
+
+
 def ac01_graphs(extra_phone: str | None = None) -> tuple[CaseGraph, CaseGraph]:
     """AC-01: C-101 FIR line 12 and bank rows 4 and 7; C-201 CDR rows 33 and 41 and note 3.
 

@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from tracex_engine.graph import (
+    CaseDistrict,
     CaseGraph,
     CaseGraphStore,
     EdgeType,
@@ -43,6 +44,9 @@ class Corpus:
     """Entities, mentions, attribution ties and counterparties of every loaded case."""
 
     def __init__(self, graphs: Iterable[CaseGraph]) -> None:
+        graphs = tuple(graphs)
+        self.graphs = graphs  # kept for Tier 3, which reads hop edges and seen-at rows
+        self.districts: dict[str, CaseDistrict] = {}
         self.entities: dict[str, Entity] = {}
         self.mentions: dict[str, list[Mention]] = defaultdict(list)
         self.ties_of_party: dict[str, list[Tie]] = defaultdict(list)
@@ -52,6 +56,8 @@ class Corpus:
         cases: list[str] = []
         for graph in graphs:
             cases.append(graph.case_id)
+            if graph.district is not None:
+                self.districts[graph.case_id] = graph.district
             for entity in graph.entities:
                 self.entities[entity.entity_id] = entity
                 by_value[(entity.type, entity.normalized)].append(entity.entity_id)
@@ -92,6 +98,19 @@ class Corpus:
                 if k == key and isinstance(v, str) and v:
                     values.add(v)
         return values
+
+    def district_of_case(self, case_id: str) -> str | None:
+        """The district the case's FIR header states (normalized), if it has one."""
+        found = self.districts.get(case_id)
+        return found.normalized if found else None
+
+    def effective_districts(self, entity_id: str) -> frozenset[str]:
+        """The districts stated for the entity, else the district of its case (spec 3.2)."""
+        stated = self.attribute(entity_id, "district")
+        if stated:
+            return frozenset(stated)
+        case = self.district_of_case(self.entities[entity_id].case_id)
+        return frozenset({case}) if case else frozenset()
 
     def attribute_sources(self, entity_id: str, key: str) -> tuple[Source, ...]:
         return tuple(
