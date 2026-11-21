@@ -27,7 +27,8 @@ def flags_of(*graphs: object) -> dict[tuple[EntityType, str], frozenset[str]]:
 
 
 def test_two_owners_in_one_case_make_the_phone_shared_in_every_case() -> None:
-    """AC-07: Ramesh and Sunita own the family phone in one case."""
+    """AC-07: Ramesh and Sunita own the family phone in one case. Ramesh and Suresh (C-204)
+    share only the common token `yadav`, so the phone is also MULTI_USER (errata 6)."""
     n = build(
         "C-109",
         attributions=[
@@ -37,7 +38,7 @@ def test_two_owners_in_one_case_make_the_phone_shared_in_every_case() -> None:
     )
     p = build("C-204", attributions=[owns(person("Suresh Yadav"), phone(PHONE))])
 
-    assert flags_of(n, p)[KEY] == {"SHARED"}
+    assert flags_of(n, p)[KEY] == {"SHARED", "MULTI_USER"}
 
 
 def test_shop_wording_makes_the_phone_shared() -> None:
@@ -134,6 +135,10 @@ def test_placeholder_names(name: str, placeholder: bool) -> None:
         ({"jaswinder bhullar"}, {"jasvinder bhullar"}, "0.94"),
         ({"harbajan sandhawalia"}, {"harbhajan sandhawaliya"}, "0.95"),
         ({"name not known"}, {"name not known"}, "0"),
+        # errata 6: agreeing only by sound, or only on common tokens, is not one user
+        ({"kamal"}, {"kamla"}, "0"),
+        ({"kamal singh"}, {"kamla singh"}, "0"),
+        ({"mohammad khan"}, {"mohammad khan"}, "0"),
     ],
 )
 def test_multi_user_reads_the_real_name_sim(a: set[str], b: set[str], sim: str) -> None:

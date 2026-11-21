@@ -29,6 +29,12 @@ Owner: Iyer (Engine Lead) · Task P1.1 · Ruleset version: `engine-matching/1.1`
 - §3.3 / §6 C3: a hard PER_AGE_CONFLICT is a hard item for C3 like PER_DOB_CONFLICT and PER_GENDER_CONFLICT.
 - Known limitations of P3.1 (each can only miss a link, never make one; except the first, which can add or miss PER_AGE_CLOSE 10 when cases are written years apart): ages are compared as written, since the case graph has no case dates; a person with no stated district has no district (B5 skips them, PER_LOCALITY sees none); `oversized_block` counts B1/B3 blocks only (B2/B4/B5/B7 blocks over 500 are skipped but not counted); PER_NEAR_PHONE is not emitted until providers can read CONFIRMED links (P3.3).
 
+**Errata 6 (2026-11-21, P3.3).** Changes on the safe side; no weight, cap, band or threshold changed, so the ruleset version stays `engine-matching/1.1`:
+- §1 MULTI_USER compares owners by `name_sim` (no longer the whole-token stand-in), and two names count as similar only when some non-common token of each is spelled alike (`ratio` ≥ 85). Names that agree only by sound (`kamal` / `kamla`, phonetic key `kml`, ratio 0.80) or only on common tokens (`ramesh yadav` / `suresh yadav`) compare as 0, so a family phone they share is MULTI_USER (t = 0.2, never an anchor).
+- §2 rarity: a token pair matched only by phonetic key (ratio < 85) never makes a name rare; rarity 1.0 needs a matched non-common token with `ratio` ≥ 85. `Kamal Singh` / `Kamla Singh`: name_sim 0.90, rarity 0.4, PER_NAME_SIM 10.8. Phonetic-only pairs still count in `name_sim` (`Salim` ~ `Saleem` stays a must-pass match).
+- §3 providers read the run's context: the Tier 1 exclusion of PER_SHARED_NETWORK is exactly the identifier values of the pair's SHARED_* items, co-location reads MULTI_USER with the run's CONFIRMED pairs, and PER_NEAR_PHONE is emitted for phones one adjacent swap apart with a CONFIRMED SAME_AS.
+- §3.2 a person's district is the stated one, else the district on the case's FIR header line; a district-only PER_LOCALITY cites that line. This closes the P3.1 district limitation.
+
 ## 1. Entity types and linkable pairs
 
 | Type | Comparable attributes (normalized form produced upstream) |
@@ -81,7 +87,7 @@ Further rules: same type, different cases; at least one end case in the run's `i
 ```
 name_sim     = (mean ratio/100 of matched token pairs) × |matched| / |tokens in shorter name|
 completeness = 0.75 if the shorter name has one token, else 1.0
-rarity       = 1.0 if any matched token is non-common, else 0.4
+rarity       = 1.0 if any matched token is non-common and spelled alike (ratio ≥ 85), else 0.4
 ```
 Over main names and aliases, the highest `name_sim` is used. Must-pass vectors: `Mohd. Irfan` = `मोहम्मद इरफ़ान` (both → `mohammad irfan`); `Irfan bhai` → `irfan`; `Jaswinder` ~ `Jasvinder`, `Shaikh` ~ `Sheikh`, `Salim` ~ `Saleem` (phonetic keys equal); `Ramesh` ≁ `Suresh`.
 
