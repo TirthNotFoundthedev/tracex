@@ -1,10 +1,10 @@
 """Extension point for Tier 2 and Tier 3 evidence: `EvidenceProvider`.
 
 A provider adds candidate pairs (its own block keys, e.g. B2 or B4) and evidence items for any
-compared pair. Tier 2 (fuzzy: PHONE_TRANSPOSED, PER_NAME_SIM, ...) and Tier 3 (contextual:
-PER_SHARED_NETWORK, PER_CO_LOCATION) will each be one provider. Until they land, every pending
-catalogue item is a `NotYetImplemented` seam that yields no candidates and no items, so the
-run is exactly the Tier 1 run and `pending_seams()` names what is missing.
+compared pair. Tier 2 (fuzzy: PHONE_TRANSPOSED, PER_NAME_SIM, ...; `matching/tier2.py`) is one
+provider and Tier 3 (contextual: PER_SHARED_NETWORK, PER_CO_LOCATION) will be another. Until
+Tier 3 lands, its catalogue items are `NotYetImplemented` seams that yield no candidates and no
+items, and `pending_seams()` names what is missing.
 
 Tests inject fixture providers: comparator outputs are fixtures in the spec (section 8).
 """
@@ -15,6 +15,7 @@ from typing import Protocol
 
 from tracex_engine.graph import Entity
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.tier2 import Tier2Provider
 from tracex_engine.scoring import EvidenceItem, pending_kinds
 
 Pair = tuple[str, str]
@@ -57,4 +58,4 @@ def pending_seams() -> tuple[NotYetImplemented, ...]:
 
 
 def default_providers() -> tuple[EvidenceProvider, ...]:
-    return pending_seams()
+    return (Tier2Provider(), *(s for s in pending_seams() if s.tier > 2))

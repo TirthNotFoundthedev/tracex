@@ -201,3 +201,16 @@ def test_date_formats_in_the_data_kit_parse_to_a_date(written: str, expected: da
 )
 def test_place_is_compared_as_lowercase_normalized_text(written: str, expected: str) -> None:
     assert normalize_place(written) == expected
+
+
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("बालाजी ट्रेडर्स", "balaji"),
+        ("श्री बालाजी ट्रेडिंग कंपनी", "shri balaji"),
+        ("गुप्ता एंटरप्राइजेज प्राइवेट लिमिटेड", "gupta"),
+        ("ट्रेडर्स", ""),
+    ],
+)
+def test_org_name_drops_devanagari_legal_suffixes(written: str, expected: str) -> None:
+    assert normalize_org_name(written) == expected

@@ -21,6 +21,7 @@ import pytest
 from tests.engine.e2e.conftest import KitRun
 from tests.engine.e2e.kit import failures_by_link
 from tests.engine.e2e.waiting import FAILING, MISSED, SKIPPED
+from tracex_engine.matching import LinkState
 
 # (a) Expected links Tier 1 reaches: identifier pairs with ID_EXACT only (G5 and G6 included).
 TIER1_REACHABLE = {
@@ -74,13 +75,27 @@ TIER1_REACHABLE = {
 }
 
 PASS_NOW = {
-    "b01": {"AC-02", "AC-04", "AC-06", "AC-07", "AC-09", "AC-19", "AC-26"},
-    "b02": {"AC-02", "AC-04", "AC-06", "AC-07", "AC-09", "AC-15", "AC-19", "AC-26"},
-}
-WAITS = {
-    "AC-01": 3, "AC-03": 2, "AC-05": 2, "AC-08": 3, "AC-10": 2, "AC-11": 3, "AC-12": 3,
-    "AC-13": 3, "AC-14": 3, "AC-17": 2, "AC-21": 2, "AC-22": 3,
+    "b01": {
+        "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-17", "AC-19",
+        "AC-21", "AC-26",
+    },
+    "b02": {
+        "AC-02", "AC-03", "AC-04", "AC-06", "AC-07", "AC-09", "AC-10", "AC-15", "AC-17", "AC-19",
+        "AC-21", "AC-26",
+    },
 }  # fmt: skip
+# AC-05 fails in b02 only: the harness REJECTs the pair before b02 (AC-15) and the kit has no b02
+# expectation for it yet, so the scorer still wants SUGGESTED (see waiting.py).
+WAITS = {
+    "b01": {"AC-01": 3, "AC-08": 3, "AC-11": 3, "AC-12": 3, "AC-13": 3, "AC-14": 3, "AC-22": 3},
+    "b02": {
+        "AC-01": 3, "AC-05": 0, "AC-08": 3, "AC-11": 3, "AC-12": 3, "AC-13": 3, "AC-14": 3,
+        "AC-22": 3,
+    },
+}  # fmt: skip
+
+
+ACCIDENTAL_PHONE_SWAPS = 9
 
 
 def reachable(batch: str) -> set[str]:
@@ -157,7 +172,7 @@ def test_a_waiting_link_is_never_above_its_expected_state_or_score(
     for link_id, row in report["reported"]["band_mode_scores"].items():
         if link_id in waiting:
             actual_score[link_id] = Decimal(str(row["actual"]))
-    rank = {"SUGGESTED": 1, "AUTO": 2}
+    rank = {"REJECTED": 0, "SUGGESTED": 1, "AUTO": 2}
     stored = [k for k in waiting if FAILING[batch][k][1] != MISSED]
     assert stored
     for link_id in stored:
@@ -173,11 +188,22 @@ def test_acceptance_cases_pass_or_wait_for_their_tier(kit_run: tuple[str, KitRun
     per_ac = run.report["per_ac"]
 
     assert {ac for ac, row in per_ac.items() if row["status"] == "pass"} == PASS_NOW[batch]
-    assert {ac for ac, row in per_ac.items() if row["status"] == "fail"} == set(WAITS)
+    assert {ac for ac, row in per_ac.items() if row["status"] == "fail"} == set(WAITS[batch])
 
 
 def test_no_suggested_edge_on_a_non_link_pair(kit_run: tuple[str, KitRun]) -> None:
-    """S6 is reported, not gating; Tier 1 alone stores nothing on a true non-link."""
+    """S6 is reported, not gating. Tier 1 stored nothing on a true non-link. With Tier 2 exactly
+    nine random noise phones of the small kit happen to differ from another case's phone by one
+    adjacent swap (PHONE_TRANSPOSED 55, SUGGESTED, as the spec fixes); no person or org pair is
+    suggested on a non-link. Pinned by equality so any other stray fails by count."""
     _, run = kit_run
 
-    assert run.report["reported"]["suggested_on_non_link_pairs"] == 0
+    assert run.report["reported"]["suggested_on_non_link_pairs"] == ACCIDENTAL_PHONE_SWAPS
+
+
+def test_the_ac15_rejected_pair_stays_rejected_through_b02(run_b02: KitRun) -> None:
+    """AC-15 on the engine side: b02 adds a shared owned phone that would pass every gate, and
+    the rejected pair keeps its state with no transition record from the b02 run."""
+    [rejected] = [e for e in run_b02.matcher.links.edges() if e.state is LinkState.REJECTED]
+    assert rejected.history[-1].decision_id == "kit-ac15-reject"
+    assert all(t.link_id != rejected.link_id for t in run_b02.results[-1].transitions)
