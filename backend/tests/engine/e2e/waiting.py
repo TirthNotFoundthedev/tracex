@@ -40,10 +40,10 @@ FAILING: dict[str, dict[str, tuple[int, frozenset[str]]]] = {
     },
     "b02": {
         **_COMMON,
-        # AC-15: the kit REJECTs this pair before b02; the gate applies no harness step, so with
-        # the new shared phone Tier 2 makes it AUTO 93.2, as the spec says it would be without the
-        # rejection. Above its expected state: needs the REJECT step in the gate harness.
-        "EL-FX05-PER": (0, frozenset({"band", "gates", "state"})),
+        # AC-15: the harness REJECTs this pair before b02 (kit.py) and the engine keeps it
+        # REJECTED with no transition, as the spec says. The kit has no b02 expectation for
+        # the pair, so the scorer still wants SUGGESTED: data-kit fix (0 = waits for the kit).
+        "EL-FX05-PER": (0, frozenset({"state"})),
         # The kit expects only G1. E-7 is in C-201, which already holds an AUTO-linked
         # 9000014471, so the engine also lists G6 cluster_same_case (spec 5 errata 4).
         "EL-ACC-E1E7": (0, frozenset({"gates"})),

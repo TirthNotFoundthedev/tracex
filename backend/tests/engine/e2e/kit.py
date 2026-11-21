@@ -15,7 +15,15 @@ from typing import Any
 
 from tracex_engine.extract import extract_case
 from tracex_engine.graph import CaseGraphStore, build_case_graph
-from tracex_engine.matching import LinkStore, Matcher, RunResult, engine_result, write_engine_result
+from tracex_engine.matching import (
+    DecisionError,
+    LinkState,
+    LinkStore,
+    Matcher,
+    RunResult,
+    engine_result,
+    write_engine_result,
+)
 
 KIT_DIR = Path(__file__).resolve().parents[4] / "data-kit"
 BATCHES = ("b01", "b02")
@@ -54,14 +62,54 @@ def load(store: CaseGraphStore, kit: Path, batch: str, only: Sequence[str] = ())
     return cases
 
 
+# The kit's human step before b02 (data-kit 6, AC-15): an INVESTIGATOR rejects the AC-05 person
+# pair (C-107 Jaswinder ~ C-108 Jasvinder). Steps 1-3 of scenario SC-AC15-AC25 (run b01, reject,
+# run b02); the later reopen and confirm steps are API behaviour and are not applied here.
+AC15_HARNESS = "SC-AC15-AC25"
+AC15_CASES = frozenset({"C-107", "C-108"})
+
+
+def harness_applied(upto: str) -> list[str]:
+    """The `harness_applied` ids of a `run_batches` result up to `upto`."""
+    return [AC15_HARNESS] if upto == "b02" else []
+
+
+def reject_ac05_pair(graphs: CaseGraphStore, matcher: Matcher) -> None:
+    """Apply the AC-15 REJECT: the one SUGGESTED person edge joining C-107 and C-108."""
+    case_of = {
+        e.entity_id: case_id
+        for case_id in graphs.case_ids()
+        if (graph := graphs.read_case(case_id)) is not None
+        for e in graph.entities
+    }
+    [edge] = [
+        e
+        for e in matcher.links.edges()
+        if e.entity_type.value == "PERSON"
+        and {case_of[e.entity_a_id], case_of[e.entity_b_id]} == AC15_CASES
+    ]
+    record = matcher.apply_decision(
+        edge.link_id,
+        LinkState.SUGGESTED,
+        LinkState.REJECTED,
+        actor_user_id="kit-investigator",
+        decision_id="kit-ac15-reject",
+        reason_code=None,
+        reason_text="AC-15 harness step",
+    )
+    assert not isinstance(record, DecisionError), record
+
+
 def run_batches(
     graphs: CaseGraphStore, links: LinkStore, kit: Path, upto: str
 ) -> tuple[Matcher, list[RunResult]]:
-    """Load and match b01, then (if asked) b02 matched on the cases it touched."""
+    """Load and match b01, then (if asked) apply the AC-15 REJECT and match b02 on the cases it
+    touched. Declare `harness_applied(upto)` in the result document."""
     matcher = Matcher(graphs, links)
     load(graphs, kit, "b01")
     results = [matcher.run_matching(input_case_ids=(), triggered_by="kit-harness")]
     if upto == "b02":
+        reject_ac05_pair(graphs, matcher)
         touched = load(graphs, kit, "b02")
         results.append(matcher.run_matching(input_case_ids=touched, triggered_by="kit-harness"))
     return matcher, results
@@ -96,7 +144,13 @@ def score(kit: Path, document: dict[str, Any], workdir: Path) -> dict[str, Any]:
 def result_document(
     graphs: CaseGraphStore, links: LinkStore, batches: Sequence[str], last: RunResult
 ) -> dict[str, Any]:
-    return engine_result(graphs, links, batches_loaded=batches, run=last.run)
+    return engine_result(
+        graphs,
+        links,
+        batches_loaded=batches,
+        harness_applied=harness_applied(batches[-1]),
+        run=last.run,
+    )
 
 
 def failures_by_link(report: dict[str, Any]) -> dict[str, set[str]]:
