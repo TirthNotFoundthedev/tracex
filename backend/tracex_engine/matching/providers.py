@@ -15,6 +15,7 @@ from typing import Protocol
 
 from tracex_engine.graph import Entity
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.tier3 import Tier3Provider
 from tracex_engine.scoring import EvidenceItem, pending_kinds
 
 Pair = tuple[str, str]
@@ -57,4 +58,6 @@ def pending_seams() -> tuple[NotYetImplemented, ...]:
 
 
 def default_providers() -> tuple[EvidenceProvider, ...]:
-    return pending_seams()
+    """The tier-3 seams are replaced by the real provider; tier-2 items stay named seams."""
+    waiting = tuple(seam for seam in pending_seams() if seam.tier != 3)
+    return (*waiting, Tier3Provider())

@@ -1,4 +1,4 @@
-"""Expected links that Tier 1 does not reach yet, pinned per batch (review of PR #28, blocker 1).
+"""Expected links that Tier 1 and Tier 3 do not reach yet, pinned per batch (PR #28 review).
 
 `FAILING[batch]` maps each expected link the scorer fails to the tier it waits for and the
 exact failure kinds it shows today; `SKIPPED[batch]` lists the expected links the scorer does
@@ -6,9 +6,10 @@ not judge, with the reason. The gate compares both with `==`, so a link that sta
 fails differently, or a new failure stops CI by name, and this file is updated with the tier
 that changed it.
 
-`missed`: no edge on the pair (Low with Tier 1 alone). `STORED`: a SUGGESTED edge with the
-Tier 1 part of the evidence (SHARED_* 45 or 50), so state, band, gates, score and evidence kinds
-differ from the full expectation, and the expected cited lines of later tiers are missing.
+`missed`: no edge on the pair (Low without the Tier 2 items). `STORED`: a SUGGESTED edge with the
+Tier 1 and Tier 3 part of the evidence, so state, band, gates, score and evidence kinds differ
+from the full expectation, and the cited lines of the Tier 2 items are missing. With Tier 3 in,
+every entry waits only for Tier 2.
 """
 
 MISSED = frozenset({"missed"})
@@ -20,21 +21,21 @@ def _without(*kinds: str) -> frozenset[str]:
 
 
 _COMMON = {
-    "EL-FX01-PER": (3, STORED),  # PER_NAME_SIM (2) and PER_SHARED_NETWORK (3)
+    "EL-FX01-PER": (2, _without("provenance")),  # needs PER_NAME_SIM; Tier 3 gives 63.0
     "EL-FX03-PHN": (2, MISSED),  # PHONE_TRANSPOSED and B2 blocking
-    "EL-FX08-PER": (3, MISSED),  # REGISTERED_TO 22.5 is Low; needs network k=4 and locality
+    "EL-FX08-PER": (2, frozenset({"evidence_kinds", "score"})),  # needs PER_LOCALITY; 52.5
     "EL-FX10-PER": (2, MISSED),  # 45 - 40 (DOB conflict) is Low; needs name and locality
-    "EL-FX11-PER": (3, MISSED),  # every item is Tier 2 or 3
-    "EL-FX12-P1P2": (3, STORED),
-    "EL-FX12-P2P3": (3, _without("provenance", "state")),  # SUGGESTED as expected
-    "EL-FX13-Q2Q3": (3, MISSED),  # Low with Tier 1 alone
-    "EL-FX13-Q3Q4": (3, _without("score")),  # band-mode score
-    "EL-FX14-R1R2": (3, STORED),
-    "EL-FX14-R3R2": (3, _without("provenance", "state")),
+    "EL-FX11-PER": (2, MISSED),  # Tier 3 gives 35 (Low); needs the Tier 2 items
+    "EL-FX12-P1P2": (2, STORED),  # needs PER_NAME_SIM, which cites the missing notes line
+    "EL-FX12-P2P3": (2, _without("provenance", "state")),  # SUGGESTED as expected
+    "EL-FX13-Q2Q3": (2, MISSED),  # Low until PER_NAME_SIM
+    "EL-FX13-Q3Q4": (2, _without("score")),  # band-mode score
+    "EL-FX14-R1R2": (2, STORED),
+    "EL-FX14-R3R2": (2, _without("provenance", "state")),
     "EL-FX17-PER": (2, frozenset({"evidence_kinds", "gates", "score"})),  # MEDIUM as expected
     "EL-FX21-ORG": (2, frozenset({"band", "evidence_kinds", "gates"})),  # band-mode score
-    "EL-FX22-PER": (3, _without("provenance")),
-    "EL-SF06-PER": (3, MISSED),  # 45 - 50 (gender conflict) is Low; needs name and network
+    "EL-FX22-PER": (2, _without("provenance")),  # needs PER_NAME_SIM; Tier 3 gives 69.0
+    "EL-SF06-PER": (2, MISSED),  # 45 - 50 (gender conflict) is Low; needs name
 }
 
 FAILING: dict[str, dict[str, tuple[int, frozenset[str]]]] = {
