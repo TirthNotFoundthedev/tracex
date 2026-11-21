@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from datakit import noise
 from datakit.generate import DEFAULT_SEED, generate_kit
 
 
@@ -68,3 +69,13 @@ def test_noise_names_are_distinct_in_the_demo_tier(tmp_path: Path) -> None:
 
     assert name_collisions(demo) == []
     assert alias_collisions(demo) == []
+
+
+def test_a_name_pass_that_does_not_converge_raises_instead_of_ending_silently(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The small tier needs a second pass to see that its first redraws left no collision."""
+    monkeypatch.setattr(noise, "MAX_NAME_PASSES", 1)
+
+    with pytest.raises(noise.NoiseNameError, match="still collide after 1 passes"):
+        generate_kit("small", DEFAULT_SEED, tmp_path)

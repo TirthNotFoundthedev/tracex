@@ -117,7 +117,7 @@
         "a": { "type": "string" },
         "b": { "type": "string" },
         "batch_min": { "enum": ["b01", "b02"] },
-        "state": { "enum": ["AUTO", "SUGGESTED"] },
+        "state": { "enum": ["AUTO", "SUGGESTED", "REJECTED"] },
         "band": { "enum": ["HIGH", "MEDIUM"] },
         "score": {
           "type": "object",

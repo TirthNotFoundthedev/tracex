@@ -43,6 +43,8 @@ class Corpus:
     """Entities, mentions, attribution ties and counterparties of every loaded case."""
 
     def __init__(self, graphs: Iterable[CaseGraph]) -> None:
+        graphs = tuple(graphs)
+        self.graphs = graphs  # kept for Tier 3, which reads hop edges and seen-at rows
         self.entities: dict[str, Entity] = {}
         self.mentions: dict[str, list[Mention]] = defaultdict(list)
         self.ties_of_party: dict[str, list[Tie]] = defaultdict(list)

@@ -56,6 +56,8 @@ def perfect_result(
     for link in gt["expected_links"]:
         if BATCH_ORDER[link["batch_min"]] > loaded:
             continue
+        if link["harness"] and link["harness"] not in harness:
+            continue
         key = (link["a"], link["b"])
         if key not in latest or link["batch_min"] > latest[key]["batch_min"]:
             latest[key] = link

@@ -66,6 +66,8 @@ Every mention, edge and entity carries `file` and `line` (physical line, as `Sou
 
 `build_case_graph(records) -> CaseGraph`; `CaseGraphStore` with `ensure_schema()`, `write_case(graph)`, `read_case(case_id) -> CaseGraph | None`, `case_ids()`, `find_entities(type, normalized) -> tuple[Entity, ...]` (all cases, sort-key order); `Neo4jCaseGraphStore.connect(uri, user, password)`, `InMemoryCaseGraphStore`; the model types; `entity_sort_key`.
 
+**Neighbourhood helpers (Tier 3).** `NetworkIndex(graphs)` (`graph/neighbourhood.py`) answers, over case graphs and without knowing flags, tiers or scores: `neighbourhood(entity_id)` gives the identifiers within 2 hops through OWNS, CALLED and TRANSFERRED_TO with edge direction ignored, each with the lines of the edges on the paths to it (REGISTERED_TO and MENTIONED_WITH are not hops; a path may pass through any identifier); `owned(entity_id, type)` the identifiers of one type the entity owns; `seen_at(phone_id)` the (place, call date, CDR line) records of a phone. `match_seen_at(a, b)` pairs the place-dates two lists share on the same normalized place within one day, each unit used once, cited by its earliest row. The matcher's Tier 3 provider (`matching/tier3.py`) applies the flag exclusions and the Tier 1 exclusion on top.
+
 ## 6. Acceptance criteria
 
 1. Same `CaseRecords` twice gives equal graphs (ids, mentions, edges); ordinals follow load order.

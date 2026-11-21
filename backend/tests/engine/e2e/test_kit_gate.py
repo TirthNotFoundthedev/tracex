@@ -76,26 +76,20 @@ TIER1_REACHABLE = {
 
 PASS_NOW = {
     "b01": {
-        "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-17", "AC-19",
-        "AC-21", "AC-26",
+        "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-11",
+        "AC-12", "AC-14", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
     },
     "b02": {
-        "AC-02", "AC-03", "AC-04", "AC-06", "AC-07", "AC-09", "AC-10", "AC-15", "AC-17", "AC-19",
-        "AC-21", "AC-26",
+        "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-11",
+        "AC-12", "AC-14", "AC-15", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
     },
 }  # fmt: skip
-# AC-05 fails in b02 only: the harness REJECTs the pair before b02 (AC-15) and the kit has no b02
-# expectation for it yet, so the scorer still wants SUGGESTED (see waiting.py).
+# AC-08 waits for the case district in the graph (district-only PER_LOCALITY, P3.1 limitation);
+# AC-13 waits for MULTI_USER by `name_sim` (flags.py, P3.3). Both are engine work, tier 3.
 WAITS = {
-    "b01": {"AC-01": 3, "AC-08": 3, "AC-11": 3, "AC-12": 3, "AC-13": 3, "AC-14": 3, "AC-22": 3},
-    "b02": {
-        "AC-01": 3, "AC-05": 0, "AC-08": 3, "AC-11": 3, "AC-12": 3, "AC-13": 3, "AC-14": 3,
-        "AC-22": 3,
-    },
-}  # fmt: skip
-
-
-ACCIDENTAL_PHONE_SWAPS = 9
+    "b01": {"AC-08": 3, "AC-13": 3},
+    "b02": {"AC-08": 3, "AC-13": 3},
+}
 
 
 def reachable(batch: str) -> set[str]:
@@ -192,13 +186,11 @@ def test_acceptance_cases_pass_or_wait_for_their_tier(kit_run: tuple[str, KitRun
 
 
 def test_no_suggested_edge_on_a_non_link_pair(kit_run: tuple[str, KitRun]) -> None:
-    """S6 is reported, not gating. Tier 1 stored nothing on a true non-link. With Tier 2 exactly
-    nine random noise phones of the small kit happen to differ from another case's phone by one
-    adjacent swap (PHONE_TRANSPOSED 55, SUGGESTED, as the spec fixes); no person or org pair is
-    suggested on a non-link. Pinned by equality so any other stray fails by count."""
+    """S6 is reported, not gating, and is 0 on the small kit: the noise has no accidental
+    transposed phones (kit K3), and no person or org pair is suggested on a non-link."""
     _, run = kit_run
 
-    assert run.report["reported"]["suggested_on_non_link_pairs"] == ACCIDENTAL_PHONE_SWAPS
+    assert run.report["reported"]["suggested_on_non_link_pairs"] == 0
 
 
 def test_the_ac15_rejected_pair_stays_rejected_through_b02(run_b02: KitRun) -> None:
