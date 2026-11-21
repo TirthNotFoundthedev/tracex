@@ -442,6 +442,11 @@ def test_a51_totals_are_one_object_for_admin_only(world: World) -> None:
     assert api.get("hari", "/review-queue").status_code == 404
 
 
+def rows_of_links(api: Api) -> list[Any]:
+    with api.owner() as conn:
+        return many(conn, "SELECT entity_type, state, score, thresholds_version FROM links")
+
+
 def test_a52_a_withdrawn_link_does_not_exist_for_anyone(world: World) -> None:
     api = world.api
     proposed = api.post(
@@ -457,13 +462,18 @@ def test_a52_a_withdrawn_link_does_not_exist_for_anyone(world: World) -> None:
         ).status_code
         == 200
     )
-    assert api.post("hari", "/matching/runs", {}).status_code == 202
+    run = api.post("hari", "/matching/runs", {})
+    assert run.status_code == 202, run.text
     with api.owner() as conn:
         withdrawn = [
             str(r["link_id"])
             for r in many(conn, "SELECT link_id FROM links WHERE state = 'WITHDRAWN'")
         ]
-    assert withdrawn and len(api.audit_rows("LINK_WITHDRAWN")) == len(withdrawn)
+    states = rows_of_links(api)
+    assert withdrawn and len(api.audit_rows("LINK_WITHDRAWN")) == len(withdrawn), (
+        run.json(),
+        states,
+    )
     missing = api.get("bharat", f"/links/{uuid.uuid4()}")
     for link_id in withdrawn:
         for suffix in ("", "/explanation"):
