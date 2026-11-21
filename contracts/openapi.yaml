@@ -3913,6 +3913,9 @@ components:
           type: string
         throttled:
           type: boolean
+        via_grant:
+          type: boolean
+          description: Present on every view event (audit spec section 3); true when access came from a grant.
         failure:
           type: string
           pattern: ^[A-Z_]+$

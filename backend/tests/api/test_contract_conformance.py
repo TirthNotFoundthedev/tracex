@@ -110,3 +110,31 @@ def test_admin_and_senior_views_match_the_contract(world: World) -> None:
     _ok(api.get("meena", "/audit"), "AuditPage")
     verified = _ok(api.post("meena", "/audit/verify"), "AuditVerifyResult")
     assert verified == {"result": "OK"}
+
+
+def test_audit_rows_with_every_kind_of_detail_match_the_contract(world: World) -> None:
+    api = world.api
+    api.get("bharat", f"/entities/{world.entities['E-1']}")
+    api.get("bharat", f"/links/{world.links['L-1']}")
+    api.get("bharat", "/search/entities", q="9100000001")
+    api.get("bharat", "/review-queue")
+    api.post("bharat", f"/links/{world.links['L-2']}/confirm", {})
+    api.post(
+        "hari",
+        "/pending-changes",
+        {"kind": "THRESHOLDS", "new_value": {"high_min": 85, "medium_min": 50}},
+    )
+    api.client.post("/auth/login", json={"username": "asha", "password": "wrong"})
+    cursor = None
+    seen = 0
+    while True:
+        params: dict[str, Any] = {"limit": 20}
+        if cursor:
+            params["cursor"] = cursor
+        page = _ok(api.get("meena", "/audit", **params), "AuditPage")
+        seen += len(page["items"])
+        cursor = page["next_cursor"]
+        if not cursor:
+            break
+    assert seen > 30
+    _ok(api.get("hari", "/audit"), "AuditPage")

@@ -412,7 +412,7 @@ def _apply_link(
         Jsonb(payload),
         at,
     )
-    if row is None or row["state"] == "WITHDRAWN":
+    if row is None:
         ctx.conn.execute(
             "INSERT INTO links (link_id, entity_a_id, entity_b_id, case_a_id, case_b_id, "
             "entity_type, state, band, score, thresholds_version, ruleset_version, match_run_id, "
@@ -668,7 +668,7 @@ def reconcile(ctx: "Ctx") -> dict[str, int]:
             for h in edge.history
             if h.decision_id is not None and h.decision_id not in known_decisions
         ]
-        if row is None:
+        if row is None or row["state"] == "WITHDRAWN":
             if forged:
                 engine.links.remove(edge.link_id)
                 ctx.state.alert(f"edge {edge.link_id} carries a forged decision and no row")
