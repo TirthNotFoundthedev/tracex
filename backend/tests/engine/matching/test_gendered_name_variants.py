@@ -9,8 +9,6 @@ import uuid
 from decimal import Decimal
 from itertools import count
 
-import pytest
-
 from tests.engine.matching.support import clock, store_of
 from tests.engine.matching.test_tier2 import by_kind, pair_items, person_case
 from tests.engine.matching.test_tier3 import callers_of, case, edges_between, numbers
@@ -41,11 +39,6 @@ def test_a_family_phone_used_by_kamal_and_kamla_is_never_an_automatic_link() -> 
         assert "G2" in [g.gate for g in edge.gates_failed]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="errata 6: a token matched only by sound never makes a name rare; comparator change "
-    "in normalize/similarity.py (Naidu), routed by Fable",
-)
 def test_a_name_that_agrees_only_by_sound_is_not_rare() -> None:
     """`kamal singh` / `kamla singh`: name_sim 0.90, rarity 0.4 (kamal~kamla only sound alike,
     singh is common): 0.90 x 0.4 x 30 = 10.8, not 27.0."""

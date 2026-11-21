@@ -130,7 +130,11 @@ def _tokens_similarity(
         TWO_PLACES, rounding=ROUND_HALF_UP
     )
     completeness = COMPLETENESS_ONE_TOKEN if shorter == 1 else Decimal(1)
-    rare = any(not token_is_common(token, frequent_keys) for _, token in matched)
+    # Rarity needs a non-common token matched by spelling, never one matched only by sound.
+    rare = any(
+        score >= MATCH_RATIO and not token_is_common(token, frequent_keys)
+        for score, token in matched
+    )
     return NameSimilarity(name_sim, completeness, Decimal(1) if rare else RARITY_COMMON)
 
 
