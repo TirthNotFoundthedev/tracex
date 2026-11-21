@@ -77,18 +77,17 @@ TIER1_REACHABLE = {
 PASS_NOW = {
     "b01": {
         "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-11",
-        "AC-12", "AC-14", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
+        "AC-12", "AC-13", "AC-14", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
     },
     "b02": {
         "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-11",
-        "AC-12", "AC-14", "AC-15", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
+        "AC-12", "AC-13", "AC-14", "AC-15", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
     },
 }  # fmt: skip
-# AC-08 waits for the case district in the graph (district-only PER_LOCALITY, P3.1 limitation);
-# AC-13 waits for MULTI_USER by `name_sim` (flags.py, P3.3). Both are engine work, tier 3.
+# AC-08 waits for the case district in the graph (district-only PER_LOCALITY, P3.1 limitation).
 WAITS = {
-    "b01": {"AC-08": 3, "AC-13": 3},
-    "b02": {"AC-08": 3, "AC-13": 3},
+    "b01": {"AC-08": 3},
+    "b02": {"AC-08": 3},
 }
 
 

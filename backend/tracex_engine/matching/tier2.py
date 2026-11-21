@@ -19,15 +19,12 @@ Gaps the data allows no answer to yet (they only ever make a link be missed, nev
   is read as "ages as written"; cases are normally written close together.
 - A person's district is the stated one. The district of the case is not in the graph, so a
   person with no stated district has no district (B5 skips them; PER_LOCALITY sees none).
-- PER_NEAR_PHONE needs to know that a PHONE_TRANSPOSED link is CONFIRMED. A provider cannot see
-  the link store, so the lookup is an optional argument (`confirmed_phone_link`); without it none
-  is emitted. The engine wires it in P3.3.
 - `oversized_block` for B2, B4, B5 and B7 is not counted in the run record: a provider returns
   pairs only. Blocks over the size limit are skipped as for the other keys.
 """
 
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date
 from decimal import Decimal
 from math import ceil
@@ -35,6 +32,7 @@ from math import ceil
 from tracex_engine.graph import Entity, EntityType
 from tracex_engine.matching.blocking import Candidates, Pair
 from tracex_engine.matching.corpus import Corpus, source_of
+from tracex_engine.matching.evidence import Context
 from tracex_engine.matching.names import is_placeholder
 from tracex_engine.normalize.facts import (
     CLOSE_AGE_YEARS,
@@ -74,9 +72,6 @@ AGE_HARD_WEIGHT = Decimal(40)
 FREQUENT_MIN_ENTITIES = 20
 FREQUENT_SHARE = Decimal("0.01")
 UNKNOWN_RELATION = "relative"
-
-# Is there a CONFIRMED PHONE_TRANSPOSED SAME_AS between these two phone entities?
-ConfirmedPhoneLink = Callable[[str, str], bool]
 
 
 def frequent_keys(corpus: Corpus) -> frozenset[str]:
@@ -124,8 +119,7 @@ def _cited(*sources: Source) -> tuple[Source, ...]:
 class Tier2Provider:
     """Fuzzy and probabilistic evidence. Stateless between runs except a per-corpus cache."""
 
-    def __init__(self, confirmed_phone_link: ConfirmedPhoneLink | None = None) -> None:
-        self._confirmed = confirmed_phone_link
+    def __init__(self) -> None:
         self._frequent: tuple[Corpus, frozenset[str]] | None = None
 
     @property
@@ -177,12 +171,13 @@ class Tier2Provider:
 
     # --- evidence -----------------------------------------------------------------------
 
-    def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+    def items(self, ctx: Context, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+        corpus = ctx.corpus
         if a.type is EntityType.PHONE:
             return self._phone_items(corpus, a, b)
         if a.type is EntityType.PERSON:
             if _linkable(corpus, a.entity_id) and _linkable(corpus, b.entity_id):
-                return self._person_items(corpus, a, b)
+                return self._person_items(ctx, a, b)
         elif a.type is EntityType.ORG:
             return self._org_items(corpus, a, b)
         return ()
@@ -194,7 +189,8 @@ class Tier2Provider:
         params = {"value_a": a.normalized, "value_b": b.normalized}
         return [EvidenceItem("PHONE_TRANSPOSED", ONE, params, sources)]
 
-    def _person_items(self, corpus: Corpus, a: Entity, b: Entity) -> list[EvidenceItem]:
+    def _person_items(self, ctx: Context, a: Entity, b: Entity) -> list[EvidenceItem]:
+        corpus = ctx.corpus
         frequent = self._frequent_keys(corpus)
         items: list[EvidenceItem] = []
         items += _name_item(corpus, a, b, frequent)
@@ -204,7 +200,7 @@ class Tier2Provider:
         close, age_conflict = _age_items(corpus, a, b)
         items += close
         items += _locality_item(corpus, a, b, with_district=True)
-        items += self._near_phone_item(corpus, a, b)
+        items += _near_phone_item(ctx, a, b)
         return items + age_conflict + relative_conflict
 
     def _org_items(self, corpus: Corpus, a: Entity, b: Entity) -> list[EvidenceItem]:
@@ -224,29 +220,32 @@ class Tier2Provider:
             items.append(EvidenceItem("ORG_NAME_SIM", found.name_sim, params, sources))
         return items + _locality_item(corpus, a, b, with_district=False)
 
-    def _near_phone_item(self, corpus: Corpus, a: Entity, b: Entity) -> list[EvidenceItem]:
-        """PER_NEAR_PHONE: each side owns a phone and the two phones have a CONFIRMED
-        PHONE_TRANSPOSED link; strength is the weaker attribution factor."""
-        if self._confirmed is None:
-            return []
-        best = None
-        for ta in corpus.ties_of_party.get(a.entity_id, []):
-            for tb in corpus.ties_of_party.get(b.entity_id, []):
-                pa, pb = corpus.entities[ta.identifier_id], corpus.entities[tb.identifier_id]
-                if pa.type is not EntityType.PHONE or pb.type is not EntityType.PHONE:
-                    continue
-                if not self._confirmed(pa.entity_id, pb.entity_id):
-                    continue
-                if min(ta.confidence, tb.confidence) < MIN_CONFIDENCE:
-                    continue
-                strength = min(ATTRIBUTION_FACTOR[ta.code], ATTRIBUTION_FACTOR[tb.code])
-                rank = (-strength, pa.normalized, pb.normalized)
-                if best is None or rank < best[0]:
-                    best = (rank, strength, ta.source, tb.source)
-        if best is None:
-            return []
-        _, strength, source_a, source_b = best
-        return [EvidenceItem("PER_NEAR_PHONE", strength, {}, _cited(source_a, source_b))]
+
+def _near_phone_item(ctx: Context, a: Entity, b: Entity) -> list[EvidenceItem]:
+    """PER_NEAR_PHONE: each side is tied to a phone and the two phones, one adjacent swap
+    apart, have a CONFIRMED SAME_AS (a CONFIRMED PHONE_TRANSPOSED link); strength is the
+    weaker attribution factor."""
+    corpus = ctx.corpus
+    best = None
+    for ta in corpus.ties_of_party.get(a.entity_id, []):
+        for tb in corpus.ties_of_party.get(b.entity_id, []):
+            pa, pb = corpus.entities[ta.identifier_id], corpus.entities[tb.identifier_id]
+            if pa.type is not EntityType.PHONE or pb.type is not EntityType.PHONE:
+                continue
+            if not phones_transposed(pa.normalized, pb.normalized):
+                continue
+            if not ctx.confirmed_link(pa.entity_id, pb.entity_id):
+                continue
+            if min(ta.confidence, tb.confidence) < MIN_CONFIDENCE:
+                continue
+            strength = min(ATTRIBUTION_FACTOR[ta.code], ATTRIBUTION_FACTOR[tb.code])
+            rank = (-strength, pa.normalized, pb.normalized)
+            if best is None or rank < best[0]:
+                best = (rank, strength, ta.source, tb.source)
+    if best is None:
+        return []
+    _, strength, source_a, source_b = best
+    return [EvidenceItem("PER_NEAR_PHONE", strength, {}, _cited(source_a, source_b))]
 
 
 def _name_item(

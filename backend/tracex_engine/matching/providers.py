@@ -15,6 +15,7 @@ from typing import Protocol
 
 from tracex_engine.graph import Entity
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.evidence import Context
 from tracex_engine.matching.tier2 import Tier2Provider
 from tracex_engine.matching.tier3 import Tier3Provider
 from tracex_engine.scoring import EvidenceItem, pending_kinds
@@ -30,8 +31,9 @@ class EvidenceProvider(Protocol):
         """Extra pairs to compare (any order; the matcher canonicalises and scopes them)."""
         ...
 
-    def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
-        """Evidence for the pair (`a` before `b` in entity id order)."""
+    def items(self, ctx: Context, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+        """Evidence for the pair (`a` before `b` in entity id order). `ctx` carries the corpus,
+        the run's identifier flags, and the live and CONFIRMED links settled so far."""
         ...
 
 
@@ -49,7 +51,7 @@ class NotYetImplemented:
     def candidates(self, corpus: Corpus) -> Iterable[Pair]:
         return ()
 
-    def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+    def items(self, ctx: Context, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
         return ()
 
 

@@ -17,7 +17,8 @@ from decimal import Decimal
 
 from tracex_engine.graph import EntityType
 from tracex_engine.matching.corpus import Corpus
-from tracex_engine.matching.names import best_exact_similarity
+from tracex_engine.matching.names import is_placeholder
+from tracex_engine.normalize.similarity import name_similarity
 
 SHARED, HUB, MULTI_USER = "SHARED", "HUB", "MULTI_USER"
 HUB_MIN_COUNTERPARTIES = 25
@@ -65,6 +66,20 @@ def _multi_user(corpus: Corpus, persons: list[str], confirmed: frozenset[frozens
                 continue
             if frozenset({a, b}) in confirmed:
                 continue
-            if best_exact_similarity(corpus.names(a), corpus.names(b)) < MULTI_USER_MAX_SIM:
+            if best_name_sim(corpus.names(a), corpus.names(b)) < MULTI_USER_MAX_SIM:
                 return True
     return False
+
+
+def best_name_sim(names_a: set[str], names_b: set[str]) -> Decimal:
+    """Highest `name_sim` (spec section 2) over main names and aliases of both sides; a
+    placeholder name (`name not known`) compares as 0, so it can only flag more."""
+    return max(
+        (
+            name_similarity(a, b).name_sim
+            for a in names_a
+            for b in names_b
+            if not is_placeholder(a) and not is_placeholder(b)
+        ),
+        default=Decimal(0),
+    )

@@ -15,8 +15,8 @@ from tests.engine.matching.support import (
 )
 from tracex_engine.graph import EntityType
 from tracex_engine.matching.corpus import Corpus
-from tracex_engine.matching.flags import identifier_flags
-from tracex_engine.matching.names import exact_token_similarity, is_placeholder
+from tracex_engine.matching.flags import best_name_sim, identifier_flags
+from tracex_engine.matching.names import is_placeholder
 
 PHONE = "9000022310"
 KEY = (EntityType.PHONE, PHONE)
@@ -129,11 +129,13 @@ def test_placeholder_names(name: str, placeholder: bool) -> None:
 @pytest.mark.parametrize(
     ("a", "b", "sim"),
     [
-        ("mohammad irfan", "irfan", "1"),
-        ("ajay pal", "imran qureshi", "0"),
-        ("sohan rawat", "sohan singh", "0.5"),
-        ("jaswinder bhullar", "jasvinder bhullar", "0.5"),
+        ({"mohammad irfan"}, {"irfan"}, "1.00"),
+        ({"ajay pal"}, {"imran qureshi"}, "0"),
+        ({"jaswinder bhullar"}, {"jasvinder bhullar"}, "0.94"),
+        ({"harbajan sandhawalia"}, {"harbhajan sandhawaliya"}, "0.95"),
+        ({"name not known"}, {"name not known"}, "0"),
     ],
 )
-def test_exact_token_similarity_counts_whole_equal_tokens(a: str, b: str, sim: str) -> None:
-    assert exact_token_similarity(a, b) == Decimal(sim)
+def test_multi_user_reads_the_real_name_sim(a: set[str], b: set[str], sim: str) -> None:
+    """MULTI_USER uses `name_sim` (errata 6): close spellings of one name are one user."""
+    assert best_name_sim(a, b) == Decimal(sim)
