@@ -8,6 +8,7 @@ C-903, which no kit case uses, and remove only those cases' nodes before and aft
 import os
 from collections import Counter
 from collections.abc import Iterator
+from dataclasses import replace
 
 import pytest
 from neo4j import Driver, GraphDatabase
@@ -23,6 +24,7 @@ from tests.engine.support import (
 )
 from tracex_engine.extract import extract_case
 from tracex_engine.graph import (
+    CaseDistrict,
     CaseGraph,
     CaseGraphStore,
     EdgeType,
@@ -104,6 +106,40 @@ def test_writing_the_same_case_twice_changes_nothing(store: CaseGraphStore) -> N
 
     assert store.read_case("C-901") == graph
     assert len(store.find_entities(EntityType.PHONE, "9000014471")) == 1
+
+
+def test_a_case_district_reads_back_with_its_source_line(store: CaseGraphStore) -> None:
+    district = CaseDistrict("rivergate", "Rivergate", "fir.txt", 6)
+    graph = replace(make_graph("C-901"), district=district)
+
+    store.write_case(graph)
+
+    read = store.read_case("C-901")
+    assert read is not None
+    assert read.district == district
+    assert (read.district.normalized, read.district.display_value) == ("rivergate", "Rivergate")
+    assert (read.district.file, read.district.line) == ("fir.txt", 6)
+
+
+def test_a_case_without_a_district_reads_back_none(store: CaseGraphStore) -> None:
+    graph = replace(make_graph("C-901"), district=None)
+
+    store.write_case(graph)
+
+    read = store.read_case("C-901")
+    assert read is not None
+    assert read.district is None
+
+
+def test_rewriting_a_case_without_a_district_clears_the_old_one(store: CaseGraphStore) -> None:
+    graph = make_graph("C-901")
+    store.write_case(replace(graph, district=CaseDistrict("rivergate", "Rivergate", "fir.txt", 6)))
+
+    store.write_case(replace(graph, district=None))
+
+    read = store.read_case("C-901")
+    assert read is not None
+    assert read.district is None
 
 
 def test_an_unknown_case_reads_as_none(store: CaseGraphStore) -> None:
