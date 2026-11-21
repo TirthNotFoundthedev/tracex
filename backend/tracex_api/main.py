@@ -51,6 +51,11 @@ def chain_ready(state: AppState) -> bool:
 def reconcile_once(state: AppState) -> None:
     """The startup sweep (architecture section 2): the API reports ready only after it ran."""
     with connect(state.settings.database_url) as conn:
+        who = conn.execute(
+            "SELECT current_user AS name, rolsuper FROM pg_roles WHERE rolname = current_user"
+        ).fetchone()
+        if who is None or who["rolsuper"]:
+            raise ConfigError("DATABASE_URL must be the tracex_api login, never a superuser")
         counts = reconcile(Ctx.for_system(state, conn))
     logger.info("reconcile finished", extra={"counts": counts})
     state.reconciled.set()

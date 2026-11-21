@@ -114,7 +114,7 @@ class Ctx:
     @classmethod
     def for_system(cls, state: AppState, conn: Conn) -> "Ctx":
         """A request-less context for work the process starts itself (startup reconcile)."""
-        scope = {
+        scope: dict[str, Any] = {
             "type": "http",
             "method": "POST",
             "path": "/",
@@ -269,7 +269,7 @@ def pydantic_field_errors(exc: ValidationError) -> list[dict[str, str]]:
     return out[:20]
 
 
-def _load_principal(ctx: Ctx, user: Row, sid: str) -> Principal:
+def load_principal(ctx: Ctx, user: Row, sid: str) -> Principal:
     uid = user["id"]
     coverage = many(ctx.conn, "SELECT * FROM user_coverage WHERE user_id = %s", (uid,))
     all_states = any(r["all_states"] for r in coverage)
@@ -354,7 +354,7 @@ def authenticate(ctx: Ctx) -> Principal:
             "AUTH_TOKEN_REJECTED", outcome="DENIED", detail=detail, actor=audit.ANONYMOUS
         )
         raise ApiError("UNAUTHENTICATED", audits=[rejected]) from exc
-    return _load_principal(ctx, user, sid)
+    return load_principal(ctx, user, sid)
 
 
 def expire_stale(ctx: Ctx) -> None:

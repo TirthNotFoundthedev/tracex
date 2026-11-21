@@ -110,7 +110,8 @@ def test_ac15_and_ac25_rejected_pair_stays_blocked_then_reopens_to_confirmed(
 
 
 def test_u53_run_and_decisions_refuse_each_other(world: World) -> None:
-    """D49: a run is refused while an outbox row is unacknowledged, and a decision while a run is
+    """D49: a run is refused while an outbox row stays unacknowledged after one retry (here the
+    engine refuses it: the edge is not AUTO), and a decision while a run is
     RUNNING; both answer 409 RUN_IN_PROGRESS and change nothing."""
     api = world.api
     pair = person_link(world, "C-101", "C-102")
@@ -119,7 +120,7 @@ def test_u53_run_and_decisions_refuse_each_other(world: World) -> None:
         assert user is not None
         conn.execute(
             "INSERT INTO decision_outbox (decision_id, link_id, expected_from, to_state, "
-            "actor_user_id) VALUES (%s, %s, 'SUGGESTED', 'CONFIRMED', %s)",
+            "actor_user_id) VALUES (%s, %s, 'AUTO', 'CONFIRMED', %s)",
             (uuid.uuid4(), pair, user["id"]),
         )
         conn.commit()

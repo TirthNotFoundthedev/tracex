@@ -1,4 +1,4 @@
-"""Four-eyes enforced by Postgres, probed as the `tracex_api` role (security review PR #30, item 3)."""
+"""Four-eyes enforced by Postgres, probed as `tracex_api` (security review PR #30, item 3)."""
 
 import uuid
 from datetime import UTC, datetime
@@ -37,7 +37,7 @@ def propose(conn: Conn, proposer: uuid.UUID, subject: uuid.UUID, **extra: Any) -
     row = need(
         one(
             conn,
-            f"INSERT INTO pending_changes ({names}) VALUES ({marks}) RETURNING id",  # type: ignore[arg-type]  # noqa: S608
+            f"INSERT INTO pending_changes ({names}) VALUES ({marks}) RETURNING id",  # noqa: S608
             tuple(columns.values()),
         )
     )

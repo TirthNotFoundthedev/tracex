@@ -2290,9 +2290,9 @@ components:
           type: integer
           minimum: 0
           description: Counts items the caller may see (ALLOW) only.
-    CaseRef:
+    CaseRefBase:
+      # open on purpose: allOf composites close the whole object with unevaluatedProperties
       type: object
-      additionalProperties: false
       required:
         - case_id
         - case_number
@@ -2306,9 +2306,13 @@ components:
           type: string
         district_id:
           $ref: "#/components/schemas/Uuid"
+    CaseRef:
+      allOf:
+        - $ref: "#/components/schemas/CaseRefBase"
+      unevaluatedProperties: false
     CaseSummary:
       allOf:
-        - $ref: "#/components/schemas/CaseRef"
+        - $ref: "#/components/schemas/CaseRefBase"
         - type: object
           required:
             - opened_on
@@ -2324,6 +2328,7 @@ components:
             is_assigned:
               type: boolean
               description: True when the caller is assigned to the case.
+      unevaluatedProperties: false
     CasePage:
       allOf:
         - $ref: "#/components/schemas/PageBase"
@@ -2335,9 +2340,9 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/CaseSummary"
-    EntitySummary:
+    EntitySummaryBase:
+      # open on purpose: allOf composites close the whole object with unevaluatedProperties
       type: object
-      additionalProperties: false
       required:
         - entity_id
         - case_id
@@ -2389,6 +2394,10 @@ components:
                 const: false
               needs_review:
                 const: false
+    EntitySummary:
+      allOf:
+        - $ref: "#/components/schemas/EntitySummaryBase"
+      unevaluatedProperties: false
     EntityPage:
       allOf:
         - $ref: "#/components/schemas/PageBase"
@@ -2460,7 +2469,7 @@ components:
           type: string
     EntityDetail:
       allOf:
-        - $ref: "#/components/schemas/EntitySummary"
+        - $ref: "#/components/schemas/EntitySummaryBase"
         - type: object
           required:
             - case
@@ -2492,6 +2501,7 @@ components:
             via_grant:
               type: boolean
               description: True when the caller sees this entity only through a grant.
+      unevaluatedProperties: false
     SourceLine:
       type: object
       additionalProperties: false
@@ -2559,9 +2569,9 @@ components:
         masked:
           type: boolean
           description: True when a param value was masked.
-    LinkSummary:
+    LinkSummaryBase:
+      # open on purpose: allOf composites close the whole object with unevaluatedProperties
       type: object
-      additionalProperties: false
       required:
         - link_id
         - entity_type
@@ -2595,6 +2605,10 @@ components:
         updated_at:
           type: string
           format: date-time
+    LinkSummary:
+      allOf:
+        - $ref: "#/components/schemas/LinkSummaryBase"
+      unevaluatedProperties: false
     AllowedAction:
       type: string
       enum:
@@ -2654,7 +2668,7 @@ components:
           description: Free text from the deciding officer. Shown only to callers with ALLOW on both ends by their own scope; never under a grant.
     LinkDetail:
       allOf:
-        - $ref: "#/components/schemas/LinkSummary"
+        - $ref: "#/components/schemas/LinkSummaryBase"
         - type: object
           required:
             - thresholds_version
@@ -2700,6 +2714,7 @@ components:
                   history:
                     items:
                       $ref: "#/components/schemas/HistoryEntryGranted"
+      unevaluatedProperties: false
     LinkPage:
       allOf:
         - $ref: "#/components/schemas/PageBase"
@@ -2719,7 +2734,7 @@ components:
                 $ref: "#/components/schemas/Stub"
     ReviewQueueItem:
       allOf:
-        - $ref: "#/components/schemas/LinkSummary"
+        - $ref: "#/components/schemas/LinkSummaryBase"
         - type: object
           required:
             - waiting_since
@@ -2732,6 +2747,7 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/AllowedAction"
+      unevaluatedProperties: false
     ReviewQueuePage:
       allOf:
         - $ref: "#/components/schemas/PageBase"

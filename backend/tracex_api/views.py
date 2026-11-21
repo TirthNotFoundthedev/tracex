@@ -30,7 +30,7 @@ from tracex_api.policy import (
 )
 from tracex_api.security import CursorError, open_cursor, seal_cursor
 
-DIGITS_10 = re.compile(r"(?<![\d])\d{10}(?![\d])")
+DIGITS_10 = re.compile(r"(?<![\d])(?:\+\s?91[\s-]?)?(?:\d{5}[\s-]\d{5}|\d{10})(?![\d])")
 DIGITS_LONG = re.compile(r"(?<![\d])\d{11,18}(?![\d])")
 STUB_MESSAGE_KEY = "access.stub.connection_exists"
 

@@ -27,7 +27,9 @@ def run_with(world: World, link_id: str, from_state: LinkState) -> str:
             (uuid.UUID(run_id),),
         )
         conn.commit()
-    bad = TransitionRecord(link_id, from_state, LinkState.CONFIRMED, "engine", run_id, None, None, AT)
+    bad = TransitionRecord(
+        link_id, from_state, LinkState.CONFIRMED, "engine", run_id, None, None, AT
+    )
     record = RunRecord(
         run_id, AT, None, "u", (), "engine-matching/1.1", 1, {}, {}, 0, RunStatus.SUCCEEDED
     )

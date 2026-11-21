@@ -3,6 +3,7 @@
 import time
 import uuid
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -19,14 +20,16 @@ def engine_down(*_: Any, **__: Any) -> Any:
 
 def wait_ready(client: TestClient, seconds: float = 30) -> int:
     deadline = time.monotonic() + seconds
-    code = client.get("/ready").status_code
+    code: int = client.get("/ready").status_code
     while code != 200 and time.monotonic() < deadline:
         time.sleep(0.2)
-        code = client.get("/ready").status_code
+        code = int(client.get("/ready").status_code)
     return code
 
 
-def confirm_while_engine_is_down(world: World, monkeypatch: pytest.MonkeyPatch) -> Callable[[], None]:
+def confirm_while_engine_is_down(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> Callable[[], None]:
     api = world.api
     real = api.engine.matcher
     monkeypatch.setattr(api.engine, "matcher", engine_down)
@@ -91,3 +94,12 @@ def test_ready_waits_for_the_startup_reconcile_which_clears_what_a_crash_left(
     assert run == {"status": "FAILED", "error_code": "INTERRUPTED"}
     assert pending is not None and pending["n"] == 0
     assert api.post("hari", "/matching/runs", {}).status_code == 202
+
+
+def test_the_api_never_becomes_ready_on_a_superuser_database_login(world: World) -> None:
+    api = world.api
+    risky = create_app(replace(api.settings, database_url=api.admin_url), api.engine, api.clock)
+    with TestClient(risky) as client:
+        time.sleep(2)
+        assert client.get("/ready").status_code == 503
+    assert not risky.state.tracex.reconciled.is_set()

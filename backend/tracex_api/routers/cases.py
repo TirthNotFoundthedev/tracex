@@ -202,7 +202,7 @@ def get_entity(entity_id: str, ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]
         granted = link_summaries(ctx, [_granted_facts(ctx, grant)])
         detail = {
             **summary,
-            "case": case_ref(case),
+            "case": case_ref(case, with_title=False),
             "facts": facts,
             "provenance": provenance_of(ctx, entity, only_cited_for=grant["link_id"]),
             "links": granted,
@@ -337,16 +337,16 @@ def get_source_lines(
         if not ctx.me.can_read_source(case_id, district):
             raise ctx.forbidden("DOCUMENT", document_id, [case_id])
     else:
-        grant = _grant_for_document(ctx, doc)
-        if grant is None:
+        grants = _grants_for_document(ctx, doc)
+        if not grants:
             raise ctx.not_found(document_id, resolved=document_id)
         if ctx.me.role == "JUNIOR":
             raise ctx.forbidden("DOCUMENT", document_id, [case_id], reason_code="GRANT_ROLE_CAP")
         covered = one(
             ctx.conn,
-            "SELECT 1 AS x FROM grant_line_ranges WHERE grant_id = %s AND document_id = %s "
-            "AND line_from <= %s AND line_to >= %s",
-            (grant["id"], doc["id"], line_from, line_to),
+            "SELECT 1 AS x FROM grant_line_ranges WHERE grant_id = ANY(%s) AND document_id = %s "
+            "AND line_from <= %s AND line_to >= %s LIMIT 1",
+            ([g["id"] for g in grants], doc["id"], line_from, line_to),
         )
         if covered is None:
             raise ctx.forbidden("DOCUMENT", document_id, [case_id], reason_code="GRANT_RANGE")
@@ -376,13 +376,13 @@ def get_source_lines(
     }
 
 
-def _grant_for_document(ctx: Ctx, doc: Row) -> Row | None:
-    """A live grant of the caller on a link that cites this document in its far case."""
-    return one(
+def _grants_for_document(ctx: Ctx, doc: Row) -> list[Row]:
+    """Every live grant of the caller on a link that cites this document in its far case."""
+    return many(
         ctx.conn,
-        "SELECT g.* FROM access_grants g JOIN link_cited_lines c ON c.link_id = g.link_id "
+        "SELECT DISTINCT g.* FROM access_grants g JOIN link_cited_lines c ON c.link_id = g.link_id "
         "WHERE g.holder_id = %s AND g.state = 'ACTIVE' AND g.expires_at > %s "
-        "AND g.far_case_id = %s AND c.document_id = %s LIMIT 1",
+        "AND g.far_case_id = %s AND c.document_id = %s",
         (uuid.UUID(ctx.me.user_id), ctx.now(), doc["case_id"], doc["id"]),
     )
 

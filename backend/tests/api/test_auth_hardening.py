@@ -1,4 +1,4 @@
-"""Login throttle keys and refresh rotation under concurrency (security review PR #30, items 1-2)."""
+"""Login throttle keys and atomic refresh rotation (security review PR #30, items 1 and 2)."""
 
 import threading
 from typing import Any
@@ -47,7 +47,12 @@ def test_parallel_refresh_with_one_token_lets_one_win_and_revokes_the_session(ap
     for t in threads:
         t.join(timeout=60)
     assert sorted(codes) == [200] + [401] * (racers - 1)
-    assert len(api.audit_rows("AUTH_REFRESH_REUSED")) == racers - 1
+    # A loser that arrives after the session was revoked is refused as a dead session instead.
+    dead = [
+        r for r in api.audit_rows("AUTH_TOKEN_REJECTED") if r["detail"]["failure"] == "DEAD_SESSION"
+    ]
+    assert len(api.audit_rows("AUTH_REFRESH_REUSED")) >= 1
+    assert len(api.audit_rows("AUTH_REFRESH_REUSED")) + len(dead) == racers - 1
     winner = {"Authorization": f"Bearer {bodies[0]['access_token']}"}
     assert api.client.get("/me", headers=winner).status_code == 401
     with api.owner() as conn:

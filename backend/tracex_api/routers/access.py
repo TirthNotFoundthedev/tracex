@@ -7,11 +7,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 
-from tracex_api.context import OFFICER, Ctx, authed_ctx, endpoint, iso
+from tracex_api.context import OFFICER, Ctx, authed_ctx, endpoint, iso, load_principal
 from tracex_api.db import Row, many, need, one
 from tracex_api.engine_bridge import close_grant
 from tracex_api.errors import ApiError, invalid
-from tracex_api.policy import LinkAccess
+from tracex_api.policy import LinkAccess, link_access
 from tracex_api.views import (
     LinkFacts,
     as_uuid,
@@ -421,6 +421,16 @@ def _decidable(ctx: Ctx, request_id: str) -> Row:
     return r
 
 
+def _still_redacted_for(ctx: Ctx, requester: Row, link: Row) -> bool:
+    """The request was made when the link was a stub for the requester; approve only if it still
+    is (the requester is active and still sees exactly their own side)."""
+    if not requester["active"]:
+        return False
+    principal = load_principal(ctx, requester, "")
+    a, b = ctx.case_facts([str(link["case_a_id"]), str(link["case_b_id"])]).values()
+    return link_access(principal, str(link["link_id"]), link["state"], a, b) is LinkAccess.REDACTED
+
+
 @endpoint(
     router,
     "POST",
@@ -441,6 +451,8 @@ def approve_access_request(request_id: str, ctx: Ctx = Depends(authed_ctx)) -> d
         raise ApiError("INVALID_TRANSITION")
     requester = one(ctx.conn, "SELECT * FROM users WHERE id = %s", (r["requester_id"],))
     requester = need(requester)
+    if not _still_redacted_for(ctx, requester, link):
+        raise ApiError("INVALID_TRANSITION")
     far_entity = (
         link["entity_a_id"] if link["case_a_id"] == r["far_case_id"] else link["entity_b_id"]
     )
