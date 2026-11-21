@@ -524,9 +524,8 @@ def test_ac11_pile_of_weak_evidence_is_capped_at_90_and_waits_for_an_officer() -
     }
 
 
-def test_default_providers_replace_only_the_tier_3_seams() -> None:
+def test_default_providers_run_tier_3_and_leave_no_seams() -> None:
     providers = default_providers()
 
-    seams = [p for p in providers if isinstance(p, NotYetImplemented)]
-    assert {s.tier for s in seams} == {2}
     assert sum(isinstance(p, Tier3Provider) for p in providers) == 1
+    assert not any(isinstance(p, NotYetImplemented) for p in providers)

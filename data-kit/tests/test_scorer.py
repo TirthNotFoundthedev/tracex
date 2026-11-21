@@ -72,7 +72,7 @@ def test_a_result_derived_from_ground_truth_passes_every_check(
     assert report["missed_links"] == []
     assert report["wrong_links"] == []
     assert report["forbidden_hits"] == []
-    assert [item["id"] for item in report["skipped"]] == ["EL-SF07-PER-B01"]
+    assert [item["id"] for item in report["skipped"]] == ["EL-FX05-PER-B02", "EL-SF07-PER-B01"]
     assert _failing_acs(report) == set()
 
 
@@ -93,9 +93,9 @@ def test_every_acceptance_case_with_data_expectations_passes_and_the_rest_are_no
 def test_report_counts_every_check_it_ran(gt: dict[str, Any], perfect: dict[str, Any]) -> None:
     checks = score(gt, perfect)["checks"]
     assert checks["S1"] == {
-        "passed": len(gt["expected_links"]) - 1,
+        "passed": len(gt["expected_links"]) - 2,
         "failed": 0,
-        "skipped": 1,
+        "skipped": 2,
         "deferred": 0,
     }
     assert checks["S3"] == {
@@ -128,7 +128,8 @@ def test_after_b02_the_superseded_b01_suggestion_is_skipped(
 ) -> None:
     report = score(gt, perfect)
     assert {item["id"]: item["reason"] for item in report["skipped"]} == {
-        "EL-SF07-PER-B01": "superseded by a later batch for the same pair"
+        "EL-FX05-PER-B02": "harness SC-AC15-AC25 not applied",
+        "EL-SF07-PER-B01": "superseded by a later batch for the same pair",
     }
 
 
@@ -749,3 +750,22 @@ def test_a_confirmed_edge_the_applied_harness_confirms_is_not_a_human_state_fail
     unapplied = copy.deepcopy(result)
     unapplied["harness_applied"] = []
     assert "human_state" in _wrong_kinds(score(gt, unapplied))
+
+
+def test_a_rejected_edge_is_accepted_after_the_applied_ac15_step_and_not_before(
+    gt: dict[str, Any],
+) -> None:
+    applied = perfect_result(gt, harness=("HS-AC13", "SC-AC15-AC25"))
+    assert edge_of_link(applied, gt, "EL-FX05-PER-B02")["state"] == "REJECTED"
+    report = score(gt, applied)
+    assert report["ok"] is True
+    assert {item["id"]: item["reason"] for item in report["skipped"]}["EL-FX05-PER"].startswith(
+        "superseded"
+    )
+
+    without = copy.deepcopy(applied)
+    without["harness_applied"] = ["HS-AC13"]
+    rejected = score(gt, without)
+
+    assert rejected["ok"] is False
+    assert "human_state" in [w["kind"] for w in rejected["wrong_links"]]

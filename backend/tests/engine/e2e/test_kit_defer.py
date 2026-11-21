@@ -53,7 +53,8 @@ def test_the_waiting_list_deferred_makes_the_scorer_ok(
     batch: str, kit: Path, tmp_path: Path, request: pytest.FixtureRequest
 ) -> None:
     run: KitRun = request.getfixturevalue(f"run_{batch}")
-    waiting = sorted(FAILING[batch])
+    waiting = sorted(k for k, (tier, _) in FAILING[batch].items() if tier >= 1)
+    assert waiting == sorted(FAILING[batch])
 
     report = score_with_defer(kit, run, tmp_path, waiting)
 

@@ -56,11 +56,17 @@ class _Scorer:
             s["id"]: {x["target"] for x in s["steps"] if x["action"] == "CONFIRM"}
             for s in gt["scenarios"]
         }
+        pair_of = {link["id"]: (link["a"], link["b"]) for link in gt["expected_links"]}
         self.human_steps: set[tuple[str, str]] = {
             (x["action"], x["target"])
             for s in gt["scenarios"]
             if s["id"] in result.harness_applied
             for x in s["steps"]
+        }
+        # A human step on an expected link covers every expected link on the same pair (a later
+        # batch's expectation of the pair, such as REJECTED after the AC-15 step).
+        self.human_pairs: set[tuple[str, tuple[str, str]]] = {
+            (action, pair_of[target]) for action, target in self.human_steps if target in pair_of
         }
         self.cross = [g for g in gt["groups"] if g["scope"] == "cross_case"]
         self.groups_of: dict[str, set[int]] = defaultdict(set)
@@ -114,7 +120,8 @@ class _Scorer:
         loaded = self.result.batches_loaded
         latest: dict[tuple[str, str], str] = {}
         for link in self.gt["expected_links"]:
-            if BATCH_ORDER[link["batch_min"]] <= loaded:
+            applied = not link["harness"] or link["harness"] in self.result.harness_applied
+            if BATCH_ORDER[link["batch_min"]] <= loaded and applied:
                 key = (link["a"], link["b"])
                 latest[key] = max(latest.get(key, "b01"), link["batch_min"])
         links: list[dict[str, Any]] = []
@@ -122,7 +129,7 @@ class _Scorer:
             reason = ""
             if BATCH_ORDER[link["batch_min"]] > loaded:
                 reason = f"batch {link['batch_min']} not loaded"
-            elif link["batch_min"] < latest[(link["a"], link["b"])]:
+            elif link["batch_min"] < latest.get((link["a"], link["b"]), "b01"):
                 reason = "superseded by a later batch for the same pair"
             elif link["harness"] and link["harness"] not in self.result.harness_applied:
                 reason = f"harness {link['harness']} not applied"
@@ -209,7 +216,10 @@ class _Scorer:
             self.link_edges.update(e.index for e in candidates)
             for edge in candidates:
                 action = _HUMAN_ACTIONS.get(edge.state)
-                if action and (action, link["id"]) in self.human_steps:
+                pair = (link["a"], link["b"])
+                if action and (
+                    (action, link["id"]) in self.human_steps or (action, pair) in self.human_pairs
+                ):
                     self.human_ok.add(edge.index)
             if link.get("trap"):
                 for edge in candidates:
