@@ -3,8 +3,8 @@
 A provider adds candidate pairs (its own block keys, e.g. B2 or B4) and evidence items for any
 compared pair. Tier 2 (fuzzy: PHONE_TRANSPOSED, PER_NAME_SIM, ...; `matching/tier2.py`) and
 Tier 3 (contextual: PER_SHARED_NETWORK, PER_CO_LOCATION; `matching/tier3.py`) are the two
-default providers. A catalogue item not produced yet (`pending_kinds()`; today only
-PER_NEAR_PHONE, P3.3) is named by `pending_seams()`, one `NotYetImplemented` seam each.
+default providers. A catalogue item not produced yet (`pending_kinds()`, empty today) would be
+named by `pending_seams()`, one `NotYetImplemented` seam each.
 
 Tests inject fixture providers: comparator outputs are fixtures in the spec (section 8).
 """

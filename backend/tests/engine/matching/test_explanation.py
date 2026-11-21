@@ -10,7 +10,13 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from tests.engine.matching.fixtures import AC01_FIXTURE, ac01_graphs, matcher
 from tests.engine.matching.support import account, build, owns, person, phone, vehicle
-from tracex_engine.matching import LinkState, Matcher, build_explanation, pending_seams
+from tracex_engine.matching import (
+    LinkState,
+    Matcher,
+    NotYetImplemented,
+    build_explanation,
+    pending_seams,
+)
 from tracex_engine.matching.corpus import Corpus
 from tracex_engine.matching.evidence import Context
 from tracex_engine.scoring import pending_kinds
@@ -137,7 +143,7 @@ def test_every_pending_item_has_a_seam_that_yields_nothing() -> None:
     seams = pending_seams()
 
     assert {(s.kind, s.tier) for s in seams} == set(pending_kinds().items())
-    for seam in seams:
+    for seam in (*seams, NotYetImplemented("PER_FUTURE_ITEM", 4)):
         assert (
             list(seam.candidates(corpus)) == []
             and list(seam.items(Context.for_corpus(corpus), a, b)) == []
