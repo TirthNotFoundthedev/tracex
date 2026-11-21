@@ -11,6 +11,7 @@ import functools
 import ipaddress
 import json
 import logging
+import threading
 import uuid
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
@@ -77,6 +78,7 @@ class AppState:
     clock: Callable[[], datetime]
     engine: "EngineGateway"
     alerts: list[str] = field(default_factory=list)
+    reconciled: threading.Event = field(default_factory=threading.Event)
 
     def now(self) -> datetime:
         return self.clock()
@@ -108,6 +110,19 @@ class Ctx:
         self.request_id = str(uuid.uuid4())
         self.pending: list[AuditEvent] = []
         self._cases: dict[str, CaseFact] = {}
+
+    @classmethod
+    def for_system(cls, state: AppState, conn: Conn) -> "Ctx":
+        """A request-less context for work the process starts itself (startup reconcile)."""
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [],
+            "client": None,
+            "query_string": b"",
+        }
+        return cls(Request(scope), state, conn)
 
     # time ---------------------------------------------------------------------------------
     def now(self) -> datetime:

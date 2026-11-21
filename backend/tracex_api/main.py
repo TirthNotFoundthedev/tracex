@@ -12,9 +12,9 @@ from fastapi.responses import JSONResponse
 
 from tracex_api import audit, context
 from tracex_api.config import ConfigError, Settings
-from tracex_api.context import AppState, RouteSpec, utc_now
+from tracex_api.context import AppState, Ctx, RouteSpec, utc_now
 from tracex_api.db import connect
-from tracex_api.engine_bridge import EngineGateway
+from tracex_api.engine_bridge import EngineGateway, reconcile
 from tracex_api.errors import ApiError
 from tracex_api.routers import (
     access,
@@ -30,6 +30,7 @@ from tracex_api.routers import (
 
 logger = logging.getLogger(__name__)
 ANCHOR_INTERVAL_SECONDS = 60
+RECONCILE_RETRY_SECONDS = 5
 
 
 def _engine_for(settings: Settings) -> EngineGateway:
@@ -45,6 +46,25 @@ def chain_ready(state: AppState) -> bool:
     with connect(state.settings.database_url) as conn:
         ok, _ = audit.verify(conn, state.settings.audit_anchor_path, tail=1000)
     return ok
+
+
+def reconcile_once(state: AppState) -> None:
+    """The startup sweep (architecture section 2): the API reports ready only after it ran."""
+    with connect(state.settings.database_url) as conn:
+        counts = reconcile(Ctx.for_system(state, conn))
+    logger.info("reconcile finished", extra={"counts": counts})
+    state.reconciled.set()
+
+
+def _reconcile_loop(state: AppState, stop: threading.Event) -> None:
+    """Run the sweep until it succeeds once, so a database or engine that is still starting
+    delays readiness instead of leaving the API half-ready for good."""
+    while not state.reconciled.is_set() and not stop.is_set():
+        try:
+            reconcile_once(state)
+        except Exception:
+            logger.exception("reconcile failed; trying again")
+            stop.wait(RECONCILE_RETRY_SECONDS)
 
 
 def _anchor_loop(state: AppState, stop: threading.Event) -> None:
@@ -82,6 +102,8 @@ def create_app(
         state: AppState = app.state.tracex
         thread = threading.Thread(target=_anchor_loop, args=(state, stop), daemon=True)
         thread.start()
+        sweeper = threading.Thread(target=_reconcile_loop, args=(state, stop), daemon=True)
+        sweeper.start()
         try:
             yield
         finally:
@@ -104,7 +126,7 @@ def create_app(
     def ready() -> Any:
         state: AppState | None = getattr(app.state, "tracex", None)
         try:
-            ok = state is not None and chain_ready(state)
+            ok = state is not None and state.reconciled.is_set() and chain_ready(state)
         except Exception:
             logger.exception("readiness check failed")
             ok = False

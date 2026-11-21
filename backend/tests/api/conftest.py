@@ -193,6 +193,7 @@ def _make_api(template: str, tmp_path: Path, engine: EngineGateway) -> Api:
     )
     clock = FakeClock()
     app = create_app(settings, engine, clock)
+    app.state.tracex.reconciled.set()  # the lifespan sweep is tested on its own; see test_startup
     client = TestClient(app, raise_server_exceptions=False)
     return Api(
         client,

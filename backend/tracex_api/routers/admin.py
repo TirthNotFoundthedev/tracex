@@ -27,6 +27,7 @@ from tracex_api.engine_bridge import (
     ingest_case,
     outbox_pending,
     persist_result,
+    replay_outbox,
     run_in_progress,
     validate_thresholds,
 )
@@ -38,6 +39,7 @@ from tracex_engine.matching import ThresholdsError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+MAX_FILES_PER_UPLOAD = 20
 ENGINE_SCOPE_LIMIT = 10_000
 
 
@@ -169,10 +171,15 @@ def upload_files(
         )
     case = need(case)
     case_id = str(case["id"])
+    if len(files) > MAX_FILES_PER_UPLOAD:
+        raise invalid("files", "too_many")
+    limit = ctx.state.settings.max_upload_bytes
+    contents = [upload.file.read(limit + 1) for upload in files]
+    if any(len(data) > limit for data in contents):
+        raise invalid("files", "too_large")
     payloads: list[tuple[str, str, bytes]] = []
     out = []
-    for upload in files:
-        data = upload.file.read()
+    for upload, data in zip(files, contents, strict=True):
         name = (upload.filename or "").rsplit("/", 1)[-1]
         batch = one(
             ctx.conn,
@@ -267,8 +274,12 @@ def start_run(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
         if not isinstance(ids, list) or not all(isinstance(i, str) and as_uuid(i) for i in ids):
             raise invalid("batch_ids", "invalid_uuid")
         batch_ids = ids
-    if run_in_progress(ctx.conn) or outbox_pending(ctx.conn):
+    if run_in_progress(ctx.conn):
         raise ApiError("RUN_IN_PROGRESS")
+    if outbox_pending(ctx.conn):
+        replay_outbox(ctx.state, ctx.conn)
+        if outbox_pending(ctx.conn):
+            raise ApiError("RUN_IN_PROGRESS")
     try:
         limits = validate_thresholds(ctx.conn)
     except ThresholdsError:
@@ -314,24 +325,20 @@ def start_run(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
         detail={"thresholds_version": limits.version},
     )
     ctx.commit()
-    matcher = ctx.state.engine.matcher(run_id)
-    result = matcher.run_matching(
-        engine_ids,
-        ctx.me.user_id,
-        limits.version,
-        {"high_min": int(limits.high_min), "medium_min": int(limits.medium_min)},
-    )
+    try:
+        result = ctx.state.engine.matcher(run_id).run_matching(
+            engine_ids,
+            ctx.me.user_id,
+            limits.version,
+            {"high_min": int(limits.high_min), "medium_min": int(limits.medium_min)},
+        )
+    except Exception:
+        _fail_run(ctx, run_id, "ENGINE_ERROR")
+        raise
     try:
         persist_result(ctx, result, run_id)
     except Exception:
-        ctx.conn.rollback()
-        ctx.conn.execute(
-            "UPDATE match_runs SET status = 'FAILED', error_code = 'PERSIST_ERROR', "
-            "finished_at = %s "
-            "WHERE id = %s",
-            (ctx.now(), uuid.UUID(run_id)),
-        )
-        ctx.conn.commit()
+        _fail_run(ctx, run_id, "PERSIST_ERROR")
         raise
     record = result.run
     created = {k: int(v) for k, v in record.created_by_state.items()}
@@ -372,6 +379,16 @@ def start_run(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
     done = one(ctx.conn, "SELECT * FROM match_runs WHERE id = %s", (uuid.UUID(run_id),))
     done = need(done)
     return run_out(ctx, done)
+
+
+def _fail_run(ctx: Ctx, run_id: str, error_code: str) -> None:
+    """Close a run that threw, so it cannot stay RUNNING and block every later run."""
+    ctx.conn.rollback()
+    ctx.conn.execute(
+        "UPDATE match_runs SET status = 'FAILED', error_code = %s, finished_at = %s WHERE id = %s",
+        (error_code, ctx.now(), uuid.UUID(run_id)),
+    )
+    ctx.conn.commit()
 
 
 def _jsonb(value: dict[str, Any]) -> Any:

@@ -632,16 +632,21 @@ def send_decision(state: "AppState", conn: Conn, decision_id: str) -> DecisionOu
         return DecisionOutcome(True)
     engine = state.engine
     link_id = str(row["link_id"])
-    with engine.lock_for(link_id):
-        answer = engine.matcher().apply_decision(
-            link_id,
-            LinkState(row["expected_from"]),
-            LinkState(row["to_state"]),
-            str(row["actor_user_id"]),
-            decision_id,
-            row["reason_code"],
-            row["reason_text"],
-        )
+    try:
+        with engine.lock_for(link_id):
+            answer = engine.matcher().apply_decision(
+                link_id,
+                LinkState(row["expected_from"]),
+                LinkState(row["to_state"]),
+                str(row["actor_user_id"]),
+                decision_id,
+                row["reason_code"],
+                row["reason_text"],
+            )
+    except Exception:
+        logger.exception("engine call failed for decision %s", decision_id)
+        state.alert(f"engine call failed for decision {decision_id}; it will be retried")
+        return DecisionOutcome(False, "ENGINE_UNAVAILABLE")
     if isinstance(answer, DecisionError):
         state.alert(f"engine answered {answer.value} for decision {decision_id}")
         return DecisionOutcome(False, answer.value)
@@ -653,6 +658,42 @@ def send_decision(state: "AppState", conn: Conn, decision_id: str) -> DecisionOu
     return DecisionOutcome(True)
 
 
+def replay_outbox(state: "AppState", conn: Conn) -> int:
+    """One retry of every unacknowledged decision, oldest first. Returns how many cleared."""
+    cleared = 0
+    for pending in many(
+        conn, "SELECT decision_id FROM decision_outbox WHERE acked_at IS NULL ORDER BY created_at"
+    ):
+        if send_decision(state, conn, str(pending["decision_id"])).ok:
+            cleared += 1
+    return cleared
+
+
+def interrupt_stale_runs(ctx: "Ctx") -> int:
+    """A run still RUNNING when the process starts belongs to a process that died: fail it, or
+    run_in_progress would refuse every new run for good."""
+    stale = many(ctx.conn, "SELECT id, thresholds_version FROM match_runs WHERE status = 'RUNNING'")
+    for run in stale:
+        ctx.conn.execute(
+            "UPDATE match_runs SET status = 'FAILED', error_code = 'INTERRUPTED', "
+            "finished_at = %s WHERE id = %s",
+            (ctx.now(), run["id"]),
+        )
+        ctx.audit(
+            "MATCHING_RUN_COMPLETED",
+            actor=audit.SYSTEM,
+            target_type="RUN",
+            target_id=str(run["id"]),
+            outcome="FAILED",
+            detail={
+                "thresholds_version": run["thresholds_version"],
+                "auto_count": 0,
+                "suggested_count": 0,
+            },
+        )
+    return len(stale)
+
+
 # ----------------------------------------------------------------------------------------------
 # reconcile
 
@@ -661,7 +702,8 @@ def reconcile(ctx: "Ctx") -> dict[str, int]:
     """Startup sweep (architecture section 2, Reconciliation). Returns counts for the log."""
     engine = ctx.state.engine
     conn = ctx.conn
-    counts = {"reverted": 0, "withdrawn": 0, "replayed": 0, "imported": 0}
+    counts = {"reverted": 0, "withdrawn": 0, "replayed": 0, "imported": 0, "interrupted": 0}
+    counts["interrupted"] = interrupt_stale_runs(ctx)
     known_decisions = {
         str(r["decision_id"]) for r in many(conn, "SELECT decision_id FROM decision_outbox")
     }
@@ -698,11 +740,8 @@ def reconcile(ctx: "Ctx") -> dict[str, int]:
         if str(row["link_id"]) not in seen_ids:
             mark_withdrawn(ctx, row, None, ctx.now())
             counts["withdrawn"] += 1
-    conn.commit()
-    for pending in many(conn, "SELECT decision_id FROM decision_outbox WHERE acked_at IS NULL"):
-        if send_decision(ctx.state, conn, str(pending["decision_id"])).ok:
-            counts["replayed"] += 1
     ctx.commit()
+    counts["replayed"] = replay_outbox(ctx.state, conn)
     return counts
 
 
