@@ -589,3 +589,13 @@ def test_entities_are_unchanged_by_a_tier2_run() -> None:
     assert [
         e for case in store.case_ids() for e in (store.read_case(case) or graphs[0]).entities
     ] == before
+
+
+def test_a_devanagari_org_name_matches_its_roman_spelling() -> None:
+    a = build("C-101", orgs=[org("श्री बालाजी ट्रेडर्स")])
+    b = build("C-102", orgs=[org("M/s Shree Balaji Traders")])
+
+    items = by_kind(pair_items(a, b, EntityType.ORG))
+
+    assert items["ORG_NAME_SIM"].contribution == Decimal("40.0")
+    assert len(list(Tier2Provider().candidates(Corpus((a, b))))) == 1

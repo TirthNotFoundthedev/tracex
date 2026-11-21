@@ -32,6 +32,7 @@ from tracex_engine.normalize.identifiers import (
     phone_from_upi,
 )
 from tracex_engine.normalize.names import (
+    DEV_ORG_SUFFIXES,
     HONORIFICS,
     ORG_SUFFIXES,
     normalize_name,
@@ -48,6 +49,7 @@ from tracex_engine.normalize.values import Value
 
 __all__ = [
     "DATE_PATTERN",
+    "DEV_ORG_SUFFIXES",
     "HONORIFICS",
     "ORG_SUFFIXES",
     "NameSimilarity",

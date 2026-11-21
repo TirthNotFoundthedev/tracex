@@ -45,6 +45,23 @@ ORG_SUFFIXES = frozenset(
     }
 )
 
+# The same suffixes written in Devanagari (the extractor reads them there). `normalize_org_name`
+# drops them as well, by their romanised spelling, so `बालाजी ट्रेडर्स` reduces to `balaji`.
+DEV_ORG_SUFFIXES = frozenset(
+    {
+        "ट्रेडर्स",
+        "ट्रेडिंग",
+        "एंटरप्राइजेज",
+        "एंटरप्राइज",
+        "प्राइवेट",
+        "लिमिटेड",
+        "कंपनी",
+        "कम्पनी",
+        "एलएलपी",
+    }
+)
+_DEV_SUFFIX_TOKENS = frozenset(transliterate_devanagari(w) for w in DEV_ORG_SUFFIXES)
+
 _NON_WORD = re.compile(r"[^a-z0-9\s]")
 
 
@@ -66,7 +83,7 @@ def normalize_org_name(text: str) -> str:
         tokens = tokens[2:]
     elif tokens[:1] == ["ms"]:
         tokens = tokens[1:]
-    return " ".join(t for t in tokens if t not in ORG_SUFFIXES)
+    return " ".join(t for t in tokens if t not in ORG_SUFFIXES and t not in _DEV_SUFFIX_TOKENS)
 
 
 def normalize_place(text: str) -> str:

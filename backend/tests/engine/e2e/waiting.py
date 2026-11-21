@@ -1,4 +1,4 @@
-"""Expected links that Tier 1 does not reach yet, pinned per batch (review of PR #28, blocker 1).
+"""Expected links that Tiers 1 and 2 do not reach yet, pinned per batch (review of PR #28).
 
 `FAILING[batch]` maps each expected link the scorer fails to the tier it waits for and the
 exact failure kinds it shows today; `SKIPPED[batch]` lists the expected links the scorer does
@@ -21,18 +21,15 @@ def _without(*kinds: str) -> frozenset[str]:
 
 _COMMON = {
     "EL-FX01-PER": (3, STORED),  # PER_NAME_SIM (2) and PER_SHARED_NETWORK (3)
-    "EL-FX03-PHN": (2, MISSED),  # PHONE_TRANSPOSED and B2 blocking
     "EL-FX08-PER": (3, MISSED),  # REGISTERED_TO 22.5 is Low; needs network k=4 and locality
-    "EL-FX10-PER": (2, MISSED),  # 45 - 40 (DOB conflict) is Low; needs name and locality
-    "EL-FX11-PER": (3, MISSED),  # every item is Tier 2 or 3
+    # Tier 2 items reach 55 (the Tier 2 cap, Medium); the expected 90.0 needs the Tier 3 items
+    "EL-FX11-PER": (3, frozenset({"band", "evidence_kinds", "gates"})),
     "EL-FX12-P1P2": (3, STORED),
     "EL-FX12-P2P3": (3, _without("provenance", "state")),  # SUGGESTED as expected
     "EL-FX13-Q2Q3": (3, MISSED),  # Low with Tier 1 alone
     "EL-FX13-Q3Q4": (3, _without("score")),  # band-mode score
     "EL-FX14-R1R2": (3, STORED),
     "EL-FX14-R3R2": (3, _without("provenance", "state")),
-    "EL-FX17-PER": (2, frozenset({"evidence_kinds", "gates", "score"})),  # MEDIUM as expected
-    "EL-FX21-ORG": (2, frozenset({"band", "evidence_kinds", "gates"})),  # band-mode score
     "EL-FX22-PER": (3, _without("provenance")),
     "EL-SF06-PER": (3, MISSED),  # 45 - 50 (gender conflict) is Low; needs name and network
 }
@@ -40,16 +37,18 @@ _COMMON = {
 FAILING: dict[str, dict[str, tuple[int, frozenset[str]]]] = {
     "b01": {
         **_COMMON,
-        "EL-FX05-PER": (2, MISSED),  # no shared identifier in b01
-        "EL-SF07-PER-B01": (2, MISSED),  # name, relative, locality
     },
     "b02": {
         **_COMMON,
-        "EL-FX05-PER": (2, frozenset({"evidence_kinds", "gates"})),  # b02 phone: 45.0 SUGGESTED
-        "EL-SF07-PER-B02": (2, frozenset({"band", "evidence_kinds", "gates", "state"})),
-        "EL-ACC-E1E7": (2, MISSED),  # PHONE_TRANSPOSED
-        "EL-ACC-E3E7": (2, MISSED),
-        "EL-ACC-E8E7": (2, MISSED),
+        # AC-15: the kit REJECTs this pair before b02; the gate applies no harness step, so with
+        # the new shared phone Tier 2 makes it AUTO 93.2, as the spec says it would be without the
+        # rejection. Above its expected state: needs the REJECT step in the gate harness.
+        "EL-FX05-PER": (0, frozenset({"band", "gates", "state"})),
+        # The kit expects only G1. E-7 is in C-201, which already holds an AUTO-linked
+        # 9000014471, so the engine also lists G6 cluster_same_case (spec 5 errata 4).
+        "EL-ACC-E1E7": (0, frozenset({"gates"})),
+        "EL-ACC-E3E7": (0, frozenset({"gates"})),
+        "EL-ACC-E8E7": (0, frozenset({"gates"})),
     },
 }
 

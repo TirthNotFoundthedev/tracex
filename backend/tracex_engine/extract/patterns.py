@@ -159,21 +159,6 @@ ORG = re.compile(
 
 ORG_DEV = re.compile(rf"मेसर्स[ \t]+(?P<name>{NAME_DEV})")
 
-# Legal suffix words of an organisation name in Devanagari (the Roman ones are ORG_SUFFIXES).
-DEV_ORG_SUFFIXES = frozenset(
-    {
-        "ट्रेडर्स",
-        "ट्रेडिंग",
-        "एंटरप्राइजेज",
-        "एंटरप्राइज",
-        "प्राइवेट",
-        "लिमिटेड",
-        "कंपनी",
-        "कम्पनी",
-        "एलएलपी",
-    }
-)
-
 AGE = re.compile(
     r"(?:(?i:(?<![A-Za-z])(?:aged?|umra|umar))|उम्र)\s*:?\s*(?P<n>\d{1,3})"
     r"(?:\s*(?:(?i:yrs?\.?|years?|saal|sal|varsh)|वर्ष|साल))?"
