@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-11-13, end of session S2. P2 is complete and tagged `m2-slice`; P3 has not started and starts in a new session.
+Last updated: 2026-11-21, end of session S3. P2 tagged `m2-slice` on `main`. P3 complete on branch `opus-5.5-phase-2-attempt-1`, waiting for the owner's OK to merge into `main` and tag `m3-engine`.
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
@@ -13,31 +13,28 @@ Last updated: 2026-11-13, end of session S2. P2 is complete and tagged `m2-slice
 - PR #28 merged with the owner's OK, tag `m2-slice`: Tier 1 matching, scoring skeleton (composite score, bands, gates), SAME_AS link stores (in-memory and Neo4j), runs with the D37 rerun rules, human decisions as engine calls, explanation payload builder, `engine-result/1` adapter and the end-to-end kit gate (Iyer, 2.4; Khan approved after one fix round). 1006 backend tests in CI, Neo4j path included. Decisions D57.
 
 ## In progress
-- Nothing running. P3 starts in a new session (the owner asked for that).
+- Nothing running. P3 is complete on branch `opus-5.5-phase-2-attempt-1` (D58). It is NOT yet on `main` and `m3-engine` is NOT tagged.
 
-## Where the engine stands after P2 (read before briefing P3)
-- With Tier 1 only, the worked scenario (C-101 / C-201) gives three AUTO phone links at 100; the Irfan person link is SUGGESTED at 45.0 (expected AUTO 85.5 once Tier 2 name similarity and Tier 3 shared network exist). With the AC-01 Tier 2/3 values injected in tests it reaches AUTO 85.5.
-- Pass now: AC-02, 04, 06, 07, 09, 19, 26, and AC-15 after b02. Wait for Tier 2: AC-03, 05, 10, 17, 21, SF-07. Wait for Tier 3: AC-01 (person link), 08, 11, 12, 13, 14, 22, SF-06. Scenario-only (AC-16, 18, 20, 23, 24, 25, 27): engine tests with injected values.
-- Zero-tolerance checks hold over the whole kit: S3 non-links 0 fail, S4 closed world and integrity 0 fail, no trap hit.
-- The gate is `backend/tests/engine/e2e/test_kit_gate.py` with `waiting.py`: per batch it pins exactly which expected links fail and why (b01: 17 failing, 10 skipped; b01+b02: 20 failing, 2 skipped). When a tier makes a link reachable the test fails until the entry is removed: that is how P3 progress is tracked. The scorer's overall `ok` stays false until the list is empty or the scorer can defer links.
-- Tier 2 and 3 plug in through `EvidenceProvider` / `pending_seams` in `tracex_engine.matching`; blocking keys B2 and B4-B7, PER_AGE_CONFLICT and PER_RELATIVE_CONFLICT are named seams.
-- Engine API for the Backend: `Matcher.run_matching(...) -> RunResult(run, transitions, updated_link_ids)`, `apply_decision(...)` (codes STATE_MISMATCH, ILLEGAL_TRANSITION, NOT_FOUND, REPLAY_CONFLICT), `explanation(link_id)`, `cluster_of(entity_id)`, `Thresholds`, `ThresholdsError`, `DEFAULT_THRESHOLDS`.
+## Session S3 (2026-11-21), on branch `opus-5.5-phase-2-attempt-1`
+- Merged into the branch after review and green CI (D58): #31 Tier 2 (Naidu; Iyer review, phonetic floor rejected, D59), #32 Tier 3 + scorer `--defer` + kit 1.1 (Bose; Iyer approved, kit fixes K1-K3, D60), #33 case district from the FIR header (Bose, D61), #35 rarity needs a spelling match (Naidu, into #34), #34 P3.3 run context for providers, PER_NEAR_PHONE, MULTI_USER by `name_sim`, every AC with engine tests (Iyer; Fable reviewed), #36 scorer ignores refused steps + Neo4j district test (Bose), #30 FastAPI backend: Postgres model + migrations, DB roles, scrypt + JWT with refresh rotation, policy on all 57 routes, hash-chained append-only audit log, engine bridge with outbox and reconcile, compose with `migrate` service (Khan; Dutta APPROVE after one fix round, D62).
+- Last CI on the full branch (PR #30 head after update): backend, data-kit, frontend, smoke all green.
+
+## Where the engine stands after P3
+- AC-01 worked scenario: three AUTO phone links at 100 and the Irfan person link AUTO 85.5 with real Tiers 1-3.
+- `waiting.py` FAILING is empty for b01 and b02; the reference scorer is `ok: true` with nothing deferred; S3 non-links, S4 closed world and integrity, and trap checks hold. With HS-AC13 applied, EL-FX13-Q1Q2 is judged and passes.
+- `default_providers()` = Tier2Provider, Tier3Provider; no catalogue item is pending.
+- Known limits (safe side): ages compared as written (no case dates); oversized Tier 2 blocks skipped but not counted in the run record.
 
 ## Next
-1. P3, each task in its own worktree from `main`, each ending in a PR, in parallel where marked:
-   - 3.1 Tier 2 fuzzy / probabilistic: Naidu (Sonnet), reviewed by Iyer. Includes the comparators, phonetic or pool-aware handling of Devanagari-vs-Roman spellings ("saksena" vs "saxena"), and the Naidu follow-ups below that create missed links.
-   - 3.2 Tier 3 contextual (shared contacts, shared counterparties, co-location): Bose (Sonnet), reviewed by Iyer. Bose also takes over the SHARED / HUB / MULTI_USER flags from `matching/flags.py` (spec §1 assigns them to Graph) and adds a way for the scorer to defer not-yet-reachable links (`--defer` or a waits-for-tier field) so `ok` can be true mid-build.
-   - 3.3 Composite score, bands, review queue, undo, identity clusters: Iyer (Opus), after 3.1 and 3.2.
-   - 3.4 API, auth, access control, access requests, audit log: Khan (Sonnet), in parallel with 3.1/3.2. Starts by amending `docs/architecture.md` with the eight items from the PR #28 re-review comment (documents.file_name and the document_id mapping; read-time overlay of state and history; persist from transitions plus updated_link_ids; ADMIN run totals from created_by_state only; reconcile sweep for withdrawn edges and stub match_runs rows; the four engine answer codes as divergence; thresholds validated before RUNNING; per-link serialisation of decisions). Dutta's carried items below apply.
-   - 3.5 Security review of 3.4: Dutta (Opus).
-2. Tag `m3-engine`, then P4 apps as in PLAN.md §5 (P4 may start against a mocked contract in parallel with P3 if usage allows).
+1. Ask the owner to OK merging `opus-5.5-phase-2-attempt-1` into `main` (one PR), then tag `m3-engine` on `main`.
+2. Before the demo (P6) at the latest, Khan: Dutta N3 (an empty engine store on restart must not mark every link WITHDRAWN), item 12 (missing audit anchor counts as BROKEN once the log has more than one row; verify cached, re-run at most once a minute; every route except `/health`, `/ready`, `POST /audit/verify` answers 503 while broken), N2 (refuse to start on `dev-only` secrets unless `TRACEX_ALLOW_DEV_SECRETS=1`), N1 (document the single-DB-login four-eyes limit; nightly verify matches each APPROVED change to its CHANGE_APPROVED audit row), nightly audit verify, runtime explanation-schema validation (minor).
+3. P4 apps as in PLAN.md §5, in a new session. Contract consumers note: `CaseRef`, `EntitySummary`, `LinkSummary` now have open `*Base` schemas.
 
 ## Carried forward (not blocking)
-- Dutta, for P3 implementation: a rejected transition record's Neo4j edge must be reverted, not only alerted; reword the Reconciliation text in `docs/architecture.md`; U47-U54 and A49-A53 must become tests against the running API.
 - Sen: Hindi strings need a native-speaker review; checklist item 16 must be repeated on the real app screens; queue and approval i18n keys are listed in design-flows for the screen builders to add in both languages. A string for "a matching run is in progress, try again shortly" (409 RUN_IN_PROGRESS, D49) is needed in both apps.
 - Rao: `smoke` and `data-kit` as required checks (ask the owner first). Workspace packages under `apps/*` and `packages/*` were not audited for range pins.
-- Naidu follow-ups (safe-side misses): family-note owners in parentheses, the Devanagari pronoun "उसका नंबर", a Devanagari name swallowing a following verb, a name directly after a locality with no comma, `M/s.` at a sentence end turning the next sentence's name into an ORG, landlines in CDR rows, `OrgMention` has no aliases field, Devanagari legal suffixes are not stripped by `normalized`, a bare two-word suffix name without `M/s` ("Om Traders") reads as a PERSON. Devanagari-vs-Roman transliteration differences ("saksena" vs "saxena") are a P3 comparator matter. PR #23's final suffix-rule tightening was merged without a second look by Iyer (output on the small tier was identical).
-- Bose: the noise-name pass in `data-kit/datakit/noise.py` ends silently after 100 passes if it never converges (G-17 would catch it; an explicit error would be clearer); G-10 public-figure name check before demo readiness; replacing an uploaded case is a later Backend + Graph slice (files are immutable until then). `KIT_VERSION` was not bumped for the G-17 change.
+- Naidu follow-ups (safe-side misses): family-note owners in parentheses, the Devanagari pronoun "उसका नंबर", a Devanagari name swallowing a following verb, a name directly after a locality with no comma, `M/s.` at a sentence end turning the next sentence's name into an ORG, landlines in CDR rows, `OrgMention` has no aliases field, a bare two-word suffix name without `M/s` ("Om Traders") reads as a PERSON. PR #23's final suffix-rule tightening was merged without a second look by Iyer (output on the small tier was identical).
+- Bose: G-10 public-figure name check before demo readiness; replacing an uploaded case is a later Backend + Graph slice (files are immutable until then).
 - Bose: G-10 public-figure name check before the demo-readiness checklist.
 
 ## Blockers
@@ -63,7 +60,12 @@ Last updated: 2026-11-13, end of session S2. P2 is complete and tagged `m2-slice
 - Review pattern that worked: when adversarial review keeps finding holes in a deny-list, switch the author to an allow-list (closed patterns) instead of another patch round.
 - Authors built against specs without seeing each other's output; have the reviewer run one against the other before approving.
 
+- S3: a `gh pr checks --watch | tail` chain does not stop on a network drop; #36 merged while data-kit was still pending (it then passed). Read the check result itself before every merge.
+- S3: the network to GitHub dropped twice and both running agents stalled ("no progress for 600s"); resume them with SendMessage, their pushed work survives.
+- S3: an agent that keeps re-sending the same hand-back while "waiting on its own background work" can be stopped with TaskStop once its work is pushed.
+
 ## Open questions for the owner
+- OK to merge branch `opus-5.5-phase-2-attempt-1` (all of P3) into `main` and tag `m3-engine`?
 - OK to make `smoke` and `data-kit` required checks on `main`?
 
 ## Resume prompt (paste into a new session in this folder)
