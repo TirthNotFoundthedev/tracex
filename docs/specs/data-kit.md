@@ -338,6 +338,8 @@ Top level: `schema_version` (`data-kit-gt/1`), `kit_version`, `tier`, `seed`, `r
 | S5 provenance        | Every `cited_lines` entry appears in the explanation sources; no source outside the two end cases (AC-20).                                                                   |
 | S6 reported, not gating | Noise recall (true groups found as AUTO or SUGGESTED), SUGGESTED count on non-link pairs per 100 persons, `oversized_block` count.                                         |
 
+**Deferred links (kit 1.1).** `score` takes a list of expected-link ids that may wait for a later engine tier (`--defer`, `--defer-file`). A named link that is missing, or whose every failure is "not there yet" (state, band or score at or below the expected one; evidence kinds, gates or cited lines absent), is reported under `deferred` and counted as `deferred` in the S1, S2 and S5 totals, never as passed; `ok` ignores it. A deferred link stored above its expected state, band or score, or citing a source outside its end cases, fails as usual. S3 non-links, S4 closed world and integrity, and forbidden trap hits are never deferrable. A deferred link that passes is reported `passing` so it can be taken off the list.
+
 The result's `batches_loaded` is `["b01"]` or `["b01","b02"]`; any other value is an input error, not a test failure. The scenario-only acceptance cases (AC-16, 18, 20, 23, 24, 25, 27) are reported as not scored; the engine task (P2.4) covers each with its own tests, and its end-to-end gate is the scorer passing on b01 and on b01+b02 plus those tests.
 
 ## 9. Seeded users

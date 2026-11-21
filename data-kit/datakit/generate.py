@@ -16,7 +16,8 @@ from datakit.planted import build_planted
 from datakit.seed import case_assignments_csv
 from datakit.text import BANNER
 
-KIT_VERSION = "data-kit/1.0"
+# 1.1: distinct noise names per case (G-17), scorer report gains `deferred`.
+KIT_VERSION = "data-kit/1.1"
 DEFAULT_SEED = 20260401
 RULESET_VERSION = "engine-matching/1.1"
 SCHEMA_VERSION = "data-kit-gt/1"

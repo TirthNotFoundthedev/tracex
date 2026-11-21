@@ -17,6 +17,7 @@ from tests.engine.support import BANK_HEADER, CDR_HEADER, SDR_HEADER, note, note
 from tracex_engine.graph import CaseGraph, Entity, EntityType
 from tracex_engine.matching import InMemoryLinkStore, LinkState, Matcher, SameAsEdge
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.providers import NotYetImplemented, default_providers
 from tracex_engine.matching.tier3 import Tier3Provider
 
 Call = tuple[str, str, str, str]  # (calling, called, "YYYY-MM-DD", place)
@@ -521,3 +522,11 @@ def test_ac11_pile_of_weak_evidence_is_capped_at_90_and_waits_for_an_officer() -
         2: (72.0, 55.0),
         3: (50.0, 35.0),
     }
+
+
+def test_default_providers_replace_only_the_tier_3_seams() -> None:
+    providers = default_providers()
+
+    seams = [p for p in providers if isinstance(p, NotYetImplemented)]
+    assert {s.tier for s in seams} == {2}
+    assert sum(isinstance(p, Tier3Provider) for p in providers) == 1

@@ -283,19 +283,23 @@ def build_noise(world: World, tier: str, seed: int, alloc: Allocators) -> None:
         )
 
 
+MAX_NAME_PASSES = 100
+
+
+class NoiseNameError(RuntimeError):
+    """The distinct-names pass (G-17) did not reach a state without collisions."""
+
+
 def _distinct_names_per_case(noise: list[NoiseCase], stream: Stream) -> None:
     """No two noise persons of one case share a normalized name, and no alias equals another
     person's name: from the case text they would read as one person. The later colliding
     identity gets another surname, redrawn from its own stream so no other draw moves. A
     protected identity (recurring, or half of a look-alike pair) takes its twins along, so
     true cross-case groups and look-alike pairs keep their shared name; the pass repeats until
-    no case collides."""
+    no case collides, and raises `NoiseNameError` if that takes more than `MAX_NAME_PASSES`."""
     pools = load_pools()
     everyone = [p for n in noise for p in n.persons]
-    changed = True
-    for _ in range(100):
-        if not changed:
-            break
+    for _ in range(MAX_NAME_PASSES):
         changed = False
         for n in noise:
             kept: set[str] = set()
@@ -324,6 +328,13 @@ def _distinct_names_per_case(noise: list[NoiseCase], stream: Stream) -> None:
                     id(n)
                 ] - {ident.normalized}:
                     ident.alias = stream.zipf(pools.first_m)
+        if not changed:
+            break
+    else:
+        raise NoiseNameError(
+            f"noise names still collide after {MAX_NAME_PASSES} passes; the surname pool is "
+            "too small for the tier or the redraws cycle"
+        )
 
 
 def _language_quota(plan: Stream, total: int) -> list[str]:
