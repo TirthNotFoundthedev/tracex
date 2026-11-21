@@ -332,16 +332,18 @@ def _from_matches(row: Row | None, record: TransitionRecord) -> bool:
 
 def _reject_record(ctx: "Ctx", row: Row | None, record: TransitionRecord) -> None:
     ctx.state.alert(f"transition record for {record.link_id} does not match the stored state")
-    if row is not None:
-        revert_edge(ctx, row)
-        ctx.audit(
-            "ENGINE_DIVERGENCE_REVERTED",
-            actor=audit.SYSTEM,
-            refs=[str(row["case_a_id"]), str(row["case_b_id"])],
-            target_type="LINK",
-            target_id=str(row["link_id"]),
-            detail={"link_ids": [str(row["link_id"])], "cause": "FROM_STATE_MISMATCH"},
-        )
+    if row is None:
+        ctx.state.engine.links.remove(record.link_id)
+        return
+    revert_edge(ctx, row)
+    ctx.audit(
+        "ENGINE_DIVERGENCE_REVERTED",
+        actor=audit.SYSTEM,
+        refs=[str(row["case_a_id"]), str(row["case_b_id"])],
+        target_type="LINK",
+        target_id=str(row["link_id"]),
+        detail={"link_ids": [str(row["link_id"])], "cause": "FROM_STATE_MISMATCH"},
+    )
 
 
 def history_from_rows(rows: Sequence[Row]) -> tuple[HistoryEntry, ...]:
@@ -360,10 +362,14 @@ def history_from_rows(rows: Sequence[Row]) -> tuple[HistoryEntry, ...]:
 
 
 def revert_edge(ctx: "Ctx", row: Row) -> None:
-    """Put the Neo4j edge back to the Postgres state and history (never only alert)."""
+    """Put the Neo4j edge back to the Postgres state and history (never only alert). A WITHDRAWN
+    row has no edge, so the edge is removed."""
     engine = ctx.state.engine
     edge = engine.links.get(str(row["link_id"]))
-    if edge is None or row["state"] == "WITHDRAWN":
+    if edge is None:
+        return
+    if row["state"] == "WITHDRAWN":
+        engine.links.remove(edge.link_id)
         return
     history = many(
         ctx.conn, "SELECT * FROM link_history WHERE link_id = %s ORDER BY id", (row["link_id"],)
