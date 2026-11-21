@@ -3,8 +3,8 @@
 A provider adds candidate pairs (its own block keys, e.g. B2 or B4) and evidence items for any
 compared pair. Tier 2 (fuzzy: PHONE_TRANSPOSED, PER_NAME_SIM, ...; `matching/tier2.py`) and
 Tier 3 (contextual: PER_SHARED_NETWORK, PER_CO_LOCATION; `matching/tier3.py`) are the two
-default providers. A catalogue item not produced yet (`pending_kinds()`; today only
-PER_NEAR_PHONE, P3.3) is named by `pending_seams()`, one `NotYetImplemented` seam each.
+default providers. A catalogue item not produced yet (`pending_kinds()`, empty today) would be
+named by `pending_seams()`, one `NotYetImplemented` seam each.
 
 Tests inject fixture providers: comparator outputs are fixtures in the spec (section 8).
 """
@@ -15,6 +15,7 @@ from typing import Protocol
 
 from tracex_engine.graph import Entity
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.evidence import Context
 from tracex_engine.matching.tier2 import Tier2Provider
 from tracex_engine.matching.tier3 import Tier3Provider
 from tracex_engine.scoring import EvidenceItem, pending_kinds
@@ -30,8 +31,9 @@ class EvidenceProvider(Protocol):
         """Extra pairs to compare (any order; the matcher canonicalises and scopes them)."""
         ...
 
-    def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
-        """Evidence for the pair (`a` before `b` in entity id order)."""
+    def items(self, ctx: Context, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+        """Evidence for the pair (`a` before `b` in entity id order). `ctx` carries the corpus,
+        the run's identifier flags, and the live and CONFIRMED links settled so far."""
         ...
 
 
@@ -49,7 +51,7 @@ class NotYetImplemented:
     def candidates(self, corpus: Corpus) -> Iterable[Pair]:
         return ()
 
-    def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+    def items(self, ctx: Context, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
         return ()
 
 

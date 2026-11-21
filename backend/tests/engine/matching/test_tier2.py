@@ -5,6 +5,7 @@ end through the matcher; the other tests read the provider's blocking keys and i
 """
 
 import uuid
+from dataclasses import replace
 from decimal import Decimal
 from itertools import count
 
@@ -23,9 +24,10 @@ from tests.engine.matching.support import (
     phone,
     store_of,
 )
-from tracex_engine.graph import CaseGraph, Entity, EntityType
+from tracex_engine.graph import CaseDistrict, CaseGraph, Entity, EntityType
 from tracex_engine.matching import InMemoryLinkStore, LinkState, Matcher, SameAsEdge
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.evidence import Context
 from tracex_engine.matching.providers import NotYetImplemented, default_providers
 from tracex_engine.matching.tier2 import Tier2Provider, frequent_keys
 from tracex_engine.scoring import Band, EvidenceItem, Severity, compose
@@ -68,7 +70,7 @@ def pair_items(
     """Tier 2 items for the first entity of `type_` in each graph."""
     corpus = Corpus((a, b))
     first, second = (next(e for e in g.entities if e.type is type_) for g in (a, b))
-    return list((provider or Tier2Provider()).items(corpus, first, second))
+    return list((provider or Tier2Provider()).items(Context.for_corpus(corpus), first, second))
 
 
 def by_kind(items: list[EvidenceItem]) -> dict[str, EvidenceItem]:
@@ -348,7 +350,9 @@ def test_a_frequent_given_name_gets_the_common_name_rarity() -> None:
     alone = by_kind(pair_items(a, b))["PER_NAME_SIM"]
     corpus = Corpus((*crowd, a, b))
     first, second = corpus.entities["C-191:00001"], corpus.entities["C-192:00001"]
-    crowded = by_kind(list(Tier2Provider().items(corpus, first, second)))["PER_NAME_SIM"]
+    crowded = by_kind(list(Tier2Provider().items(Context.for_corpus(corpus), first, second)))[
+        "PER_NAME_SIM"
+    ]
 
     assert alone.strength == Decimal("0.75")
     assert crowded.strength == Decimal("0.75") * Decimal("0.4")
@@ -505,8 +509,12 @@ def test_a_phone_pair_whose_numbers_are_confirmed_transposed_links_the_owners() 
     def lookup(x: str, y: str) -> bool:
         return frozenset({x, y}) in confirmed
 
-    found = by_kind(list(Tier2Provider(lookup).items(corpus, first, second)))
-    unlinked = by_kind(list(Tier2Provider().items(corpus, first, second)))
+    found = by_kind(
+        list(
+            Tier2Provider().items(Context.for_corpus(corpus, confirmed_link=lookup), first, second)
+        )
+    )
+    unlinked = by_kind(list(Tier2Provider().items(Context.for_corpus(corpus), first, second)))
 
     assert found["PER_NEAR_PHONE"].contribution == Decimal("15.0")
     assert found["PER_NEAR_PHONE"].params == {}
@@ -525,7 +533,13 @@ def test_near_phone_is_weaker_when_a_number_is_only_registered_to_the_person() -
     corpus = Corpus((a, b))
     first, second = (next(e for e in g.entities if e.type is EntityType.PERSON) for g in (a, b))
 
-    found = by_kind(list(Tier2Provider(lambda x, y: True).items(corpus, first, second)))
+    found = by_kind(
+        list(
+            Tier2Provider().items(
+                Context.for_corpus(corpus, confirmed_link=lambda x, y: True), first, second
+            )
+        )
+    )
 
     assert found["PER_NEAR_PHONE"].contribution == Decimal("7.5")
 
@@ -604,3 +618,18 @@ def test_one_token_names_that_only_sound_alike_give_no_name_sim_item() -> None:
         items = by_kind(pair_items(person_case("C-101", left), person_case("C-102", right)))
 
         assert "PER_NAME_SIM" not in items, (left, right)
+
+
+def test_district_only_locality_falls_back_to_the_case_district_and_cites_its_fir_line() -> None:
+    """Spec 3.2: a person's district is the stated one, else the district of the case."""
+    fir_district = CaseDistrict("rampur", "Rampur", "fir.txt", 4)
+    a = replace(person_case("C-101", "Ravi Verma"), district=fir_district)
+    b = person_case("C-102", "Ravi Verma", district="Rampur")
+    unknown = person_case("C-103", "Ravi Verma")
+
+    district = by_kind(pair_items(a, b))["PER_LOCALITY"]
+
+    assert (district.contribution, district.params) == (Decimal("4.0"), {"place": "rampur"})
+    cited = {(s.case_id, s.document_id, s.line) for s in district.sources}
+    assert ("C-101", "fir.txt", 4) in cited
+    assert "PER_LOCALITY" not in by_kind(pair_items(unknown, b))

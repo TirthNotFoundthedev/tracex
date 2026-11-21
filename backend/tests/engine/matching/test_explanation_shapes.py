@@ -120,8 +120,11 @@ def test_a_trap_identifier_item_carries_its_modifier() -> None:
 
     [item] = p["support"][0]["items"]
     assert (item["kind"], item["contribution"], item["is_anchor"]) == ("SHARED_PHONE", 9.0, False)
+    # Ramesh and Suresh Yadav share only a common token: MULTI_USER as well (errata 6); one
+    # factor of 0.2 applies however many flags the phone has.
     assert item["modifiers"] == [
-        {"code": "SHARED", "factor": 0.2, "template_key": "match.modifier.trap_identifier"}
+        {"code": code, "factor": 0.2, "template_key": "match.modifier.trap_identifier"}
+        for code in ("MULTI_USER", "SHARED")
     ]
 
 
