@@ -4,8 +4,12 @@ version = "0.1.0"
 description = "TraceX backend: entity-resolution engine and API"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "cryptography==45.0.7",
     "fastapi>=0.115",
     "neo4j==5.28.2",
+    "psycopg[binary]==3.2.10",
+    "pyjwt==2.10.1",
+    "python-multipart==0.0.20",
     "uvicorn>=0.32",
 ]
 
