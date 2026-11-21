@@ -385,6 +385,11 @@ def expire_stale(ctx: Ctx) -> None:
 
 
 async def read_body(request: Request) -> None:
+    """Keep the raw JSON body for `Ctx.body`, which parses it after the visibility and role
+    checks. A multipart upload is parsed by FastAPI itself and has no JSON body."""
+    if "multipart/" in request.headers.get("content-type", ""):
+        request.state.body = b""
+        return
     request.state.body = await request.body()
 
 
@@ -518,15 +523,16 @@ def install(app: FastAPI) -> None:
     app.add_exception_handler(Exception, unhandled_handler)
 
 
+def implemented_routes(app: FastAPI) -> set[tuple[str, str]]:
+    """Every (method, path) the app serves, read from its OpenAPI document because included
+    routers are nested and not listed in `app.routes`."""
+    paths: dict[str, dict[str, Any]] = app.openapi()["paths"]
+    return {(m.upper(), path) for path, ops in paths.items() for m in ops}
+
+
 def check_route_inventory(app: FastAPI) -> None:
     """A route without a registered policy and audit event stops the API from starting (R1)."""
     declared = {(r.method, r.path) for r in ROUTES if r.policy and r.audit_event}
-    for route in app.routes:
-        path = getattr(route, "path", "")
-        if path in ("/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"):
-            continue
-        for method in getattr(route, "methods", None) or ():
-            if method in ("HEAD", "OPTIONS"):
-                continue
-            if (method, path) not in declared:
-                raise RuntimeError(f"route {method} {path} has no declared policy and audit event")
+    for method, path in sorted(implemented_routes(app)):
+        if (method, path) not in declared:
+            raise RuntimeError(f"route {method} {path} has no declared policy and audit event")
