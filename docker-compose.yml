@@ -31,18 +31,57 @@ services:
       retries: 12
       start_period: 20s
 
-  api:
+  # One-shot: creates the tracex_migrator and tracex_api logins, applies the migrations, starts
+  # the audit chain and seeds the synthetic users. It is the only service that gets the Postgres
+  # superuser URL; the api service never does.
+  migrate:
     build: ./backend
+    command:
+      ["sh", "-c", "python -m tracex_api.migrate && python -m tracex_api.seed --seed-dir /seed"]
+    restart: "no"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      NEO4J_URI: bolt://neo4j:7687
-      NEO4J_USER: ${NEO4J_USER}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-    ports:
-      - "${API_PORT}:8000"
+      DATABASE_ADMIN_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      TRACEX_MIGRATOR_DB_PASSWORD: ${TRACEX_MIGRATOR_DB_PASSWORD:?set TRACEX_MIGRATOR_DB_PASSWORD in .env}
+      TRACEX_API_DB_PASSWORD: ${TRACEX_API_DB_PASSWORD:?set TRACEX_API_DB_PASSWORD in .env}
+      TRACEX_SEED_PASSWORD_ASHA: ${TRACEX_SEED_PASSWORD_ASHA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_ISHA: ${TRACEX_SEED_PASSWORD_ISHA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_JATIN: ${TRACEX_SEED_PASSWORD_JATIN:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_KIRAN: ${TRACEX_SEED_PASSWORD_KIRAN:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_OMKAR: ${TRACEX_SEED_PASSWORD_OMKAR:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_BHARAT: ${TRACEX_SEED_PASSWORD_BHARAT:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_ESHA: ${TRACEX_SEED_PASSWORD_ESHA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_GITA: ${TRACEX_SEED_PASSWORD_GITA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_CHARU: ${TRACEX_SEED_PASSWORD_CHARU:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_FARID: ${TRACEX_SEED_PASSWORD_FARID:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_LATA: ${TRACEX_SEED_PASSWORD_LATA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_DEEPAK: ${TRACEX_SEED_PASSWORD_DEEPAK:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_MEENA: ${TRACEX_SEED_PASSWORD_MEENA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_HARI: ${TRACEX_SEED_PASSWORD_HARI:?set the TRACEX_SEED_PASSWORD_* values in .env}
+    volumes:
+      - ./data-kit/seed:/seed:ro
     depends_on:
       postgres:
         condition: service_healthy
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://tracex_api:${TRACEX_API_DB_PASSWORD:?set TRACEX_API_DB_PASSWORD in .env}@postgres:5432/${POSTGRES_DB}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      TRACEX_JWT_KEY: ${TRACEX_JWT_KEY:?set the four TRACEX_*_KEY values in .env}
+      TRACEX_CURSOR_KEY: ${TRACEX_CURSOR_KEY:?set the four TRACEX_*_KEY values in .env}
+      TRACEX_ROW_REF_KEY: ${TRACEX_ROW_REF_KEY:?set the four TRACEX_*_KEY values in .env}
+      TRACEX_HMAC_KEY: ${TRACEX_HMAC_KEY:?set the four TRACEX_*_KEY values in .env}
+      AUDIT_ANCHOR_PATH: ${AUDIT_ANCHOR_PATH:-/var/lib/tracex/audit-anchor.log}
+    ports:
+      - "${API_PORT}:8000"
+    volumes:
+      - audit-anchor:/var/lib/tracex
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
       neo4j:
         condition: service_healthy
     healthcheck:
@@ -51,12 +90,14 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')",
         ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 10s
 
 volumes:
   pg-data:
   neo4j-data:
+  audit-anchor:
