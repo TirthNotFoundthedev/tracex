@@ -92,8 +92,18 @@ def test_every_acceptance_case_with_data_expectations_passes_and_the_rest_are_no
 
 def test_report_counts_every_check_it_ran(gt: dict[str, Any], perfect: dict[str, Any]) -> None:
     checks = score(gt, perfect)["checks"]
-    assert checks["S1"] == {"passed": len(gt["expected_links"]) - 1, "failed": 0, "skipped": 1}
-    assert checks["S3"] == {"passed": len(gt["expected_non_links"]), "failed": 0, "skipped": 0}
+    assert checks["S1"] == {
+        "passed": len(gt["expected_links"]) - 1,
+        "failed": 0,
+        "skipped": 1,
+        "deferred": 0,
+    }
+    assert checks["S3"] == {
+        "passed": len(gt["expected_non_links"]),
+        "failed": 0,
+        "skipped": 0,
+        "deferred": 0,
+    }
     assert checks["S4"]["failed"] == 0
     assert checks["S2"]["failed"] == 0
     assert checks["S5"]["failed"] == 0
