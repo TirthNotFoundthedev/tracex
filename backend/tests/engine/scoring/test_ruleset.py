@@ -62,9 +62,8 @@ def test_opposing_items_carry_their_severity(kind: str, severity: Severity | Non
     assert CATALOGUE[kind].severity is severity
 
 
-def test_with_tiers_two_and_three_in_only_per_near_phone_is_pending() -> None:
-    """PER_NEAR_PHONE needs providers to read CONFIRMED links (P3.3, errata 5)."""
-    assert pending_kinds() == {"PER_NEAR_PHONE": 2}
+def test_every_catalogue_item_is_produced() -> None:
+    assert pending_kinds() == {}
     assert set(CATALOGUE) == set(SPEC_KINDS)
 
 

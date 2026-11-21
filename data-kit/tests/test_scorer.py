@@ -769,3 +769,36 @@ def test_a_rejected_edge_is_accepted_after_the_applied_ac15_step_and_not_before(
 
     assert rejected["ok"] is False
     assert "human_state" in [w["kind"] for w in rejected["wrong_links"]]
+
+
+def _gt_with_step(gt: dict[str, Any], sid: str, step: dict[str, str]) -> dict[str, Any]:
+    changed = copy.deepcopy(gt)
+    next(s for s in changed["scenarios"] if s["id"] == sid)["steps"].append(step)
+    return changed
+
+
+def _confirm_step(expect: str) -> dict[str, str]:
+    return {
+        "actor_role": "INVESTIGATOR",
+        "action": "CONFIRM",
+        "target": "EL-FX13-Q3Q4",
+        "expect": expect,
+    }
+
+
+def test_a_refused_step_of_an_applied_scenario_does_not_justify_a_human_state(
+    gt: dict[str, Any],
+) -> None:
+    changed = _gt_with_step(gt, "SC-AC24", _confirm_step("409, state unchanged"))
+    result = perfect_result(gt, harness=("HS-AC13", "SC-AC24"))
+    edge_of_link(result, gt, "EL-FX13-Q3Q4")["state"] = "CONFIRMED"
+    assert "human_state" in _wrong_kinds(score(changed, result))
+
+
+def test_a_step_that_is_meant_to_succeed_still_justifies_the_human_state(
+    gt: dict[str, Any],
+) -> None:
+    changed = _gt_with_step(gt, "SC-AC24", _confirm_step("CONFIRMED"))
+    result = perfect_result(gt, harness=("HS-AC13", "SC-AC24"))
+    edge_of_link(result, gt, "EL-FX13-Q3Q4")["state"] = "CONFIRMED"
+    assert "human_state" not in _wrong_kinds(score(changed, result))

@@ -10,20 +10,8 @@ that changed it. A tier of 1 or more is engine work and the link may be deferred
 
 MISSED = frozenset({"missed"})  # no edge on the pair
 
-# Both entries wait for engine work, not for a tier of evidence: tier 3 here means P3.x.
-FAILING: dict[str, dict[str, tuple[int, frozenset[str]]]] = {
-    "b01": {
-        # PER_LOCALITY at district-only 0.4 needs the case district in the graph: 52.5 vs 56.5.
-        "EL-FX08-PER": (3, frozenset({"evidence_kinds", "score"})),
-        # MULTI_USER uses whole-token similarity, so the shared phone P23 counts 0.2 (no anchor,
-        # G2): 55.5 MEDIUM vs 90.9. flags.py moves to `name_sim` in P3.3.
-        "EL-FX13-Q2Q3": (3, frozenset({"band", "gates"})),
-    },
-    "b02": {
-        "EL-FX08-PER": (3, frozenset({"evidence_kinds", "score"})),
-        "EL-FX13-Q2Q3": (3, frozenset({"band", "gates"})),
-    },
-}
+# Nothing waits: with Tiers 1-3 and the case district every expected link passes.
+FAILING: dict[str, dict[str, tuple[int, frozenset[str]]]] = {"b01": {}, "b02": {}}
 
 SKIPPED: dict[str, dict[str, str]] = {
     "b01": {

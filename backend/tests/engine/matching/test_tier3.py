@@ -17,6 +17,7 @@ from tests.engine.support import BANK_HEADER, CDR_HEADER, SDR_HEADER, note, note
 from tracex_engine.graph import CaseGraph, Entity, EntityType
 from tracex_engine.matching import InMemoryLinkStore, LinkState, Matcher, SameAsEdge
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.evidence import Context
 from tracex_engine.matching.providers import NotYetImplemented, default_providers
 from tracex_engine.matching.tier3 import Tier3Provider
 
@@ -81,11 +82,24 @@ def person_of(corpus: Corpus, case_id: str, name: str) -> Entity:
     return found
 
 
+def linked_by_value(corpus: Corpus) -> Context:
+    """A context where identifiers with the same value are live-linked (their ID_EXACT AUTO)."""
+    entities = corpus.entities
+
+    def active(x: str, y: str) -> bool:
+        return (entities[x].type, entities[x].normalized) == (
+            entities[y].type,
+            entities[y].normalized,
+        )
+
+    return Context.for_corpus(corpus, active_link=active)
+
+
 def tier3(*graphs: CaseGraph, a: Who, b: Who) -> list[tuple[str, dict[str, object], Decimal]]:
     """Tier 3 items (kind, params, strength) between two named persons."""
     corpus = Corpus(graphs)
     first, second = person_of(corpus, *a), person_of(corpus, *b)
-    items = Tier3Provider().items(corpus, first, second)
+    items = Tier3Provider().items(linked_by_value(corpus), first, second)
     return [(i.kind, dict(i.params), i.strength) for i in items]
 
 
@@ -159,6 +173,7 @@ def test_a_family_number_does_not_count_but_a_path_through_it_does() -> None:
 
 
 def test_a_phone_both_own_is_tier_1_and_is_left_out_of_the_count() -> None:
+    """Left out because its identifier link is live (the SHARED_PHONE item uses it)."""
     both = "9000000001"
     graphs = (
         case("C-301", [("Irfan", both)], callers_of(both, numbers(2))),
@@ -205,7 +220,7 @@ def test_sources_are_lines_of_the_two_end_cases_and_name_no_third_case() -> None
     )
     first, second = person_of(corpus, "C-301", "irfan"), person_of(corpus, "C-302", "irfan")
 
-    [item] = Tier3Provider().items(corpus, first, second)
+    [item] = Tier3Provider().items(Context.for_corpus(corpus), first, second)
 
     assert {s.case_id for s in item.sources} == {"C-301", "C-302"}
     assert {s.document_id for s in item.sources} == {"notes.txt", "cdr.csv"}
@@ -335,7 +350,9 @@ def test_co_location_cites_one_row_per_place_date_on_each_side() -> None:
     )
     corpus = Corpus(graphs)
     items = Tier3Provider().items(
-        corpus, person_of(corpus, "C-301", "irfan"), person_of(corpus, "C-302", "irfan")
+        Context.for_corpus(corpus),
+        person_of(corpus, "C-301", "irfan"),
+        person_of(corpus, "C-302", "irfan"),
     )
 
     [co] = [i for i in items if i.kind == "PER_CO_LOCATION"]
@@ -413,7 +430,9 @@ def test_ac07_family_phone_gives_33_low_and_no_person_edge() -> None:
         person_of(corpus, "C-109", "ramesh yadav"),
         person_of(corpus, "C-204", "suresh yadav"),
     )
-    assert [i.kind for i in Tier3Provider().items(corpus, ramesh, suresh)] == ["PER_SHARED_NETWORK"]
+    assert [i.kind for i in Tier3Provider().items(Context.for_corpus(corpus), ramesh, suresh)] == [
+        "PER_SHARED_NETWORK"
+    ]
 
 
 def test_ac08_sim_in_another_name_is_suggested_56_5_never_auto() -> None:
@@ -457,7 +476,7 @@ def test_ac09_mule_account_gives_34_low() -> None:
         person_of(corpus, "C-401", "ajay pal"),
         person_of(corpus, "C-402", "imran qureshi"),
     )
-    [item] = Tier3Provider().items(corpus, ajay, imran)
+    [item] = Tier3Provider().items(linked_by_value(corpus), ajay, imran)
     assert (item.kind, item.params["k"], item.contribution) == (
         "PER_SHARED_NETWORK",
         3,
@@ -529,3 +548,19 @@ def test_default_providers_run_tier_3_and_leave_no_seams() -> None:
 
     assert sum(isinstance(p, Tier3Provider) for p in providers) == 1
     assert not any(isinstance(p, NotYetImplemented) for p in providers)
+
+
+def test_a_phone_both_own_counts_while_its_link_is_not_live() -> None:
+    """Exact Tier 1 exclusion: a common phone whose own link is not AUTO or CONFIRMED (for
+    example held back by G5) gives no SHARED_PHONE item, so Tier 3 may count it."""
+    both = "9000000001"
+    graphs = (
+        case("C-301", [("Irfan", both)], callers_of(both, numbers(2))),
+        case("C-302", [("Irfan", both)], callers_of(both, numbers(2))),
+    )
+    corpus = Corpus(graphs)
+    items = Tier3Provider().items(
+        Context.for_corpus(corpus), person_of(corpus, *X), person_of(corpus, *Y)
+    )
+
+    assert [(i.kind, i.params["k"]) for i in items] == [("PER_SHARED_NETWORK", 3)]

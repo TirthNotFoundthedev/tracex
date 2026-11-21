@@ -120,8 +120,7 @@ CATALOGUE: dict[str, EvidenceSpec] = {
         _spec("PER_DOB_MATCH", 2, 20),
         _spec("PER_AGE_CLOSE", 2, 10),
         _spec("PER_LOCALITY", 2, 10),
-        # Not emitted until providers can read CONFIRMED links (P3.3, errata 5).
-        _spec("PER_NEAR_PHONE", 2, 15, waits_for=2),
+        _spec("PER_NEAR_PHONE", 2, 15),
         _spec("PER_SHARED_NETWORK", 3, 30),
         _spec("PER_CO_LOCATION", 3, 20),
         _spec("ORG_NAME_SIM", 2, 40),
