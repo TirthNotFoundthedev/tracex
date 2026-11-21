@@ -23,6 +23,7 @@ Exposed:
 
 from tracex_engine.normalize.dates import DATE_PATTERN, parse_date
 from tracex_engine.normalize.devanagari import transliterate_devanagari
+from tracex_engine.normalize.facts import phone_digitset_key, phones_transposed
 from tracex_engine.normalize.identifiers import (
     normalize_account,
     normalize_ifsc,
@@ -30,7 +31,6 @@ from tracex_engine.normalize.identifiers import (
     normalize_vehicle,
     phone_from_upi,
 )
-from tracex_engine.normalize.facts import phone_digitset_key, phones_transposed
 from tracex_engine.normalize.names import (
     HONORIFICS,
     ORG_SUFFIXES,

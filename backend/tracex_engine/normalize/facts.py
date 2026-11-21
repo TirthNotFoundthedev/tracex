@@ -29,9 +29,10 @@ def phones_transposed(a: str, b: str) -> bool:
     return a[i] == b[j] and a[j] == b[i]
 
 
-def age_gap(ages_a: set[int], ages_b: set[int]) -> int | None:
-    """Smallest difference in years between a stated age of one side and one of the other."""
-    return min((abs(x - y) for x in ages_a for y in ages_b), default=None)
+def closest_ages(ages_a: set[int], ages_b: set[int]) -> tuple[int, int] | None:
+    """The stated age of each side with the smallest difference in years, if both state one."""
+    pairs = sorted((abs(x - y), x, y) for x in ages_a for y in ages_b)
+    return (pairs[0][1], pairs[0][2]) if pairs else None
 
 
 def parse_age(text: str) -> int | None:

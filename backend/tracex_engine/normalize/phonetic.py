@@ -5,9 +5,9 @@ Devanagari-to-Roman output): `w`/`v`, `sh`/`s`, `x`/`ks`, doubled letters, and v
 Two tokens with the same key are treated as the same sound. It is built for comparing names and
 for blocking, never for display.
 
-`ratio` is the RapidFuzz `fuzz.ratio` score (as a fraction from 0 to 1): the normalized indel similarity, which is
-twice the longest common subsequence over the two lengths. RapidFuzz is not a dependency of this
-project, so the same measure is computed here.
+`ratio` is the RapidFuzz `fuzz.ratio` score as an exact fraction from 0 to 1: the normalized
+indel similarity, twice the longest common subsequence over the two lengths. RapidFuzz is not
+a dependency of this project, so the same measure is computed here.
 """
 
 import re

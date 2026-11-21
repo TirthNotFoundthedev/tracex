@@ -14,7 +14,7 @@ from tracex_engine.normalize import (
     phonetic_key,
     ratio,
 )
-from tracex_engine.normalize.facts import age_gap, same_place
+from tracex_engine.normalize.facts import closest_ages, same_place
 from tracex_engine.normalize.similarity import name_key, org_name_key, token_is_common
 
 
@@ -62,7 +62,11 @@ def test_devanagari_and_roman_spellings_compare_as_matching_tokens(
 def test_mohd_irfan_and_its_devanagari_spelling_are_equal() -> None:
     assert normalize_name("Mohd. Irfan") == normalize_name("मोहम्मद इरफ़ान") == "mohammad irfan"
     result = name_similarity("mohammad irfan", normalize_name("मोहम्मद इरफ़ान"))
-    assert (result.name_sim, result.completeness, result.rarity) == (1, 1, 1)
+    assert (result.name_sim, result.completeness, result.rarity) == (
+        Decimal(1),
+        Decimal(1),
+        Decimal(1),
+    )
 
 
 def test_irfan_bhai_drops_the_kinship_word() -> None:
@@ -158,10 +162,10 @@ def test_adjacent_swaps_share_a_digit_set_key() -> None:
     assert phone_digitset_key("9000081914") != phone_digitset_key("9000081915")
 
 
-def test_age_gap_is_the_smallest_difference() -> None:
-    assert age_gap({34}, {35}) == 1
-    assert age_gap({34, 50}, {36}) == 2
-    assert age_gap({34}, set()) is None
+def test_closest_ages_picks_the_smallest_difference() -> None:
+    assert closest_ages({34}, {35}) == (34, 35)
+    assert closest_ages({34, 50}, {36}) == (34, 36)
+    assert closest_ages({34}, set()) is None
 
 
 def test_same_place_by_text_or_by_sound() -> None:

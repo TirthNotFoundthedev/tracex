@@ -1,9 +1,10 @@
 """The worked scenario on kit files (AC-01, AC-27) and AC-20 / AC-23 over the whole kit.
 
 AC-01 and AC-27 run on a fresh store holding only C-101 and C-201 (data-kit 3.3). The real
-extractor and graph builder read the kit files. With Tier 1 alone the phones link AUTO and the
-person pair carries its SHARED_PHONE anchor (45.0) and waits for Tier 2 and 3; with the Tier 2
-and Tier 3 values of AC-01 supplied as fixture comparators it is AUTO 85.5 as the spec fixes.
+extractor and graph builder read the kit files. With Tier 1 and the real Tier 2 comparators the
+phones link AUTO and the person pair carries SHARED_PHONE (45.0) and PER_NAME_SIM (22.5) and
+waits for Tier 3; with the Tier 2 and Tier 3 values of AC-01 supplied as fixture comparators it
+is AUTO 85.5 as the spec fixes.
 """
 
 import json
@@ -31,7 +32,7 @@ def scoped(kit: Path, matcher_providers: tuple[FixtureProvider, ...] | None) -> 
     return Matcher(graphs, InMemoryLinkStore(), providers=matcher_providers)
 
 
-def test_worked_scenario_tier1_on_kit_files(kit: Path) -> None:
+def test_worked_scenario_tier1_and_tier2_on_kit_files(kit: Path) -> None:
     m = scoped(kit, None)
 
     result = m.run_matching(input_case_ids=("C-101", "C-201"), triggered_by="u-hari")
@@ -47,11 +48,18 @@ def test_worked_scenario_tier1_on_kit_files(kit: Path) -> None:
     [irfan] = [e for e in edges if e.entity_type.value == "PERSON"]
     assert (irfan.state, irfan.score, [g.gate for g in irfan.gates_failed]) == (
         LinkState.SUGGESTED,
-        Decimal("45.0"),
-        ["G1", "G3"],
+        Decimal("67.5"),
+        ["G1"],
     )
     [item] = irfan.evidence["support"][0]["items"]
     assert item["kind"] == "SHARED_PHONE" and item["is_anchor"]
+    [name] = irfan.evidence["support"][1]["items"]
+    assert (name["kind"], name["contribution"]) == ("PER_NAME_SIM", 22.5)
+    assert name["params"] == {"name_a": "mohammad irfan", "name_b": "irfan", "sim": 1.0}
+    assert {(s["case_id"], s["document_id"], s["line"]) for s in name["sources"]} == {
+        ("C-101", "fir.txt", 12),
+        ("C-201", "notes.txt", 3),
+    }
     assert {(s["case_id"], s["document_id"], s["line"]) for s in item["sources"]} == {
         ("C-101", "fir.txt", 12),
         ("C-201", "notes.txt", 3),
