@@ -1,8 +1,6 @@
 -- TraceX schema. Runs as tracex_migrator, which owns every object. Synthetic data only.
 -- docs/architecture.md sections 3 to 5 describe each table.
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 CREATE TABLE states (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     name text NOT NULL UNIQUE

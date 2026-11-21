@@ -11,7 +11,7 @@ import json
 import os
 import secrets
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -29,8 +29,7 @@ from tracex_api.config import Settings
 from tracex_api.db import Conn, bootstrap_roles, connect, many, migrate, one
 from tracex_api.engine_bridge import EngineGateway
 from tracex_api.main import create_app
-from tracex_api.seed import load_seed, seed_jurisdictions, seed_users
-from tracex_engine.matching import InMemoryLinkStore
+from tracex_api.seed import assign_cases, load_seed, seed_jurisdictions, seed_users
 
 PG_URL = os.environ.get("TRACEX_TEST_PG_URL")
 MIGRATOR_PASSWORD = "ci-only-migrator-throwaway"  # noqa: S105 - test database only
@@ -175,11 +174,11 @@ class Api:
         return rows
 
 
-@pytest.fixture
-def api(pg_template: str, tmp_path: Path) -> Iterator[Api]:
+def _make_api(template: str, tmp_path: Path, engine: EngineGateway) -> Api:
+    """An app on a fresh database cloned from `template`, with its own keys and clock."""
     assert PG_URL
     name = f"tracex_t_{secrets.token_hex(4)}"
-    _create_database(name, owner="tracex_migrator", template=pg_template)
+    _create_database(name, owner="tracex_migrator", template=template)
     settings = Settings(
         database_url=_with_database(PG_URL, name, "tracex_api", API_PASSWORD),
         database_admin_url=None,
@@ -193,10 +192,9 @@ def api(pg_template: str, tmp_path: Path) -> Iterator[Api]:
         neo4j_password="",
     )
     clock = FakeClock()
-    engine = EngineGateway.in_memory()
     app = create_app(settings, engine, clock)
     client = TestClient(app, raise_server_exceptions=False)
-    yield Api(
+    return Api(
         client,
         settings,
         clock,
@@ -205,8 +203,14 @@ def api(pg_template: str, tmp_path: Path) -> Iterator[Api]:
         _with_database(PG_URL, name, "tracex_migrator", MIGRATOR_PASSWORD),
         _with_database(PG_URL, name),
     )
-    client.close()
-    _drop_database(name)
+
+
+@pytest.fixture
+def api(pg_template: str, tmp_path: Path) -> Iterator[Api]:
+    made = _make_api(pg_template, tmp_path, EngineGateway.in_memory())
+    yield made
+    made.client.close()
+    _drop_database(made.dbname)
 
 
 def upload_case(
@@ -254,27 +258,41 @@ ASSIGNMENTS = [
 ]
 
 
-@pytest.fixture
-def world(api: Api) -> World:
-    """Cases C-101, C-102 (Rivergate), C-201 (Hillcrest), C-301 (Lakeside) uploaded by hari and
-    matched. E-1 is the phone in C-101, E-2 the same phone in C-201, E-3 in C-102, E-4 the vehicle
-    in C-101, E-5 the vehicle in C-301. L-1 joins E-1 and E-2, L-2 E-1 and E-3, L-3 E-4 and E-5
-    (confirmed by meena). The person links between the Irfan entities are SUGGESTED."""
-    upload_case(api, "C-101", "Rivergate", case_notes("C-101", IRFAN, VEHICLE))
-    upload_case(api, "C-102", "Rivergate", case_notes("C-102", IRFAN))
-    upload_case(api, "C-201", "Hillcrest", case_notes("C-201", IRFAN))
-    upload_case(api, "C-301", "Lakeside", case_notes("C-301", VEHICLE))
-    with api.owner() as conn:
-        from tracex_api.seed import assign_cases
+@pytest.fixture(scope="session")
+def world_template(
+    pg_template: str, tmp_path_factory: pytest.TempPathFactory
+) -> Iterator[tuple[str, EngineGateway, World]]:
+    """Build the scenario once; every test clones its database and engine stores.
 
+    Cases C-101, C-102 (Rivergate), C-201 (Hillcrest), C-301 (Lakeside) are uploaded by hari and
+    matched. E-1 is the phone in C-101, E-2 the same phone in C-201, E-3 in C-102, E-4 the
+    vehicle in C-101, E-5 the vehicle in C-301. L-1 joins E-1 and E-2, L-2 E-1 and E-3, L-3 E-4
+    and E-5 (confirmed by meena). The person links between the Irfan entities are SUGGESTED."""
+    builder = _make_api(pg_template, tmp_path_factory.mktemp("world"), EngineGateway.in_memory())
+    upload_case(builder, "C-101", "Rivergate", case_notes("C-101", IRFAN, VEHICLE))
+    upload_case(builder, "C-102", "Rivergate", case_notes("C-102", IRFAN))
+    upload_case(builder, "C-201", "Hillcrest", case_notes("C-201", IRFAN))
+    upload_case(builder, "C-301", "Lakeside", case_notes("C-301", VEHICLE))
+    with builder.owner() as conn:
         assign_cases(conn, ASSIGNMENTS)
         conn.commit()
-    response = api.post("hari", "/matching/runs", {})
+    response = builder.post("hari", "/matching/runs", {})
     assert response.status_code == 202, response.text
-    world = snapshot(api)
-    confirm = api.post("meena", f"/links/{world.links['L-3']}/confirm", {})
+    built = snapshot(builder)
+    confirm = builder.post("meena", f"/links/{built.links['L-3']}/confirm", {})
     assert confirm.status_code == 200, confirm.text
-    return world
+    builder.client.close()
+    yield builder.dbname, builder.engine, built
+    _drop_database(builder.dbname)
+
+
+@pytest.fixture
+def world(world_template: tuple[str, EngineGateway, World], tmp_path: Path) -> Iterator[World]:
+    template, engine, built = world_template
+    made = _make_api(template, tmp_path, engine.copy())
+    yield World(made, built.cases, built.entities, built.links)
+    made.client.close()
+    _drop_database(made.dbname)
 
 
 def snapshot(api: Api) -> World:
@@ -322,8 +340,3 @@ def new_uuid() -> str:
 
 def dump(response: Any) -> str:
     return json.dumps(response.json(), sort_keys=True)
-
-
-Factory = Callable[..., Any]
-
-__all__ = ["InMemoryLinkStore", "dump"]

@@ -6,6 +6,7 @@ returns plain records. This module ingests uploaded cases into it, persists what
 decisions through the outbox, and reconciles Postgres with the engine's edges.
 """
 
+import copy
 import logging
 import re
 import threading
@@ -87,6 +88,10 @@ class EngineGateway:
         graphs.ensure_schema()
         links.ensure_schema()
         return cls(graphs, links)
+
+    def copy(self) -> "EngineGateway":
+        """An independent gateway over copies of the in-memory stores (tests clone a world)."""
+        return EngineGateway(copy.deepcopy(self.graphs), copy.deepcopy(self.links), self.clock)
 
     def lock_for(self, link_id: str) -> threading.Lock:
         with self._guard:

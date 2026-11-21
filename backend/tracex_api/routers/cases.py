@@ -240,7 +240,7 @@ def get_entity(entity_id: str, ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]
     if stubs:
         ctx.audit(
             "STUB_VIEWED",
-            refs=cases_in_play,
+            refs=[c for f in shown_stub_links for c in link_cases(f)],
             detail={
                 "stub_ids": [s["stub_id"] for s in stubs],
                 "near_entity_ids": sorted({s["near_entity_id"] for s in stubs}),

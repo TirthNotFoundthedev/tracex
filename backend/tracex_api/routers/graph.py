@@ -67,7 +67,7 @@ def _audit_graph(
     if stubs:
         ctx.audit(
             "STUB_VIEWED",
-            refs=cases,
+            refs=stub_cases,
             detail={
                 "stub_ids": [s["stub_id"] for s in stubs],
                 "near_entity_ids": sorted({s["near_entity_id"] for s in stubs}),

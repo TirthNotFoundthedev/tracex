@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from tracex_api import audit, context
-from tracex_api.config import Settings
+from tracex_api.config import ConfigError, Settings
 from tracex_api.context import AppState, RouteSpec, utc_now
 from tracex_api.db import connect
 from tracex_api.engine_bridge import EngineGateway
@@ -70,7 +70,14 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if not hasattr(app.state, "tracex"):
-            loaded = Settings.from_env()
+            try:
+                loaded = Settings.from_env()
+            except ConfigError:
+                # Not configured: /health answers, /ready says 503 and every other route fails
+                # closed with INTERNAL until the environment is complete.
+                logger.exception("settings are incomplete; the API is not ready")
+                yield
+                return
             app.state.tracex = AppState(loaded, clock, engine or _engine_for(loaded))
         state: AppState = app.state.tracex
         thread = threading.Thread(target=_anchor_loop, args=(state, stop), daemon=True)

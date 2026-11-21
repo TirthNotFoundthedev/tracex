@@ -100,7 +100,7 @@ def list_links(
     if stubs:
         ctx.audit(
             "STUB_VIEWED",
-            refs=cases,
+            refs=[c for f in stub_facts for c in link_cases(f)],
             detail={
                 "stub_ids": [s["stub_id"] for s in stubs],
                 "near_entity_ids": sorted({s["near_entity_id"] for s in stubs}),
@@ -171,10 +171,10 @@ def _decide(ctx: Ctx, link_id: str, action: str) -> dict[str, Any]:
         raise ApiError("INVALID_TRANSITION")
     if isinstance(expected, str) and expected != state_now:
         raise ApiError("STATE_MISMATCH")
-    body = ctx.body(ConfirmBody if action == "CONFIRM" else ReasonBody)
-    reason = getattr(body, "reason", None)
     if run_in_progress(ctx.conn):
         raise ApiError("RUN_IN_PROGRESS")
+    body = ctx.body(ConfirmBody if action == "CONFIRM" else ReasonBody)
+    reason = getattr(body, "reason", None)
     locked = one(ctx.conn, "SELECT * FROM links WHERE link_id = %s FOR UPDATE", (f.row["link_id"],))
     locked = need(locked)
     if locked["state"] != state_now:

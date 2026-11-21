@@ -412,6 +412,7 @@ def authed_ctx(request: Request) -> Iterator[Ctx]:
     for ctx in _make_ctx(request):
         ctx.principal = authenticate(ctx)
         expire_stale(ctx)
+        ctx.commit()  # expiries stand even if this request is then refused and rolled back
         yield ctx
 
 
@@ -453,16 +454,25 @@ def _run(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
 ) -> Any:
-    principal = ctx.principal
-    if principal is not None and principal.role not in policy.allow:
-        raise (
-            ctx.not_found(ctx.action_label())
-            if policy.outside == 404
-            else ctx.forbidden(None, None)
-        )
-    result = fn(*args, **kwargs)
-    ctx.commit()
-    return result
+    """Run the handler and commit; an `ApiError` rolls the transaction back and answers here,
+    while the connection is still open, then appends the W3 rows in their own transaction."""
+    try:
+        principal = ctx.principal
+        if principal is not None and principal.role not in policy.allow:
+            raise (
+                ctx.not_found(ctx.action_label())
+                if policy.outside == 404
+                else ctx.forbidden(None, None)
+            )
+        result = fn(*args, **kwargs)
+        ctx.commit()
+        return result
+    except ApiError as exc:
+        ctx.pending.clear()
+        ctx.conn.rollback()
+        if exc.audits:
+            _append_independent(ctx.state, exc.audits)
+        return JSONResponse(exc.body(), status_code=exc.status, headers=exc.headers)
 
 
 async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
@@ -470,7 +480,8 @@ async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
     state: AppState = request.app.state.tracex
     if ctx is not None:
         ctx.pending.clear()
-        ctx.conn.rollback()
+        if not ctx.conn.closed:
+            ctx.conn.rollback()
     if exc.audits:
         _append_independent(state, exc.audits)
     return JSONResponse(exc.body(), status_code=exc.status, headers=exc.headers)
@@ -507,10 +518,11 @@ async def unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
     ctx: Ctx | None = getattr(request.state, "ctx", None)
     if ctx is not None:
         ctx.pending.clear()
-        try:
-            ctx.conn.rollback()
-        except Exception:  # noqa: BLE001 - the connection may already be broken; nothing to save
-            logger.debug("rollback failed", exc_info=True)
+        if not ctx.conn.closed:
+            try:
+                ctx.conn.rollback()
+            except Exception:  # noqa: BLE001 - the connection may already be broken
+                logger.debug("rollback failed", exc_info=True)
     logger.error("request failed", exc_info=exc, extra={"path": request.url.path})
     error = ApiError("INTERNAL")
     return JSONResponse(error.body(), status_code=error.status)
