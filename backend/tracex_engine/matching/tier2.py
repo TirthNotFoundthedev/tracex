@@ -17,8 +17,8 @@ Hard PER_AGE_CONFLICT is seen by the cluster check C3 (`matching/evidence.hard_c
 Gaps the data allows no answer to yet (they only ever make a link be missed, never made):
 - Ages are compared as stated. The case graph carries no case dates, so "ages at a common date"
   is read as "ages as written"; cases are normally written close together.
-- A person's district is the stated one. The district of the case is not in the graph, so a
-  person with no stated district has no district (B5 skips them; PER_LOCALITY sees none).
+- A person's district is the stated one, else the district the case's FIR header states
+  (`Corpus.effective_districts`); PER_LOCALITY then cites that FIR line.
 - `oversized_block` for B2, B4, B5 and B7 is not counted in the run record: a provider returns
   pairs only. Blocks over the size limit are skipped as for the other keys.
 """
@@ -158,7 +158,7 @@ class Tier2Provider:
         frequent: frozenset[str],
         blocks: dict[tuple[str, ...], set[str]],
     ) -> None:
-        districts = corpus.attribute(person.entity_id, "district")
+        districts = corpus.effective_districts(person.entity_id)
         for name in _names(corpus, person.entity_id):
             tokens = name_tokens(name)
             rare = [t for t in tokens if not token_is_common(t, frequent)]
@@ -360,16 +360,29 @@ def _age_items(
 
 
 def _locality_item(corpus: Corpus, a: Entity, b: Entity, with_district: bool) -> list[EvidenceItem]:
-    """PER_LOCALITY: the same locality (1.0), else the same stated district only (0.4)."""
-    for key, strength in (("locality", ONE), ("district", DISTRICT_ONLY)):
-        if key == "district" and not with_district:
-            break
-        for place_a in sorted(corpus.attribute(a.entity_id, key)):
-            for place_b in sorted(corpus.attribute(b.entity_id, key)):
-                if same_place(place_a, place_b):
-                    sources = _cited(
-                        _fact_source(corpus, a.entity_id, key),
-                        _fact_source(corpus, b.entity_id, key),
-                    )
-                    return [EvidenceItem("PER_LOCALITY", strength, {"place": place_a}, sources)]
+    """PER_LOCALITY: the same locality (1.0), else the same district only (0.4). A person's
+    district is the stated one, else the district of the case (spec 3.2), cited at its FIR line."""
+    for place_a in sorted(corpus.attribute(a.entity_id, "locality")):
+        for place_b in sorted(corpus.attribute(b.entity_id, "locality")):
+            if same_place(place_a, place_b):
+                sources = _cited(
+                    _fact_source(corpus, a.entity_id, "locality"),
+                    _fact_source(corpus, b.entity_id, "locality"),
+                )
+                return [EvidenceItem("PER_LOCALITY", ONE, {"place": place_a}, sources)]
+    if not with_district:
+        return []
+    for place_a in sorted(corpus.effective_districts(a.entity_id)):
+        for place_b in sorted(corpus.effective_districts(b.entity_id)):
+            if same_place(place_a, place_b):
+                sources = _cited(_district_source(corpus, a), _district_source(corpus, b))
+                return [EvidenceItem("PER_LOCALITY", DISTRICT_ONLY, {"place": place_a}, sources)]
     return []
+
+
+def _district_source(corpus: Corpus, person: Entity) -> Source:
+    """The line a person's district comes from: a stated district, else the FIR header line."""
+    if corpus.attribute(person.entity_id, "district"):
+        return _fact_source(corpus, person.entity_id, "district")
+    found = corpus.districts[person.case_id]
+    return source_of(person.case_id, found.file, found.line)

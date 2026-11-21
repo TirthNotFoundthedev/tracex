@@ -5,6 +5,7 @@ end through the matcher; the other tests read the provider's blocking keys and i
 """
 
 import uuid
+from dataclasses import replace
 from decimal import Decimal
 from itertools import count
 
@@ -23,7 +24,7 @@ from tests.engine.matching.support import (
     phone,
     store_of,
 )
-from tracex_engine.graph import CaseGraph, Entity, EntityType
+from tracex_engine.graph import CaseDistrict, CaseGraph, Entity, EntityType
 from tracex_engine.matching import InMemoryLinkStore, LinkState, Matcher, SameAsEdge
 from tracex_engine.matching.corpus import Corpus
 from tracex_engine.matching.evidence import Context
@@ -617,3 +618,18 @@ def test_one_token_names_that_only_sound_alike_give_no_name_sim_item() -> None:
         items = by_kind(pair_items(person_case("C-101", left), person_case("C-102", right)))
 
         assert "PER_NAME_SIM" not in items, (left, right)
+
+
+def test_district_only_locality_falls_back_to_the_case_district_and_cites_its_fir_line() -> None:
+    """Spec 3.2: a person's district is the stated one, else the district of the case."""
+    fir_district = CaseDistrict("rampur", "Rampur", "fir.txt", 4)
+    a = replace(person_case("C-101", "Ravi Verma"), district=fir_district)
+    b = person_case("C-102", "Ravi Verma", district="Rampur")
+    unknown = person_case("C-103", "Ravi Verma")
+
+    district = by_kind(pair_items(a, b))["PER_LOCALITY"]
+
+    assert (district.contribution, district.params) == (Decimal("4.0"), {"place": "rampur"})
+    cited = {(s.case_id, s.document_id, s.line) for s in district.sources}
+    assert ("C-101", "fir.txt", 4) in cited
+    assert "PER_LOCALITY" not in by_kind(pair_items(unknown, b))

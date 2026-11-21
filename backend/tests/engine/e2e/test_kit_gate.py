@@ -76,19 +76,15 @@ TIER1_REACHABLE = {
 
 PASS_NOW = {
     "b01": {
-        "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-11",
-        "AC-12", "AC-13", "AC-14", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
+        "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10",
+        "AC-11", "AC-12", "AC-13", "AC-14", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
     },
     "b02": {
-        "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-09", "AC-10", "AC-11",
-        "AC-12", "AC-13", "AC-14", "AC-15", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
+        "AC-01", "AC-02", "AC-03", "AC-04", "AC-05", "AC-06", "AC-07", "AC-08", "AC-09", "AC-10",
+        "AC-11", "AC-12", "AC-13", "AC-14", "AC-15", "AC-17", "AC-19", "AC-21", "AC-22", "AC-26",
     },
 }  # fmt: skip
-# AC-08 waits for the case district in the graph (district-only PER_LOCALITY, P3.1 limitation).
-WAITS = {
-    "b01": {"AC-08": 3},
-    "b02": {"AC-08": 3},
-}
+WAITS: dict[str, dict[str, int]] = {"b01": {}, "b02": {}}
 
 
 def reachable(batch: str) -> set[str]:
@@ -167,7 +163,6 @@ def test_a_waiting_link_is_never_above_its_expected_state_or_score(
             actual_score[link_id] = Decimal(str(row["actual"]))
     rank = {"REJECTED": 0, "SUGGESTED": 1, "AUTO": 2}
     stored = [k for k in waiting if FAILING[batch][k][1] != MISSED]
-    assert stored
     for link_id in stored:
         link = expected[link_id]
         state = actual_state.get(link_id, link["state"])

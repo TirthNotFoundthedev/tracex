@@ -1,8 +1,7 @@
-"""The scorer's `--defer` on the real engine result: the waiting list makes `ok` true mid-build.
+"""The scorer's `--defer` on the real engine result: nothing waits, so `ok` holds alone.
 
-The links pinned in `waiting.py` are the ones the engine cannot reach until Tier 2 lands. Naming
-exactly them lets `python -m datakit score` report `ok: true` while they are listed apart from
-the passed ones; naming fewer leaves the run failing.
+With Tiers 1-3 every expected link passes, so nothing is deferred and `ok` holds on its own; a
+deferred link that passes is reported `passing`, never counted as passed.
 """
 
 import json
@@ -49,29 +48,27 @@ def score_with_defer(kit: Path, run: KitRun, workdir: Path, ids: list[str]) -> d
 
 
 @pytest.mark.parametrize("batch", ["b01", "b02"])
-def test_the_waiting_list_deferred_makes_the_scorer_ok(
+def test_the_scorer_is_ok_with_nothing_deferred(
     batch: str, kit: Path, tmp_path: Path, request: pytest.FixtureRequest
 ) -> None:
+    """P3.3 goal: every expected link passes, so `ok` holds without `--defer`."""
     run: KitRun = request.getfixturevalue(f"run_{batch}")
-    waiting = sorted(k for k, (tier, _) in FAILING[batch].items() if tier >= 1)
-    assert waiting == sorted(FAILING[batch])
+    assert FAILING[batch] == {}
 
-    report = score_with_defer(kit, run, tmp_path, waiting)
+    report = score_with_defer(kit, run, tmp_path, [])
 
-    assert report["ok"] is True
-    assert sorted(d["id"] for d in report["deferred"]) == waiting
-    assert all(d["status"] == "waiting" for d in report["deferred"])
-    assert report["forbidden_hits"] == [] and report["wrong_links"] == []
+    assert report["ok"] is True and report["deferred"] == []
+    assert report["missed_links"] == [] and report["wrong_links"] == []
+    assert report["forbidden_hits"] == []
     assert {s["id"] for s in report["skipped"]} == set(SKIPPED[batch])
 
 
-def test_deferring_all_but_one_waiting_link_leaves_that_one_failing(
+def test_a_deferred_link_that_passes_is_reported_passing_never_passed(
     kit: Path, tmp_path: Path, run_b01: KitRun
 ) -> None:
-    waiting = sorted(FAILING["b01"])
+    report = score_with_defer(kit, run_b01, tmp_path, ["EL-FX01-PER"])
 
-    report = score_with_defer(kit, run_b01, tmp_path, waiting[1:])
-
-    assert report["ok"] is False
-    named = {m["id"] for m in report["missed_links"]} | {w["id"] for w in report["wrong_links"]}
-    assert named == {waiting[0]}
+    assert report["deferred"] == [
+        {"id": "EL-FX01-PER", "ac": ["AC-01"], "status": "passing", "failures": []}
+    ]
+    assert report["checks"]["S1"]["deferred"] == 1
