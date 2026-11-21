@@ -121,7 +121,15 @@ class MatchRun:
                 edge.state is LinkState.AUTO and edge.pair not in pending
             ):
                 self.active.add(*edge.pair)
-        self.ctx = Context(corpus, identifier_flags(corpus, confirmed), self.active.has)
+        confirmed_pairs = frozenset(
+            frozenset(p) for p, e in self.stored.items() if e.state is LinkState.CONFIRMED
+        )
+        self.ctx = Context(
+            corpus,
+            identifier_flags(corpus, confirmed),
+            self.active.has,
+            lambda x, y: frozenset((x, y)) in confirmed_pairs,
+        )
         for pairs in (id_pairs, party_pairs):
             scored = sorted((self._score(p) for p in pairs & pending), key=Scored.order)
             for item in scored:
@@ -161,7 +169,7 @@ class MatchRun:
             if a.type is EntityType.PERSON:
                 items += person_conflicts(self.corpus, a, b)
         for provider in self.providers:
-            items += provider.items(self.corpus, a, b)
+            items += provider.items(self.ctx, a, b)
         breakdown = compose(a.type, items)
         return Scored(a, b, breakdown, band_of(breakdown, self.thresholds))
 

@@ -9,11 +9,11 @@
                         rows of phones each person owns that are not SHARED, HUB or MULTI_USER:
                         strength 0.7 / 1.0 for k = 2 / 3 or more
 
-Items cite only lines of the two end cases and name no other case. The provider reads only the
-corpus. Two approximations lean to the safe side (fewer items, never more): the Tier 1 exclusion
-drops every identifier value both persons are tied to, whether or not its identifier link is
-AUTO or CONFIRMED yet; and MULTI_USER is computed without the CONFIRMED pairs of the run, so a
-value whose owners were later confirmed as one person stays excluded from co-location.
+Items cite only lines of the two end cases and name no other case. The Tier 1 exclusion is the
+identifier values of this pair's SHARED_* items (both ends of every live-linked tie pair), and
+co-location reads the run's flags, where MULTI_USER already knows the CONFIRMED person pairs.
+B6 blocking runs before any link is settled and reads HUB and SHARED only, which do not depend
+on links.
 """
 
 from collections import defaultdict
@@ -32,6 +32,7 @@ from tracex_engine.graph.neighbourhood import sorted_lines
 from tracex_engine.ingest import SourceRef
 from tracex_engine.matching.blocking import MAX_BLOCK, Pair, canonical, linkable_party
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.evidence import Context, tier1_used_values
 from tracex_engine.matching.flags import HUB, MULTI_USER, SHARED, ValueKey, identifier_flags
 from tracex_engine.scoring import EvidenceItem, Source
 
@@ -84,17 +85,9 @@ class _Prepared:
             self._networks[person_id] = cached
         return cached
 
-    def tied_values(self, person_id: str) -> set[ValueKey]:
-        """Identifier values the person is tied to by any attribution (Tier 1 material)."""
-        entities = self.corpus.entities
-        ties = self.corpus.ties_of_party.get(person_id, ())
-        return {
-            (entities[t.identifier_id].type, entities[t.identifier_id].normalized) for t in ties
-        }
-
-    def network_item(self, a: Entity, b: Entity) -> EvidenceItem | None:
+    def network_item(self, ctx: Context, a: Entity, b: Entity) -> EvidenceItem | None:
         net_a, net_b = self.network(a.entity_id), self.network(b.entity_id)
-        used = self.tied_values(a.entity_id) & self.tied_values(b.entity_id)
+        used = tier1_used_values(ctx, a, b)
         common = sorted((net_a.keys() & net_b.keys()) - used)
         if len(common) < MIN_K:
             return None
@@ -106,8 +99,9 @@ class _Prepared:
             _sources(lines),
         )
 
-    def co_location_item(self, a: Entity, b: Entity) -> EvidenceItem | None:
-        matched = match_seen_at(self._seen(a.entity_id), self._seen(b.entity_id))
+    def co_location_item(self, ctx: Context, a: Entity, b: Entity) -> EvidenceItem | None:
+        flags = ctx.flags
+        matched = match_seen_at(self._seen(a.entity_id, flags), self._seen(b.entity_id, flags))
         if len(matched) < MIN_K:
             return None
         lines = [r.source for pair in matched for r in pair]
@@ -118,11 +112,11 @@ class _Prepared:
             _sources(lines),
         )
 
-    def _seen(self, person_id: str) -> tuple[SeenAt, ...]:
+    def _seen(self, person_id: str, flags: dict[ValueKey, frozenset[str]]) -> tuple[SeenAt, ...]:
         records: list[SeenAt] = []
         for phone_id in self.index.owned(person_id, EntityType.PHONE):
             phone = self.corpus.entities[phone_id]
-            if not self._flagged((phone.type, phone.normalized), CO_LOCATION_EXCLUDED):
+            if not flags.get((phone.type, phone.normalized), frozenset()) & CO_LOCATION_EXCLUDED:
                 records.extend(self.index.seen_at(phone_id))
         return tuple(records)
 
@@ -159,9 +153,9 @@ class Tier3Provider:
                         shared[canonical(first, second)] += 1
         return sorted(pair for pair, count in shared.items() if count >= MIN_K)
 
-    def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+    def items(self, ctx: Context, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
         if a.type is not EntityType.PERSON or b.type is not EntityType.PERSON:
             return ()
-        prepared = self._for(corpus)
-        found = (prepared.network_item(a, b), prepared.co_location_item(a, b))
+        prepared = self._for(ctx.corpus)
+        found = (prepared.network_item(ctx, a, b), prepared.co_location_item(ctx, a, b))
         return [item for item in found if item is not None]
