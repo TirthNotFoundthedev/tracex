@@ -15,6 +15,10 @@ Exposed:
     normalize_place          lowercase place text
     parse_date               the date formats the data kit writes
     transliterate_devanagari offline Devanagari to Roman (vertical-slice coverage only)
+    phonetic_key, ratio      sound-alike key of a name token; RapidFuzz-style string ratio
+    name_similarity          `name_sim` with completeness and rarity (Tier 2)
+    org_name_similarity      `name_sim` of reduced organisation names
+    phones_transposed        phones equal except one adjacent pair of digits swapped
 """
 
 from tracex_engine.normalize.dates import DATE_PATTERN, parse_date
@@ -26,6 +30,7 @@ from tracex_engine.normalize.identifiers import (
     normalize_vehicle,
     phone_from_upi,
 )
+from tracex_engine.normalize.facts import phone_digitset_key, phones_transposed
 from tracex_engine.normalize.names import (
     HONORIFICS,
     ORG_SUFFIXES,
@@ -33,12 +38,19 @@ from tracex_engine.normalize.names import (
     normalize_org_name,
     normalize_place,
 )
+from tracex_engine.normalize.phonetic import phonetic_key, ratio
+from tracex_engine.normalize.similarity import (
+    NameSimilarity,
+    name_similarity,
+    org_name_similarity,
+)
 from tracex_engine.normalize.values import Value
 
 __all__ = [
     "DATE_PATTERN",
     "HONORIFICS",
     "ORG_SUFFIXES",
+    "NameSimilarity",
     "Value",
     "normalize_account",
     "normalize_ifsc",
@@ -47,7 +59,13 @@ __all__ = [
     "normalize_phone",
     "normalize_place",
     "normalize_vehicle",
+    "name_similarity",
+    "org_name_similarity",
     "parse_date",
+    "phone_digitset_key",
+    "phones_transposed",
     "phone_from_upi",
+    "phonetic_key",
+    "ratio",
     "transliterate_devanagari",
 ]
