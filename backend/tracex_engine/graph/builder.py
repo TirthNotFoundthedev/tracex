@@ -14,6 +14,7 @@ from tracex_engine.extract import (
 from tracex_engine.graph.dedupe import Draft, Extracted, entity_type, group_mentions
 from tracex_engine.graph.model import (
     AttrValue,
+    CaseDistrict,
     CaseGraph,
     Edge,
     EdgeType,
@@ -80,7 +81,15 @@ def build_case_graph(records: CaseRecords) -> CaseGraph:
         mentions=tuple(mentions),
         places=tuple(edges.places.values()),
         edges=tuple(edges.edges),
+        district=_case_district(records),
     )
+
+
+def _case_district(records: CaseRecords) -> CaseDistrict | None:
+    value, source = records.district, records.district_source
+    if value is None or source is None or not value.normalized:
+        return None
+    return CaseDistrict(value.normalized, value.raw_text, source.file, source.line)
 
 
 def _entity_id(case_id: str, position: int) -> str:
