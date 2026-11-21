@@ -599,3 +599,10 @@ def test_a_devanagari_org_name_matches_its_roman_spelling() -> None:
 
     assert items["ORG_NAME_SIM"].contribution == Decimal("40.0")
     assert len(list(Tier2Provider().candidates(Corpus((a, b))))) == 1
+
+
+def test_one_token_names_that_only_sound_alike_give_no_name_sim_item() -> None:
+    for left, right in (("Sunil", "Sonal"), ("Salim", "Saleem")):
+        items = by_kind(pair_items(person_case("C-101", left), person_case("C-102", right)))
+
+        assert "PER_NAME_SIM" not in items, (left, right)

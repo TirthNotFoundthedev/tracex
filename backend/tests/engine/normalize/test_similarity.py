@@ -173,3 +173,9 @@ def test_same_place_by_text_or_by_sound() -> None:
     assert same_place("kherapur", "kheerapur")
     assert not same_place("kherapur", "rampur")
     assert not same_place("ward 5", "ward 7")
+
+
+def test_salim_and_saleem_match_by_sound_at_their_real_ratio() -> None:
+    result = name_similarity("salim", "saleem")
+
+    assert result.name_sim == Decimal("0.73")

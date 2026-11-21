@@ -72,10 +72,10 @@ def org_tokens(name: str) -> list[str]:
 def token_match(a: str, b: str) -> Fraction | None:
     """The ratio of two tokens if they match, else None.
 
-    Equal tokens score 1 and tokens with ratio >= 0.85 score their ratio. Tokens that only sound
-    alike (equal phonetic keys, a lower ratio: `salim` and `saleem`, or a Hindi and a Roman
-    spelling) score 0.85, the lowest ratio that counts as a match, so a spelling difference does
-    not make a matching token count for less than a near miss.
+    Equal tokens score 1; every other match scores its own ratio, never a floor. Tokens that
+    only sound alike (equal phonetic keys, a ratio below 0.85) match for blocking and count at
+    their real ratio: `salim` and `saleem` give 0.73, so a one-token name pair stays under the
+    0.80 PER_NAME_SIM trigger. The key drops vowels, so no floor is safe (`sunil`, `sonal`).
     """
     if a == b:
         return Fraction(1)
@@ -84,7 +84,7 @@ def token_match(a: str, b: str) -> Fraction | None:
         return score
     key = phonetic_key(a)
     if min(len(a), len(b)) >= 2 and len(key) >= 2 and key == phonetic_key(b):
-        return MATCH_RATIO
+        return score
     return None
 
 

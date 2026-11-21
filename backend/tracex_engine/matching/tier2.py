@@ -12,13 +12,16 @@ Evidence items:
     ORG_NAME_SIM, and PER_LOCALITY for organisations
     PER_AGE_CONFLICT, PER_RELATIVE_CONFLICT (opposing)
 
+Hard PER_AGE_CONFLICT is seen by the cluster check C3 (`matching/evidence.hard_conflict`).
+
 Gaps the data allows no answer to yet (they only ever make a link be missed, never made):
 - Ages are compared as stated. The case graph carries no case dates, so "ages at a common date"
   is read as "ages as written"; cases are normally written close together.
 - A person's district is the stated one. The district of the case is not in the graph, so a
   person with no stated district has no district (B5 skips them; PER_LOCALITY sees none).
 - PER_NEAR_PHONE needs to know that a PHONE_TRANSPOSED link is CONFIRMED. A provider cannot see
-  the link store, so the lookup is passed in (`confirmed_phone_link`); without it, none is emitted.
+  the link store, so the lookup is an optional argument (`confirmed_phone_link`); without it none
+  is emitted. The engine wires it in P3.3.
 - `oversized_block` for B2, B4, B5 and B7 is not counted in the run record: a provider returns
   pairs only. Blocks over the size limit are skipped as for the other keys.
 """
