@@ -25,6 +25,7 @@ from tracex_engine.ingest import (
     read_notes,
 )
 from tracex_engine.ingest.tabular import split_lines
+from tracex_engine.normalize import Value, normalize_place
 
 
 class _Collector:
@@ -37,6 +38,8 @@ class _Collector:
         self.bank_rows: list[BankRow] = []
         self.sdr_rows: list[SdrRow] = []
         self.errors: list[RowError] = []
+        self.district: Value | None = None
+        self.district_source: SourceRef | None = None
 
     def add(self, records: TextRecords) -> None:
         self.persons.extend(records.persons)
@@ -73,12 +76,18 @@ def extract_case(case_id: str, files: Mapping[str, str]) -> CaseRecords:
         bank_rows=tuple(out.bank_rows),
         sdr_rows=tuple(out.sdr_rows),
         errors=tuple(out.errors),
+        district=out.district,
+        district_source=out.district_source,
     )
 
 
 def _read_fir(case_id: str, name: str, text: str, out: _Collector) -> None:
     fir = read_fir(case_id, name, text)
     out.errors.extend(fir.errors)
+    district = fir.header.get("District")
+    if district is not None and district[0] and out.district is None:
+        out.district = Value(district[0], normalize_place(district[0]))
+        out.district_source = district[1]
     complainant = fir.header.get("Complainant")
     if complainant is not None and complainant[0]:
         value, source = complainant

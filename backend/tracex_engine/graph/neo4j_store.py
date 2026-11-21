@@ -14,6 +14,7 @@ from neo4j import Driver, GraphDatabase, ManagedTransaction
 
 from tracex_engine.graph.model import (
     AttrValue,
+    CaseDistrict,
     CaseGraph,
     Edge,
     EdgeType,
@@ -30,6 +31,7 @@ _NODE_CONSTRAINTS: tuple[LiteralString, ...] = (
     "CREATE CONSTRAINT mention_id_unique IF NOT EXISTS "
     "FOR (m:Mention) REQUIRE m.mention_id IS UNIQUE",
     "CREATE CONSTRAINT place_id_unique IF NOT EXISTS FOR (p:Place) REQUIRE p.place_id IS UNIQUE",
+    "CREATE CONSTRAINT case_id_unique IF NOT EXISTS FOR (c:Case) REQUIRE c.case_id IS UNIQUE",
 )
 _INDEXES: tuple[LiteralString, ...] = (
     "CREATE INDEX entity_type_normalized IF NOT EXISTS FOR (e:Entity) ON (e.type, e.normalized)",
@@ -137,6 +139,16 @@ class Neo4jCaseGraphStore:
 
 
 def _write(tx: ManagedTransaction, graph: CaseGraph) -> None:
+    district = graph.district
+    tx.run(
+        "MERGE (c:Case {case_id: $case_id}) SET c.district = $normalized, "
+        "c.district_display = $display, c.district_file = $file, c.district_line = $line",
+        case_id=graph.case_id,
+        normalized=district.normalized if district else None,
+        display=district.display_value if district else None,
+        file=district.file if district else None,
+        line=district.line if district else None,
+    ).consume()
     for type_ in EntityType:
         rows = [
             {"entity_id": e.entity_id, "props": _entity_props(e)}
@@ -257,12 +269,28 @@ def _read(tx: ManagedTransaction, case_id: str) -> CaseGraph | None:
         case_id=case_id,
         types=_EDGE_TYPES,
     )
+    case_row = tx.run(
+        "MATCH (c:Case {case_id: $case_id}) RETURN properties(c) AS p", case_id=case_id
+    ).single()
     return CaseGraph(
         case_id=case_id,
+        district=_to_district(case_row["p"]) if case_row else None,
         entities=entities,
         mentions=tuple(_to_mention(r["p"]) for r in mention_rows),
         places=tuple(_to_place(r["p"]) for r in place_rows),
         edges=tuple(_to_edge(r["type"], r["source_id"], r["target_id"], r["p"]) for r in edge_rows),
+    )
+
+
+def _to_district(props: Mapping[str, object]) -> CaseDistrict | None:
+    normalized = props.get("district")
+    if normalized is None:
+        return None
+    return CaseDistrict(
+        normalized=str(normalized),
+        display_value=str(props["district_display"]),
+        file=str(props["district_file"]),
+        line=int(str(props["district_line"])),
     )
 
 
