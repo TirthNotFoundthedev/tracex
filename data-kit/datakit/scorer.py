@@ -16,6 +16,7 @@ deferral never reaches S3 non-links, S4 closed world and integrity, or forbidden
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Collection
 from decimal import Decimal
@@ -37,6 +38,14 @@ REPORT_SCHEMA_VERSION = "score-report/1"
 __all__ = ["REPORT_SCHEMA_VERSION", "ScoreInputError", "format_report", "score"]
 
 
+_REFUSED = re.compile(r"\s*4\d\d\b")
+
+
+def _succeeds(step: dict[str, Any]) -> bool:
+    """A step whose `expect` starts with a 4xx status is refused, so it changes nothing."""
+    return _REFUSED.match(str(step.get("expect", ""))) is None
+
+
 class _Scorer:
     def __init__(self, gt: dict[str, Any], result: EngineResult, defer: frozenset[str]) -> None:
         self.gt = gt
@@ -53,7 +62,7 @@ class _Scorer:
             for eid in result.entities
         }
         self.confirm_targets: dict[str, set[str]] = {
-            s["id"]: {x["target"] for x in s["steps"] if x["action"] == "CONFIRM"}
+            s["id"]: {x["target"] for x in s["steps"] if x["action"] == "CONFIRM" and _succeeds(x)}
             for s in gt["scenarios"]
         }
         pair_of = {link["id"]: (link["a"], link["b"]) for link in gt["expected_links"]}
@@ -62,6 +71,7 @@ class _Scorer:
             for s in gt["scenarios"]
             if s["id"] in result.harness_applied
             for x in s["steps"]
+            if _succeeds(x)
         }
         # A human step on an expected link covers every expected link on the same pair (a later
         # batch's expectation of the pair, such as REJECTED after the AC-15 step).
