@@ -1,9 +1,9 @@
 """Cross-case matching: blocking, evidence, SAME_AS edges, runs and decisions.
 
-Spec: docs/specs/engine-matching.md (ruleset `engine-matching/1.1`). This slice implements
-Tier 1 (exact) evidence, the exact opposing checks, every gate, SAME_AS edges with the D37
-rerun rules and human decisions. Tier 2 and Tier 3 items are named seams (`pending_seams`) and
-plug in as `EvidenceProvider`s.
+Spec: docs/specs/engine-matching.md (ruleset `engine-matching/1.1`). Tier 1 (exact)
+evidence, the exact opposing checks, every gate, SAME_AS edges with the D37 rerun rules and
+human decisions are built in; Tier 2 and Tier 3 evidence come from the default
+`EvidenceProvider`s, and `pending_seams` names any catalogue item not produced yet.
 
 The API imports:
     Matcher                     run_matching, apply_decision, explanation, cluster_of

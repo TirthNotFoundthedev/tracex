@@ -18,7 +18,8 @@ from decimal import Decimal
 
 from tracex_engine.graph import Entity, EntityType
 from tracex_engine.matching.corpus import Corpus, Tie
-from tracex_engine.matching.flags import ValueKey
+from tracex_engine.matching.flags import ValueKey, identifier_flags
+from tracex_engine.normalize.facts import HARD_CONFLICT_AGE_YEARS, closest_ages, parse_age
 from tracex_engine.scoring import EvidenceItem, Modifier
 from tracex_engine.scoring.ruleset import ATTRIBUTION_FACTOR, MIN_CONFIDENCE, TRAP_FACTOR
 
@@ -33,13 +34,30 @@ ONE = Decimal("1.0")
 ActiveLink = Callable[[str, str], bool]
 
 
+def _no_link(a: str, b: str) -> bool:
+    return False
+
+
 @dataclass(frozen=True)
 class Context:
-    """What evidence builders read: the corpus, the identifier flags and the live links."""
+    """What evidence builders and providers read: the corpus, the identifier flags (MULTI_USER
+    already knowing the run's CONFIRMED person pairs), the live links (AUTO or CONFIRMED, as
+    settled so far in C5 order) and the CONFIRMED links."""
 
     corpus: Corpus
     flags: dict[ValueKey, frozenset[str]]
     active_link: ActiveLink
+    confirmed_link: ActiveLink = _no_link
+
+    @classmethod
+    def for_corpus(
+        cls,
+        corpus: Corpus,
+        active_link: ActiveLink = _no_link,
+        confirmed_link: ActiveLink = _no_link,
+    ) -> "Context":
+        """A context with no stored links unless given (tests, one-off comparisons)."""
+        return cls(corpus, identifier_flags(corpus), active_link, confirmed_link)
 
 
 def identifier_items(ctx: Context, a: Entity, b: Entity) -> list[EvidenceItem]:
@@ -70,6 +88,20 @@ def _best_tie(ties: list[Tie]) -> Tie:
     """The strongest statement tying a party to one identifier: highest factor, then
     confidence, then the earliest line."""
     return sorted(ties, key=lambda t: (-ATTRIBUTION_FACTOR[t.code], -t.confidence, t.source))[0]
+
+
+def tier1_used_values(ctx: Context, a: Entity, b: Entity) -> set[ValueKey]:
+    """Identifier values used by a Tier 1 SHARED_* item of this pair: both ends of every tie
+    pair whose identifiers have a live link (Tier 3 leaves them out, spec 3.2)."""
+    corpus = ctx.corpus
+    used: set[ValueKey] = set()
+    for ta in corpus.ties_of_party.get(a.entity_id, []):
+        ia = corpus.entities[ta.identifier_id]
+        for tb in corpus.ties_of_party.get(b.entity_id, []):
+            ib = corpus.entities[tb.identifier_id]
+            if ia.type is ib.type and ctx.active_link(ia.entity_id, ib.entity_id):
+                used |= {(ia.type, ia.normalized), (ib.type, ib.normalized)}
+    return used
 
 
 def shared_identifier_items(ctx: Context, a: Entity, b: Entity) -> list[EvidenceItem]:
@@ -151,10 +183,22 @@ def person_conflicts(corpus: Corpus, a: Entity, b: Entity) -> list[EvidenceItem]
 
 
 def hard_conflict(corpus: Corpus, a: Entity, b: Entity) -> bool:
-    """C3: does any opposing item between these two entities block AUTO?"""
+    """C3: does any opposing item between these two entities block AUTO?
+
+    Persons: a DOB or gender conflict, or stated ages more than 10 years apart (the hard
+    PER_AGE_CONFLICT of Tier 2, compared as written like the Tier 2 item)."""
     if a.type is EntityType.PERSON:
-        return any(
+        return _hard_age_gap(corpus, a, b) or any(
             i.kind in ("PER_DOB_CONFLICT", "PER_GENDER_CONFLICT")
             for i in person_conflicts(corpus, a, b)
         )
     return bool(a.type is EntityType.ACCOUNT and a.ifsc and b.ifsc and a.ifsc != b.ifsc)
+
+
+def _hard_age_gap(corpus: Corpus, a: Entity, b: Entity) -> bool:
+    ages = [
+        {n for v in corpus.attribute(e.entity_id, "age") if (n := parse_age(v)) is not None}
+        for e in (a, b)
+    ]
+    closest = closest_ages(ages[0], ages[1])
+    return closest is not None and abs(closest[0] - closest[1]) > HARD_CONFLICT_AGE_YEARS

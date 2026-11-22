@@ -99,6 +99,16 @@ class Edge:
 
 
 @dataclass(frozen=True)
+class CaseDistrict:
+    """The district a case's FIR header states, with the line it was read from."""
+
+    normalized: str
+    display_value: str
+    file: str
+    line: int
+
+
+@dataclass(frozen=True)
 class CaseGraph:
     """The graph of one case: entities by ordinal, mentions and edges in load order."""
 
@@ -107,3 +117,4 @@ class CaseGraph:
     mentions: tuple[Mention, ...]
     places: tuple[Place, ...]
     edges: tuple[Edge, ...]
+    district: CaseDistrict | None = None

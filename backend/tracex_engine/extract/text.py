@@ -36,7 +36,6 @@ from tracex_engine.extract.patterns import (
     ALIAS_AFTER,
     APPOSITION_GAP,
     CONNECTOR_GAP,
-    DEV_ORG_SUFFIXES,
     DEV_USED_TAIL,
     DOB,
     GENDER,
@@ -84,6 +83,7 @@ from tracex_engine.extract.records import (
 )
 from tracex_engine.ingest import SourceRef
 from tracex_engine.normalize import (
+    DEV_ORG_SUFFIXES,
     ORG_SUFFIXES,
     Value,
     normalize_account,

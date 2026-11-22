@@ -5,11 +5,20 @@ Pure functions over two JSON documents; standard library only. The engine result
 
 Checks: S1 expected links (state, band, gates as a set), S2 exact scores, S3 non-links, S4 closed
 world, S5 provenance. S6 is reported, never gating.
+
+Deferral: an expected link named in `defer` may wait for a later engine tier. If it is missing, or
+every one of its failures is "not there yet" (state, band or score at or below the expected one,
+other evidence kinds, gates or cited lines absent), it is reported under `deferred` and counted
+under `deferred` in the check totals, never as passed or failed. A deferred link that is above its
+expected state, band or score, or that cites a line outside its two end cases, fails as usual, and
+deferral never reaches S3 non-links, S4 closed world and integrity, or forbidden trap hits.
 """
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
+from collections.abc import Collection
 from decimal import Decimal
 from typing import Any
 
@@ -29,10 +38,20 @@ REPORT_SCHEMA_VERSION = "score-report/1"
 __all__ = ["REPORT_SCHEMA_VERSION", "ScoreInputError", "format_report", "score"]
 
 
+_REFUSED = re.compile(r"\s*4\d\d\b")
+
+
+def _succeeds(step: dict[str, Any]) -> bool:
+    """A step whose `expect` starts with a 4xx status is refused, so it changes nothing."""
+    return _REFUSED.match(str(step.get("expect", ""))) is None
+
+
 class _Scorer:
-    def __init__(self, gt: dict[str, Any], result: EngineResult) -> None:
+    def __init__(self, gt: dict[str, Any], result: EngineResult, defer: frozenset[str]) -> None:
         self.gt = gt
         self.result = result
+        self.defer = defer
+        self.deferred: list[dict[str, Any]] = []
         self.index = GroundTruthIndex(gt)
         self.entities = {e["gt_id"]: e for e in gt["entities"]}
         self.per_mention = {
@@ -43,14 +62,21 @@ class _Scorer:
             for eid in result.entities
         }
         self.confirm_targets: dict[str, set[str]] = {
-            s["id"]: {x["target"] for x in s["steps"] if x["action"] == "CONFIRM"}
+            s["id"]: {x["target"] for x in s["steps"] if x["action"] == "CONFIRM" and _succeeds(x)}
             for s in gt["scenarios"]
         }
+        pair_of = {link["id"]: (link["a"], link["b"]) for link in gt["expected_links"]}
         self.human_steps: set[tuple[str, str]] = {
             (x["action"], x["target"])
             for s in gt["scenarios"]
             if s["id"] in result.harness_applied
             for x in s["steps"]
+            if _succeeds(x)
+        }
+        # A human step on an expected link covers every expected link on the same pair (a later
+        # batch's expectation of the pair, such as REJECTED after the AC-15 step).
+        self.human_pairs: set[tuple[str, tuple[str, str]]] = {
+            (action, pair_of[target]) for action, target in self.human_steps if target in pair_of
         }
         self.cross = [g for g in gt["groups"] if g["scope"] == "cross_case"]
         self.groups_of: dict[str, set[int]] = defaultdict(set)
@@ -63,7 +89,8 @@ class _Scorer:
         self.skipped: list[dict[str, Any]] = []
         self.evaluated_acs: set[str] = set()
         self.checks = {
-            k: {"passed": 0, "failed": 0, "skipped": 0} for k in ("S1", "S2", "S3", "S4", "S5")
+            k: {"passed": 0, "failed": 0, "skipped": 0, "deferred": 0}
+            for k in ("S1", "S2", "S3", "S4", "S5")
         }
         self.link_edges: set[int] = set()
         self.human_ok: set[int] = set()
@@ -103,7 +130,8 @@ class _Scorer:
         loaded = self.result.batches_loaded
         latest: dict[tuple[str, str], str] = {}
         for link in self.gt["expected_links"]:
-            if BATCH_ORDER[link["batch_min"]] <= loaded:
+            applied = not link["harness"] or link["harness"] in self.result.harness_applied
+            if BATCH_ORDER[link["batch_min"]] <= loaded and applied:
                 key = (link["a"], link["b"])
                 latest[key] = max(latest.get(key, "b01"), link["batch_min"])
         links: list[dict[str, Any]] = []
@@ -111,7 +139,7 @@ class _Scorer:
             reason = ""
             if BATCH_ORDER[link["batch_min"]] > loaded:
                 reason = f"batch {link['batch_min']} not loaded"
-            elif link["batch_min"] < latest[(link["a"], link["b"])]:
+            elif link["batch_min"] < latest.get((link["a"], link["b"]), "b01"):
                 reason = "superseded by a later batch for the same pair"
             elif link["harness"] and link["harness"] not in self.result.harness_applied:
                 reason = f"harness {link['harness']} not applied"
@@ -163,20 +191,56 @@ class _Scorer:
             fail("provenance", {"cited_lines_missing": missing}, {"outside_end_cases": outside})
         return failures
 
+    @staticmethod
+    def _deferrable(link: dict[str, Any], failure: dict[str, Any]) -> bool:
+        """Is this failure only "not reached yet"? Anything above the expected link is not."""
+        kind, actual = failure["kind"], failure["actual"]
+        if kind == "state":
+            return _rank(_STATE_RANK, actual) <= _rank(_STATE_RANK, link["state"])
+        if kind == "band":
+            return _rank(_BAND_RANK, actual) <= _rank(_BAND_RANK, link["band"])
+        if kind == "score":
+            return Decimal(str(actual)) <= Decimal(str(link["score"]["value"]))
+        if kind == "provenance":
+            return not actual["outside_end_cases"]
+        return kind in ("gates", "evidence_kinds")
+
+    def _defer(self, link: dict[str, Any], kinds: list[str], with_edge: bool) -> None:
+        self.deferred.append(
+            {
+                "id": link["id"],
+                "ac": list(link["ac"]),
+                "status": "waiting" if kinds else "passing",
+                "failures": sorted(set(kinds)),
+            }
+        )
+        self.checks["S1"]["deferred"] += 1
+        if with_edge:
+            if link["score"]["mode"] == "exact":
+                self.checks["S2"]["deferred"] += 1
+            self.checks["S5"]["deferred"] += 1
+
     def check_links(self) -> None:
         for link in self._applicable_links():
             candidates = self._touching(link["a"], link["b"])
             self.link_edges.update(e.index for e in candidates)
             for edge in candidates:
                 action = _HUMAN_ACTIONS.get(edge.state)
-                if action and (action, link["id"]) in self.human_steps:
+                pair = (link["a"], link["b"])
+                if action and (
+                    (action, link["id"]) in self.human_steps or (action, pair) in self.human_pairs
+                ):
                     self.human_ok.add(edge.index)
             if link.get("trap"):
                 for edge in candidates:
                     if edge.state == "AUTO":
                         self._forbidden_hit(link, edge, "AUTO", link["trap"])
                         break
+            deferring = link["id"] in self.defer
             if not candidates:
+                if deferring:
+                    self._defer(link, ["missed"], with_edge=False)
+                    continue
                 self.missed.append(
                     {
                         "id": link["id"],
@@ -190,17 +254,20 @@ class _Scorer:
                 continue
             failures = [f for edge in candidates for f in self._link_failures(link, edge)]
             edge = candidates[0]
+            if link["score"]["mode"] != "exact":
+                self.band_scores[link["id"]] = {
+                    "expected": link["score"]["value"],
+                    "actual": edge.raw_score,
+                }
+            if deferring and all(self._deferrable(link, f) for f in failures):
+                self._defer(link, [f["kind"] for f in failures], with_edge=True)
+                continue
             self.evaluated_acs.update(link["ac"])
             kinds = {f["kind"] for f in failures}
             self.wrong.extend(failures)
             self.checks["S1"]["failed" if kinds - {"score", "provenance"} else "passed"] += 1
             if link["score"]["mode"] == "exact":
                 self.checks["S2"]["failed" if "score" in kinds else "passed"] += 1
-            else:
-                self.band_scores[link["id"]] = {
-                    "expected": link["score"]["value"],
-                    "actual": edge.raw_score,
-                }
             self.checks["S5"]["failed" if "provenance" in kinds else "passed"] += 1
 
     # --- S3 -----------------------------------------------------------------------------------
@@ -379,25 +446,44 @@ class _Scorer:
             if item["id"] is not None:
                 for ac in item["ac"]:
                     failing[ac].add(item["id"])
+        waiting: dict[str, set[str]] = defaultdict(set)
+        for item in self.deferred:
+            for ac in item["ac"]:
+                waiting[ac].add(item["id"])
         table: dict[str, dict[str, Any]] = {}
         for ac in sorted(acs):
             if failing[ac]:
                 status = "fail"
+            elif waiting[ac]:
+                status = "deferred"
             elif ac in self.evaluated_acs:
                 status = "pass"
             else:
                 status = "not_evaluated"
-            table[ac] = {"status": status, "failures": sorted(failing[ac])}
+            table[ac] = {
+                "status": status,
+                "failures": sorted(failing[ac]),
+                "deferred": sorted(waiting[ac]),
+            }
         return table
 
 
-def score(gt: dict[str, Any], result_document: dict[str, Any]) -> dict[str, Any]:
-    """Score one engine result document against the ground truth; see the module docstring."""
+def score(
+    gt: dict[str, Any], result_document: dict[str, Any], defer: Collection[str] = ()
+) -> dict[str, Any]:
+    """Score one engine result document against the ground truth; see the module docstring.
+
+    `defer`: ids of expected links that may wait for a later tier. An unknown id is an input
+    error: a misspelt id would silently defer nothing."""
     if gt.get("schema_version") != "data-kit-gt/1":
         raise ScoreInputError(
             f"ground truth schema_version must be 'data-kit-gt/1', got {gt.get('schema_version')!r}"
         )
-    scorer = _Scorer(gt, parse_result(result_document))
+    known = {link["id"] for link in gt["expected_links"]}
+    unknown = sorted(set(defer) - known)
+    if unknown:
+        raise ScoreInputError(f"defer names no expected link: {', '.join(unknown)}")
+    scorer = _Scorer(gt, parse_result(result_document), frozenset(defer))
     scorer.check_entities()
     scorer.check_links()
     scorer.check_non_links()
@@ -414,12 +500,22 @@ def score(gt: dict[str, Any], result_document: dict[str, Any]) -> dict[str, Any]
         "missed_links": scorer.missed,
         "wrong_links": scorer.wrong,
         "forbidden_hits": scorer.forbidden,
+        "deferred": scorer.deferred,
         "skipped": scorer.skipped,
         "reported": scorer.reported(),
     }
 
 
 _HUMAN_ACTIONS = {"CONFIRMED": "CONFIRM", "REJECTED": "REJECT", "UNDONE": "UNDO"}
+
+_STATE_RANK = {"SUGGESTED": 1, "AUTO": 2}
+_BAND_RANK = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
+
+
+def _rank(table: dict[str, int], value: str) -> int:
+    """Rank of a state or band; a value outside the table (a human state) ranks above all."""
+    return table.get(value, len(table) + 1)
+
 
 _INTEGRITY_RULES = {
     "human_state": "an edge is CONFIRMED, REJECTED or UNDONE only after an applied harness step",
@@ -445,8 +541,10 @@ def format_report(report: dict[str, Any]) -> str:
     lines = [f"RESULT: {verdict}  (batches {batches})"]
     for key, label in _CHECK_LABELS.items():
         c = report["checks"][key]
+        deferred = f", {c['deferred']} deferred" if c["deferred"] else ""
         lines.append(
             f"  {label}: {c['passed']} passed, {c['failed']} failed, {c['skipped']} skipped"
+            f"{deferred}"
         )
     lines.append("Acceptance cases:")
     for ac, row in report["per_ac"].items():
@@ -466,6 +564,11 @@ def format_report(report: dict[str, Any]) -> str:
                 label = item["id"] or item.get("entity") or item["kind"]
                 extra = item.get("trap") or item.get("kind", "")
                 lines.append(f"  {label} {extra}: {_detail(item)}")
+    if report["deferred"]:
+        lines.append("Deferred (waiting for a later tier, not counted as passed):")
+        for item in report["deferred"]:
+            detail = ", ".join(item["failures"]) or "nothing fails now, remove from the defer list"
+            lines.append(f"  {item['id']} {item['status']}: {detail}")
     if report["skipped"]:
         lines.append("Skipped:")
         lines.extend(f"  {item['id']}: {item['reason']}" for item in report["skipped"])

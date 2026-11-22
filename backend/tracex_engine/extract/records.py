@@ -115,3 +115,5 @@ class CaseRecords:
     bank_rows: tuple[BankRow, ...]
     sdr_rows: tuple[SdrRow, ...]
     errors: tuple[RowError, ...]
+    district: Value | None = None
+    district_source: SourceRef | None = None

@@ -14,6 +14,7 @@ from tests.engine.matching.support import account, build, clock, owns, person, p
 from tracex_engine.graph import CaseGraph, CaseGraphStore, Entity
 from tracex_engine.matching import InMemoryLinkStore, LinkStore, Matcher
 from tracex_engine.matching.corpus import Corpus
+from tracex_engine.matching.evidence import Context
 from tracex_engine.scoring import EvidenceItem, Source
 from tracex_engine.scoring.evidence import ParamValue
 
@@ -38,7 +39,8 @@ class FixtureProvider:
             if first in index and second in index:
                 yield (index[first], index[second])
 
-    def items(self, corpus: Corpus, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+    def items(self, ctx: Context, a: Entity, b: Entity) -> Sequence[EvidenceItem]:
+        corpus = ctx.corpus
         spec = self.pairs.get(frozenset({self._who(a), self._who(b)}), [])
         sources = (corpus.first_source(a.entity_id), corpus.first_source(b.entity_id))
         return [EvidenceItem(kind, Decimal(s), _params(kind, a, b, s), sources) for kind, s in spec]
@@ -63,6 +65,9 @@ IRFAN_B: Who = ("C-201", "irfan")
 AC01_FIXTURE = {
     frozenset({IRFAN_A, IRFAN_B}): [("PER_NAME_SIM", "0.75"), ("PER_SHARED_NETWORK", "0.6")]
 }
+
+
+AC01_NAME_ONLY = {frozenset({IRFAN_A, IRFAN_B}): [("PER_NAME_SIM", "0.75")]}
 
 
 def ac01_graphs(extra_phone: str | None = None) -> tuple[CaseGraph, CaseGraph]:

@@ -23,6 +23,18 @@ Owner: Iyer (Engine Lead) · Task P1.1 · Ruleset version: `engine-matching/1.1`
 - §7 payload: `records` is in canonical order, `records[0]` the entity `entity_a_id` and `records[1]` the entity `entity_b_id` (entity id order, spec §6); callers may rely on it.
 - §7 payload: `history[].reason_code` is the engine reason code for engine transitions and null for creations and human decisions, as the contract states; the human reason code stays on the edge with `reason_text`.
 
+**Errata 5 (2026-11-21, from the P3.1 Tier 2 review, PR #31).** Readings fixed while implementing Tier 2; no weight, cap, band or flag changed, so the ruleset version stays `engine-matching/1.1`:
+- §2 common tokens: "≥1% of all person entities (minimum 20 entities)" means the token's phonetic key occurs in at least max(20, ⌈1% of linkable person entities⌉) entities. On a small corpus the rule may not fire (open issue 2); this keeps a planted rare name spelled four ways (AC-13) rare.
+- §2 name comparator: a token pair that matches only by equal phonetic keys counts with its own `ratio` (`Salim`/`Saleem` 0.73), never a floor. For ORG names only, the respectful prefixes shri, shree, sri, sree are dropped before comparison and blocking (B7), like honorifics; ORG pairs are never AUTO (G7).
+- §3.3 / §6 C3: a hard PER_AGE_CONFLICT is a hard item for C3 like PER_DOB_CONFLICT and PER_GENDER_CONFLICT.
+- Known limitations of P3.1 (each can only miss a link, never make one; except the first, which can add or miss PER_AGE_CLOSE 10 when cases are written years apart): ages are compared as written, since the case graph has no case dates; a person with no stated district has no district (B5 skips them, PER_LOCALITY sees none); `oversized_block` counts B1/B3 blocks only (B2/B4/B5/B7 blocks over 500 are skipped but not counted); PER_NEAR_PHONE is not emitted until providers can read CONFIRMED links (P3.3).
+
+**Errata 6 (2026-11-21, P3.3).** Changes on the safe side; no weight, cap, band or threshold changed, so the ruleset version stays `engine-matching/1.1`:
+- §1 MULTI_USER compares owners by `name_sim` (no longer the whole-token stand-in), and two names count as similar only when some non-common token of each is spelled alike (`ratio` ≥ 85). Names that agree only by sound (`kamal` / `kamla`, phonetic key `kml`, ratio 0.80) or only on common tokens (`ramesh yadav` / `suresh yadav`) compare as 0, so a family phone they share is MULTI_USER (t = 0.2, never an anchor).
+- §2 rarity: a token pair matched only by phonetic key (ratio < 85) never makes a name rare; rarity 1.0 needs a matched non-common token with `ratio` ≥ 85. `Kamal Singh` / `Kamla Singh`: name_sim 0.90, rarity 0.4, PER_NAME_SIM 10.8. Phonetic-only pairs still count in `name_sim` (`Salim` ~ `Saleem` stays a must-pass match).
+- §3 providers read the run's context: the Tier 1 exclusion of PER_SHARED_NETWORK is exactly the identifier values of the pair's SHARED_* items, co-location reads MULTI_USER with the run's CONFIRMED pairs, and PER_NEAR_PHONE is emitted for phones one adjacent swap apart with a CONFIRMED SAME_AS.
+- §3.2 a person's district is the stated one, else the district on the case's FIR header line; a district-only PER_LOCALITY cites that line. This closes the P3.1 district limitation.
+
 ## 1. Entity types and linkable pairs
 
 | Type | Comparable attributes (normalized form produced upstream) |
@@ -68,14 +80,14 @@ A pair is compared only if it shares at least one block key. No key, no comparis
 
 Further rules: same type, different cases; at least one end case in the run's `input_case_ids` (default: every loaded case), so new input is matched against all loaded cases; each unordered pair once; pairs on the block list (§6) are dropped before comparison; a block with >500 members is skipped and counted as `oversized_block` in the run record.
 
-**Common tokens.** A name token is *common* if it is in the ruleset list (mohammad and its variants mohd/md/muhammad, kumar, kumari, singh, kaur, devi, lal, ram, prasad, chand, das, khan, ali, ahmed, shaikh, ansari, sharma, yadav, begum, bai, ben) or appears in ≥1% of all person entities (minimum 20 entities).
+**Common tokens.** A name token is *common* if it is in the ruleset list (mohammad and its variants mohd/md/muhammad, kumar, kumari, singh, kaur, devi, lal, ram, prasad, chand, das, khan, ali, ahmed, shaikh, ansari, sharma, yadav, begum, bai, ben) or its phonetic key appears in at least max(20, 1% of all person entities) entities.
 
-**Name comparator contract (NLP).** Normalize: transliterate Devanagari offline to Roman, lowercase, strip punctuation, drop honorifics and kinship words (bhai, ji, sahab, shri, smt, mr, bhaiya, chacha, urf), expand abbreviations (mohd/md → mohammad). Two tokens *match* if their phonetic keys are equal or RapidFuzz `ratio` ≥ 85. Then:
+**Name comparator contract (NLP).** Normalize: transliterate Devanagari offline to Roman, lowercase, strip punctuation, drop honorifics and kinship words (bhai, ji, sahab, shri, smt, mr, bhaiya, chacha, urf), expand abbreviations (mohd/md → mohammad). Two tokens *match* if their phonetic keys are equal or RapidFuzz `ratio` ≥ 85; a matched pair counts with its own `ratio` (a pair matched only by phonetic key keeps its lower ratio). For ORG names, shri, shree, sri and sree are also dropped. Then:
 
 ```
 name_sim     = (mean ratio/100 of matched token pairs) × |matched| / |tokens in shorter name|
 completeness = 0.75 if the shorter name has one token, else 1.0
-rarity       = 1.0 if any matched token is non-common, else 0.4
+rarity       = 1.0 if any matched token is non-common and spelled alike (ratio ≥ 85), else 0.4
 ```
 Over main names and aliases, the highest `name_sim` is used. Must-pass vectors: `Mohd. Irfan` = `मोहम्मद इरफ़ान` (both → `mohammad irfan`); `Irfan bhai` → `irfan`; `Jaswinder` ~ `Jasvinder`, `Shaikh` ~ `Sheikh`, `Salim` ~ `Saleem` (phonetic keys equal); `Ramesh` ≁ `Suresh`.
 

@@ -16,7 +16,8 @@ from datakit.planted import build_planted
 from datakit.seed import case_assignments_csv
 from datakit.text import BANNER
 
-KIT_VERSION = "data-kit/1.0"
+# 1.1: distinct noise names per case (G-17), scorer report gains `deferred`.
+KIT_VERSION = "data-kit/1.1"
 DEFAULT_SEED = 20260401
 RULESET_VERSION = "engine-matching/1.1"
 SCHEMA_VERSION = "data-kit-gt/1"
@@ -86,17 +87,45 @@ def _entity_json(world: World, e: Entity) -> dict[str, Any]:
     return out
 
 
+_FILE_ORDER = ("fir", "notes", "sdr", "cdr", "bank")
+
+
+def _load_key(file: str, line: int) -> tuple[int, int, int]:
+    """Load order of a file (fir, notes, sdr, cdr, bank; later batches after), then line."""
+    stem, _, batch = file.rsplit(".", 1)[0].partition("-")
+    return (int(batch) if batch else 1, _FILE_ORDER.index(stem), line)
+
+
 def _cited(world: World, link: dict[str, Any]) -> list[dict[str, Any]]:
+    """Lines the explanation must cite. Identifier links: every mention line of both entities.
+    Person and organisation links: the first writing of each (the explanation's record) and the
+    attribution lines of identifiers both are tied to; a line that ties one of them to an
+    identifier the other lacks (the P2~P3 phone in a P1~P2 link) is not relied on."""
     a, b = world.by_id[link["a"]], world.by_id[link["b"]]
     cites: set[tuple[str, str, int]] = set(link["_extra"])
-    for e in (a, b):
-        cites.update((e.case_id, f, n) for f, n in e.mentions)
     if link["type"] in ("PERSON", "ORG"):
+        for e in (a, b):
+            if e.mentions:
+                f, n = min(e.mentions, key=lambda m: _load_key(*m))
+                cites.add((e.case_id, f, n))
+        values = {
+            side.gt_id: {
+                world.by_id[att["identifier"]].normalized
+                for att in world.attributions
+                if att["entity"] == side.gt_id
+            }
+            for side in (a, b)
+        }
+        shared = values[a.gt_id] & values[b.gt_id]
         for att in world.attributions:
-            if att["entity"] in (a.gt_id, b.gt_id):
+            tied = att["entity"] in (a.gt_id, b.gt_id)
+            if tied and world.by_id[att["identifier"]].normalized in shared:
                 s = att["source"]
                 cites.add((s["case_id"], s["file"], s["line"]))
-    if link["batch_min"] == "b01":
+    else:
+        for e in (a, b):
+            cites.update((e.case_id, f, n) for f, n in e.mentions)
+    if link["batch_min"] == "b01" or link["state"] == "REJECTED":
         cites = {c for c in cites if _mention_batch(world, c[0], c[1]) == "b01"}
     return [_ref(*c) for c in sorted(cites)]
 

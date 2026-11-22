@@ -31,12 +31,12 @@ class BlockKeySpec:
 
 BLOCK_KEYS = (
     BlockKeySpec("B1_ID_VALUE", ("PHONE", "ACCOUNT", "VEHICLE"), None),
-    BlockKeySpec("B2_PHONE_DIGITSET", ("PHONE",), 2),
+    BlockKeySpec("B2_PHONE_DIGITSET", ("PHONE",), None),
     BlockKeySpec("B3_ANCHOR", ("PERSON", "ORG"), None),
-    BlockKeySpec("B4_NAME_KEY", ("PERSON",), 2),
-    BlockKeySpec("B5_COMMON_LOC", ("PERSON",), 2),
-    BlockKeySpec("B6_NETWORK", ("PERSON",), 3),
-    BlockKeySpec("B7_ORG_KEY", ("ORG",), 2),
+    BlockKeySpec("B4_NAME_KEY", ("PERSON",), None),
+    BlockKeySpec("B5_COMMON_LOC", ("PERSON",), None),
+    BlockKeySpec("B6_NETWORK", ("PERSON",), None),
+    BlockKeySpec("B7_ORG_KEY", ("ORG",), None),
 )
 
 

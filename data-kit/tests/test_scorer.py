@@ -72,7 +72,7 @@ def test_a_result_derived_from_ground_truth_passes_every_check(
     assert report["missed_links"] == []
     assert report["wrong_links"] == []
     assert report["forbidden_hits"] == []
-    assert [item["id"] for item in report["skipped"]] == ["EL-SF07-PER-B01"]
+    assert [item["id"] for item in report["skipped"]] == ["EL-FX05-PER-B02", "EL-SF07-PER-B01"]
     assert _failing_acs(report) == set()
 
 
@@ -92,8 +92,18 @@ def test_every_acceptance_case_with_data_expectations_passes_and_the_rest_are_no
 
 def test_report_counts_every_check_it_ran(gt: dict[str, Any], perfect: dict[str, Any]) -> None:
     checks = score(gt, perfect)["checks"]
-    assert checks["S1"] == {"passed": len(gt["expected_links"]) - 1, "failed": 0, "skipped": 1}
-    assert checks["S3"] == {"passed": len(gt["expected_non_links"]), "failed": 0, "skipped": 0}
+    assert checks["S1"] == {
+        "passed": len(gt["expected_links"]) - 2,
+        "failed": 0,
+        "skipped": 2,
+        "deferred": 0,
+    }
+    assert checks["S3"] == {
+        "passed": len(gt["expected_non_links"]),
+        "failed": 0,
+        "skipped": 0,
+        "deferred": 0,
+    }
     assert checks["S4"]["failed"] == 0
     assert checks["S2"]["failed"] == 0
     assert checks["S5"]["failed"] == 0
@@ -118,7 +128,8 @@ def test_after_b02_the_superseded_b01_suggestion_is_skipped(
 ) -> None:
     report = score(gt, perfect)
     assert {item["id"]: item["reason"] for item in report["skipped"]} == {
-        "EL-SF07-PER-B01": "superseded by a later batch for the same pair"
+        "EL-FX05-PER-B02": "harness SC-AC15-AC25 not applied",
+        "EL-SF07-PER-B01": "superseded by a later batch for the same pair",
     }
 
 
@@ -739,3 +750,55 @@ def test_a_confirmed_edge_the_applied_harness_confirms_is_not_a_human_state_fail
     unapplied = copy.deepcopy(result)
     unapplied["harness_applied"] = []
     assert "human_state" in _wrong_kinds(score(gt, unapplied))
+
+
+def test_a_rejected_edge_is_accepted_after_the_applied_ac15_step_and_not_before(
+    gt: dict[str, Any],
+) -> None:
+    applied = perfect_result(gt, harness=("HS-AC13", "SC-AC15-AC25"))
+    assert edge_of_link(applied, gt, "EL-FX05-PER-B02")["state"] == "REJECTED"
+    report = score(gt, applied)
+    assert report["ok"] is True
+    assert {item["id"]: item["reason"] for item in report["skipped"]}["EL-FX05-PER"].startswith(
+        "superseded"
+    )
+
+    without = copy.deepcopy(applied)
+    without["harness_applied"] = ["HS-AC13"]
+    rejected = score(gt, without)
+
+    assert rejected["ok"] is False
+    assert "human_state" in [w["kind"] for w in rejected["wrong_links"]]
+
+
+def _gt_with_step(gt: dict[str, Any], sid: str, step: dict[str, str]) -> dict[str, Any]:
+    changed = copy.deepcopy(gt)
+    next(s for s in changed["scenarios"] if s["id"] == sid)["steps"].append(step)
+    return changed
+
+
+def _confirm_step(expect: str) -> dict[str, str]:
+    return {
+        "actor_role": "INVESTIGATOR",
+        "action": "CONFIRM",
+        "target": "EL-FX13-Q3Q4",
+        "expect": expect,
+    }
+
+
+def test_a_refused_step_of_an_applied_scenario_does_not_justify_a_human_state(
+    gt: dict[str, Any],
+) -> None:
+    changed = _gt_with_step(gt, "SC-AC24", _confirm_step("409, state unchanged"))
+    result = perfect_result(gt, harness=("HS-AC13", "SC-AC24"))
+    edge_of_link(result, gt, "EL-FX13-Q3Q4")["state"] = "CONFIRMED"
+    assert "human_state" in _wrong_kinds(score(changed, result))
+
+
+def test_a_step_that_is_meant_to_succeed_still_justifies_the_human_state(
+    gt: dict[str, Any],
+) -> None:
+    changed = _gt_with_step(gt, "SC-AC24", _confirm_step("CONFIRMED"))
+    result = perfect_result(gt, harness=("HS-AC13", "SC-AC24"))
+    edge_of_link(result, gt, "EL-FX13-Q3Q4")["state"] = "CONFIRMED"
+    assert "human_state" not in _wrong_kinds(score(changed, result))

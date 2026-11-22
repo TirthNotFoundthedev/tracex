@@ -28,10 +28,12 @@ Same kit version and seed give byte-identical output. `out/<tier>/manifest.json`
 `python -m datakit score` is the stdlib reference scorer of spec section 8.3 (task G-16). It reads `ground_truth.json` and an engine result and reports per acceptance case pass or fail, missed links, wrong links and forbidden-trap hits:
 
 ```
-python -m datakit score --ground-truth out/small/ground_truth.json --result engine_result.json [--json]
+python -m datakit score --ground-truth out/small/ground_truth.json --result engine_result.json [--json] [--defer ID[,ID...]] [--defer-file ids.json]
 ```
 
 Exit code 0: every gating check passes. 1: a gating check failed. 2: a file is unreadable or not valid input. `--json` prints the report (`score-report/1`) instead of the text summary.
+
+**Deferring links that wait for a later engine tier.** `--defer` (comma separated, repeatable) and `--defer-file` (a JSON array of ids, or an object keyed by id) name expected links that may not be reached yet. A named link that is missing, or whose every failure is "not there yet" (state, band or score at or below the expected one; evidence kinds, gates or cited lines absent), is listed under `deferred` and counted under `deferred` in the check totals, so `ok` can be true while it waits. It is never counted as passed. A deferred link stored above its expected state, band or score, or citing a line outside its two cases, still fails, and deferral never reaches S3 non-links, S4 closed world and integrity, or forbidden trap hits. A deferred link that now passes shows as `passing`: take it off the list. An id that names no expected link is an input error (exit 2).
 
 **Input format.** The engine result is a JSON document described by [schema/engine_result.schema.json](schema/engine_result.schema.json) (`engine-result/1`). It is independent of the engine's internal types and of the API contract; the engine side writes an adapter that produces it.
 

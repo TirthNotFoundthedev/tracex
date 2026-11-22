@@ -62,35 +62,9 @@ def test_opposing_items_carry_their_severity(kind: str, severity: Severity | Non
     assert CATALOGUE[kind].severity is severity
 
 
-def test_tier_one_items_and_exact_conflicts_are_implemented_now() -> None:
-    implemented = {k for k, s in CATALOGUE.items() if s.waits_for is None}
-
-    assert implemented == {
-        "ID_EXACT",
-        "ACCT_BANK_CONFLICT",
-        "SHARED_PHONE",
-        "SHARED_ACCOUNT",
-        "SHARED_VEHICLE",
-        "PER_DOB_CONFLICT",
-        "PER_DOB_MISMATCH",
-        "PER_GENDER_CONFLICT",
-    }
-
-
-def test_pending_items_name_the_tier_they_wait_for() -> None:
-    pending = pending_kinds()
-
-    assert pending["PHONE_TRANSPOSED"] == 2
-    assert pending["PER_NAME_SIM"] == 2
-    assert pending["ORG_NAME_SIM"] == 2
-    assert pending["PER_SHARED_NETWORK"] == 3
-    assert pending["PER_CO_LOCATION"] == 3
-    # Comparisons that need the Tier 2 name comparator or case dates wait for Tier 2.
-    assert pending["PER_RELATIVE_CONFLICT"] == 2
-    assert pending["PER_AGE_CONFLICT"] == 2
-    assert set(pending) | {k for k, s in CATALOGUE.items() if s.waits_for is None} == set(
-        SPEC_KINDS
-    )
+def test_every_catalogue_item_is_produced() -> None:
+    assert pending_kinds() == {}
+    assert set(CATALOGUE) == set(SPEC_KINDS)
 
 
 def test_default_thresholds_are_the_spec_defaults() -> None:
