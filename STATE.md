@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-11-21, end of session S3. P2 tagged `m2-slice` on `main`. P3 complete on branch `opus-5.5-phase-2-attempt-1`, waiting for the owner's OK to merge into `main` and tag `m3-engine`.
+Last updated: 2026-11-22, end of session S3. P3 is complete, merged into `main` (PR #38, owner's OK) and tagged `m3-engine`. P4 starts in a new session.
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
@@ -13,7 +13,7 @@ Last updated: 2026-11-21, end of session S3. P2 tagged `m2-slice` on `main`. P3 
 - PR #28 merged with the owner's OK, tag `m2-slice`: Tier 1 matching, scoring skeleton (composite score, bands, gates), SAME_AS link stores (in-memory and Neo4j), runs with the D37 rerun rules, human decisions as engine calls, explanation payload builder, `engine-result/1` adapter and the end-to-end kit gate (Iyer, 2.4; Khan approved after one fix round). 1006 backend tests in CI, Neo4j path included. Decisions D57.
 
 ## In progress
-- Nothing running. P3 is complete on branch `opus-5.5-phase-2-attempt-1` (D58). It is NOT yet on `main` and `m3-engine` is NOT tagged.
+- Nothing running. P3 merged into `main` by PR #38 with the owner's OK ("Yes, merge to main"); tag `m3-engine` on the merge commit. Branch `opus-5.5-phase-2-attempt-1` is kept as history.
 
 ## Session S3 (2026-11-21), on branch `opus-5.5-phase-2-attempt-1`
 - Merged into the branch after review and green CI (D58): #31 Tier 2 (Naidu; Iyer review, phonetic floor rejected, D59), #32 Tier 3 + scorer `--defer` + kit 1.1 (Bose; Iyer approved, kit fixes K1-K3, D60), #33 case district from the FIR header (Bose, D61), #35 rarity needs a spelling match (Naidu, into #34), #34 P3.3 run context for providers, PER_NEAR_PHONE, MULTI_USER by `name_sim`, every AC with engine tests (Iyer; Fable reviewed), #36 scorer ignores refused steps + Neo4j district test (Bose), #30 FastAPI backend: Postgres model + migrations, DB roles, scrypt + JWT with refresh rotation, policy on all 57 routes, hash-chained append-only audit log, engine bridge with outbox and reconcile, compose with `migrate` service (Khan; Dutta APPROVE after one fix round, D62).
@@ -26,9 +26,8 @@ Last updated: 2026-11-21, end of session S3. P2 tagged `m2-slice` on `main`. P3 
 - Known limits (safe side): ages compared as written (no case dates); oversized Tier 2 blocks skipped but not counted in the run record.
 
 ## Next
-1. Ask the owner to OK merging `opus-5.5-phase-2-attempt-1` into `main` (one PR), then tag `m3-engine` on `main`.
-2. Before the demo (P6) at the latest, Khan: Dutta N3 (an empty engine store on restart must not mark every link WITHDRAWN), item 12 (missing audit anchor counts as BROKEN once the log has more than one row; verify cached, re-run at most once a minute; every route except `/health`, `/ready`, `POST /audit/verify` answers 503 while broken), N2 (refuse to start on `dev-only` secrets unless `TRACEX_ALLOW_DEV_SECRETS=1`), N1 (document the single-DB-login four-eyes limit; nightly verify matches each APPROVED change to its CHANGE_APPROVED audit row), nightly audit verify, runtime explanation-schema validation (minor).
-3. P4 apps as in PLAN.md §5, in a new session. Contract consumers note: `CaseRef`, `EntitySummary`, `LinkSummary` now have open `*Base` schemas.
+1. Before the demo (P6) at the latest, Khan: Dutta N3 (an empty engine store on restart must not mark every link WITHDRAWN), item 12 (missing audit anchor counts as BROKEN once the log has more than one row; verify cached, re-run at most once a minute; every route except `/health`, `/ready`, `POST /audit/verify` answers 503 while broken), N2 (refuse to start on `dev-only` secrets unless `TRACEX_ALLOW_DEV_SECRETS=1`), N1 (document the single-DB-login four-eyes limit; nightly verify matches each APPROVED change to its CHANGE_APPROVED audit row), nightly audit verify, runtime explanation-schema validation (minor).
+2. P4 apps as in PLAN.md §5, in a new session. Contract consumers note: `CaseRef`, `EntitySummary`, `LinkSummary` now have open `*Base` schemas.
 
 ## Carried forward (not blocking)
 - Sen: Hindi strings need a native-speaker review; checklist item 16 must be repeated on the real app screens; queue and approval i18n keys are listed in design-flows for the screen builders to add in both languages. A string for "a matching run is in progress, try again shortly" (409 RUN_IN_PROGRESS, D49) is needed in both apps.
@@ -65,7 +64,6 @@ Last updated: 2026-11-21, end of session S3. P2 tagged `m2-slice` on `main`. P3 
 - S3: an agent that keeps re-sending the same hand-back while "waiting on its own background work" can be stopped with TaskStop once its work is pushed.
 
 ## Open questions for the owner
-- OK to merge branch `opus-5.5-phase-2-attempt-1` (all of P3) into `main` and tag `m3-engine`?
 - OK to make `smoke` and `data-kit` required checks on `main`?
 
 ## Resume prompt (paste into a new session in this folder)
