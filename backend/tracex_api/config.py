@@ -5,6 +5,21 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
+
+
+DEV_SECRET_PREFIX = "dev-only"
+ALLOW_DEV_SECRETS = "TRACEX_ALLOW_DEV_SECRETS"
+
+
+def dev_secret_names(source: Mapping[str, str], keys: Mapping[str, bytes]) -> list[str]:
+    """Names of the settings that still carry a published `dev-only` placeholder value."""
+    weak = [name for name, value in keys.items() if value.startswith(DEV_SECRET_PREFIX.encode())]
+    if source.get("TRACEX_API_DB_PASSWORD", "").startswith(DEV_SECRET_PREFIX):
+        weak.append("TRACEX_API_DB_PASSWORD")
+    if (urlsplit(source.get("DATABASE_URL", "")).password or "").startswith(DEV_SECRET_PREFIX):
+        weak.append("DATABASE_URL")
+    return weak
 
 
 class ConfigError(RuntimeError):
@@ -58,6 +73,13 @@ class Settings:
         }
         if len(set(keys.values())) != len(keys):
             raise ConfigError("the four signing keys must be distinct secrets")
+        if source.get(ALLOW_DEV_SECRETS, "") != "1":
+            weak = dev_secret_names(source, keys)
+            if weak:
+                raise ConfigError(
+                    f"{', '.join(weak)} hold public dev-only values; set real secrets, or set "
+                    f"{ALLOW_DEV_SECRETS}=1 for a local development setup only"
+                )
         return cls(
             database_url=need("DATABASE_URL"),
             database_admin_url=source.get("DATABASE_ADMIN_URL") or None,
