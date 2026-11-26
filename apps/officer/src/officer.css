@@ -1,0 +1,94 @@
+/* Officer screen layout. Tokens only: no colour, size or space is written as a raw value. */
+body {
+  margin: 0;
+  background: var(--color-sunken);
+}
+
+.officer-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-inline-size: var(--page-width);
+  margin-inline: auto;
+  padding: var(--space-5) var(--space-4);
+  background: var(--color-paper);
+  min-block-size: calc(100vh - var(--topbar-height));
+}
+
+.officer-heading {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+}
+
+.officer-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.officer-password {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--tap-gap);
+}
+
+.officer-password > :first-child {
+  flex: 1 1 14rem;
+}
+
+.officer-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tap-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.officer-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.officer-fact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.officer-fact dt {
+  font-weight: var(--weight-semibold);
+}
+
+.officer-fact dt::after {
+  content: ":";
+}
+
+.officer-fact dd {
+  margin: 0;
+}
+
+.officer-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-2) solid var(--color-strong-edge);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+}
+
+.officer-card[data-kind="possible"] {
+  border-style: dashed;
+  border-color: var(--color-check-edge);
+}
+
+.officer-card__title {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+}

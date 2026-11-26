@@ -1,0 +1,567 @@
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+import { App } from "./App";
+import { hi } from "./i18n/hi";
+
+type Role = "JUNIOR" | "INVESTIGATOR" | "SUPERVISOR" | "SENIOR";
+type Reply = { status: number; body?: unknown };
+type Handler = Reply | ((request: { body: Record<string, unknown> | undefined }) => Reply);
+
+interface Call {
+  method: string;
+  path: string;
+  query: string;
+  body: Record<string, unknown> | undefined;
+}
+
+/** A fetch that answers from a table of "METHOD /path" and records every call. */
+function mockApi(table: Record<string, Handler>) {
+  const calls: Call[] = [];
+  const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input), "http://api.test");
+    const method = init?.method ?? "GET";
+    const body =
+      typeof init?.body === "string"
+        ? (JSON.parse(init.body) as Record<string, unknown>)
+        : undefined;
+    calls.push({ method, path: url.pathname, query: url.search, body });
+    const handler = table[`${method} ${url.pathname}`];
+    const reply: Reply =
+      handler === undefined
+        ? { status: 500 }
+        : typeof handler === "function"
+          ? handler({ body })
+          : handler;
+    return Promise.resolve(
+      new Response(reply.body === undefined ? null : JSON.stringify(reply.body), {
+        status: reply.status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  });
+  return { fetch: fetchMock as unknown as typeof fetch, calls };
+}
+
+const ok = (body: unknown): Reply => ({ status: 200, body });
+
+const user = (role: Role) => ({
+  user_id: "u-1",
+  username: "demo",
+  display_name: "Demo Officer",
+  role,
+  district_id: "d-1",
+  active: true,
+});
+
+const login = (role: Role): Reply =>
+  ok({
+    access_token: "access-1",
+    refresh_token: "refresh-1",
+    token_type: "Bearer",
+    expires_in: 900,
+    refresh_expires_in: 28800,
+    user: user(role),
+  });
+
+const caseRef = (id: string, number: string, title: string) => ({
+  case_id: id,
+  case_number: number,
+  title,
+  district_id: "d-1",
+});
+
+const entity = (id: string, caseId: string, value: string, extra: object = {}) => ({
+  entity_id: id,
+  case_id: caseId,
+  type: "PHONE",
+  display_value: value,
+  masked: false,
+  link_count: 0,
+  has_hidden_connection: false,
+  needs_review: false,
+  via_grant: false,
+  ...extra,
+});
+
+const CASE_A = caseRef("C-1", "24/118", "Theft, Hazratganj");
+const CASE_B = caseRef("C-2", "31/207", "Fraud, Aminabad");
+
+const summary = {
+  ...CASE_A,
+  opened_on: "2026-03-03",
+  linked_item_count: 2,
+  is_assigned: true,
+};
+
+function linkSummary(state: string, id = "L-1") {
+  return {
+    link_id: id,
+    entity_type: "PHONE",
+    state,
+    band: state === "SUGGESTED" ? "MEDIUM" : "HIGH",
+    score: 91,
+    ends: [
+      { entity: entity("E-1", "C-1", "98xxxx1234"), case: CASE_A },
+      { entity: entity("E-2", "C-2", "98xxxx1234"), case: CASE_B },
+    ],
+    main_reason: {
+      template_key: "match.evidence.id_exact",
+      params: { id_label: "PHONE", value: "98xxxx1234" },
+    },
+    updated_at: "2026-03-04T10:00:00Z",
+  };
+}
+
+function linkDetail(state: string, allowed: string[], block: string | null = null) {
+  return {
+    ...linkSummary(state),
+    thresholds_version: 1,
+    ruleset_version: "r1",
+    created_at: "2026-03-04T10:00:00Z",
+    history: [],
+    allowed_actions: allowed,
+    decision_block: block,
+    via_grant: false,
+  };
+}
+
+const explanation = {
+  link_id: "L-1",
+  entity_type: "PHONE",
+  state: "SUGGESTED",
+  score: 91,
+  band: "HIGH",
+  thresholds: { high_min: 80, medium_min: 50, thresholds_version: 1 },
+  ruleset_version: "r1",
+  gates: { passed: true, failed: [] },
+  records: [
+    {
+      entity_id: "E-1",
+      case_id: "C-1",
+      raw_text: "Mob 98xxxx1234",
+      normalized: "98xxxx1234",
+      extraction_confidence: 0.9,
+      source: {
+        case_id: "C-1",
+        document_id: "D-1",
+        line: 14,
+        page: 2,
+        document_type: "call record",
+      },
+    },
+  ],
+  support: [
+    {
+      tier: 1,
+      cap: 60,
+      raw: 50,
+      cap_adjustment: { value: 0, template_key: "match.adjust.cap" },
+      subtotal: 50,
+      items: [
+        {
+          evidence_id: "ev-1",
+          kind: "ID_EXACT",
+          strength: 1,
+          weight: 50,
+          contribution: 50,
+          is_anchor: false,
+          modifiers: [],
+          template_key: "match.evidence.id_exact",
+          params: { id_label: "PHONE", value: "98xxxx1234" },
+          sources: [
+            {
+              case_id: "C-1",
+              case_number: "24/118",
+              document_id: "D-1",
+              line: 14,
+              page: 2,
+              document_type: "call record",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  against: [],
+  clamp_adjustment: { value: 0, template_key: "match.adjust.clamp" },
+  history: [],
+};
+
+const stub = (status = "NONE") => ({
+  redacted: true,
+  stub_id: "S-1",
+  near_entity_id: "E-1",
+  connection_exists: true,
+  access_request: { status, requested_at: status === "PENDING" ? "2026-03-12T09:00:00Z" : null },
+  message_key: "access.stub.connection_exists",
+});
+
+function entityDetail(links: unknown[], stubs: unknown[] = []) {
+  return {
+    ...entity("E-1", "C-1", "98xxxx1234", { link_count: links.length }),
+    case: CASE_A,
+    facts: [{ key: "age", value: "34" }],
+    provenance: [],
+    links,
+    stubs,
+  };
+}
+
+/** The routes every flow needs: sign in, one case, one item. */
+function baseTable(role: Role, detail: unknown): Record<string, Handler> {
+  return {
+    "POST /auth/login": login(role),
+    "POST /auth/logout": { status: 204 },
+    "GET /cases": ok({ items: [summary], next_cursor: null, total: 1 }),
+    "GET /access-requests": ok({ items: [], next_cursor: null }),
+    "GET /cases/C-1/entities": ok({
+      items: [entity("E-1", "C-1", "98xxxx1234", { link_count: 2, needs_review: true })],
+      next_cursor: null,
+      case: summary,
+      counts_by_type: { PHONE: 1 },
+    }),
+    "GET /entities/E-1": ok(detail),
+  };
+}
+
+async function signIn() {
+  fireEvent.change(screen.getByLabelText("Your user ID"), { target: { value: "demo" } });
+  fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "secret-pass" } });
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await screen.findByText("Choose a case to open.");
+}
+
+const click = (name: string | RegExp) => fireEvent.click(screen.getByRole("button", { name }));
+
+async function openLink(table: Record<string, Handler>) {
+  const api = mockApi(table);
+  render(<App fetchImpl={api.fetch} />);
+  await signIn();
+  fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Show other cases" }));
+  await screen.findByText("Also appears in", { selector: "h1" });
+  fireEvent.click(await screen.findByRole("button", { name: /Why was this linked\?|Check this/ }));
+  await screen.findByRole("heading", { level: 2, name: "Why we think so" });
+  return api;
+}
+
+beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+  window.sessionStorage.clear();
+});
+afterEach(cleanup);
+
+describe("officer flow", () => {
+  test("sign in, my cases, case, item, also appears in, why linked", async () => {
+    const api = await openLink({
+      ...baseTable("INVESTIGATOR", entityDetail([linkSummary("AUTO")])),
+      "GET /links/L-1": ok(linkDetail("AUTO", [])),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Why these are linked");
+    expect(
+      screen.getByText("The same phone number 98xxxx1234 appears in both cases."),
+    ).toBeTruthy();
+    expect(screen.getByText("Nothing found against this link.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Where this came from" })).toBeTruthy();
+    expect(screen.getAllByText("Case 24/118, call record, page 2, line 14").length).toBeGreaterThan(
+      0,
+    );
+    expect(api.calls.map((call) => call.path)).toContain("/links/L-1/explanation");
+  });
+
+  test("no percentage or score shows on the why-linked screen", async () => {
+    await openLink({
+      ...baseTable("INVESTIGATOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "More detail" }));
+    const page = document.body.textContent ?? "";
+    expect(page).not.toMatch(/%/);
+    expect(page).not.toMatch(/\b91\b/);
+  });
+
+  test("confirm saves at once and shows the result without Undo for an investigator", async () => {
+    const api = await openLink({
+      ...baseTable("INVESTIGATOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
+      "GET /links/L-1/explanation": ok(explanation),
+      "POST /links/L-1/confirm": ok(linkDetail("CONFIRMED", [])),
+    });
+    click("Confirm they are the same");
+    await screen.findByText(/You confirmed this link/);
+    expect(api.calls.find((call) => call.path === "/links/L-1/confirm")?.body).toEqual({
+      expected_state: "SUGGESTED",
+    });
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Back to this case" })).toBeTruthy();
+  });
+
+  test("undo appears after a confirm for a supervisor, and needs a reason", async () => {
+    const api = await openLink({
+      ...baseTable("SUPERVISOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
+      "GET /links/L-1/explanation": ok(explanation),
+      "POST /links/L-1/confirm": ok(linkDetail("CONFIRMED", ["UNDO"])),
+      "POST /links/L-1/undo": ok(linkDetail("UNDONE", [])),
+    });
+    click("Confirm they are the same");
+    await screen.findByText(/You confirmed this link/);
+    click("Undo");
+    click("Yes, undo");
+    expect(screen.getByText(/Please fill in/)).toBeTruthy();
+    expect(api.calls.some((call) => call.path === "/links/L-1/undo")).toBe(false);
+    fireEvent.change(screen.getByLabelText(/Why are you undoing it\?/), {
+      target: { value: "Wrong phone" },
+    });
+    click("Yes, undo");
+    await screen.findByText("Your decision was undone.");
+    expect(api.calls.find((call) => call.path === "/links/L-1/undo")?.body).toEqual({
+      reason: "Wrong phone",
+      expected_state: "CONFIRMED",
+    });
+    expect(screen.getByRole("button", { name: "Check this link again" })).toBeTruthy();
+  });
+
+  test("reject needs a second step and a reason", async () => {
+    const api = await openLink({
+      ...baseTable("INVESTIGATOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
+      "GET /links/L-1/explanation": ok(explanation),
+      "POST /links/L-1/reject": ok(linkDetail("REJECTED", [])),
+    });
+    click("Reject this link");
+    expect(api.calls.some((call) => call.path === "/links/L-1/reject")).toBe(false);
+    await screen.findByRole("heading", { name: "Reject this link?" });
+    click("Yes, reject");
+    expect(screen.getByText(/Please fill in/)).toBeTruthy();
+    expect(api.calls.some((call) => call.path === "/links/L-1/reject")).toBe(false);
+    fireEvent.change(screen.getByLabelText(/Why are you rejecting it\?/), {
+      target: { value: "Different people" },
+    });
+    click("Yes, reject");
+    await screen.findByText(/You rejected this link/);
+    expect(api.calls.find((call) => call.path === "/links/L-1/reject")?.body).toEqual({
+      reason: "Different people",
+      expected_state: "SUGGESTED",
+    });
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  test("No, go back leaves the reject step and changes nothing", async () => {
+    const api = await openLink({
+      ...baseTable("INVESTIGATOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    click("Reject this link");
+    click("No, go back");
+    expect(screen.getByRole("button", { name: "Confirm they are the same" })).toBeTruthy();
+    expect(api.calls.some((call) => call.method === "POST" && call.path.startsWith("/links"))).toBe(
+      false,
+    );
+  });
+
+  test("undo is hidden from an investigator on a strong link, and Reject is hidden from everyone", async () => {
+    await openLink({
+      ...baseTable("INVESTIGATOR", entityDetail([linkSummary("AUTO")])),
+      "GET /links/L-1": ok(linkDetail("AUTO", [], "ROLE_VIEW_ONLY")),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    expect(screen.queryByRole("button", { name: /Undo/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Reject/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Confirm/ })).toBeNull();
+  });
+
+  test("a strong link shows Undo this link and not Reject for a supervisor", async () => {
+    await openLink({
+      ...baseTable("SUPERVISOR", entityDetail([linkSummary("AUTO")])),
+      "GET /links/L-1": ok(linkDetail("AUTO", ["UNDO", "CONFIRM"])),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    expect(screen.getByRole("button", { name: "Undo this link" })).toBeTruthy();
+    expect(screen.getByText(/linked automatically/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Reject/ })).toBeNull();
+  });
+
+  test("an officer who may only look sees the read-only message and no buttons", async () => {
+    await openLink({
+      ...baseTable("JUNIOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("SUGGESTED", [], "ROLE_VIEW_ONLY")),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    expect(screen.getByText(/You can look at this link but not decide it/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Confirm|Reject|Undo/ })).toBeNull();
+  });
+
+  test("a link that joins two police areas says only a senior officer can decide it", async () => {
+    await openLink({
+      ...baseTable("SUPERVISOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("SUGGESTED", [], "CROSS_AREA_SENIOR_ONLY")),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    expect(screen.getByText(/Only a senior officer can decide it/)).toBeTruthy();
+  });
+});
+
+describe("other police area", () => {
+  async function openAlso(detail: unknown, extra: Record<string, Handler> = {}) {
+    const api = mockApi({ ...baseTable("INVESTIGATOR", detail), ...extra });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show other cases" }));
+    await screen.findByText("Also appears in", { selector: "h1" });
+    return api;
+  }
+
+  test("a stub from the API shows the restricted card with no other-area detail", async () => {
+    await openAlso(entityDetail([], [stub()]));
+    const card = await screen.findByLabelText("Another police area");
+    expect(within(card).getByText("You cannot see that case.")).toBeTruthy();
+    expect(within(card).getByRole("button", { name: "Ask for access" })).toBeTruthy();
+    expect(card.textContent).not.toMatch(/\d{2}\/\d{3}/);
+  });
+
+  test("the access request needs 10 to 500 characters and then says it was sent", async () => {
+    const api = await openAlso(entityDetail([], [stub()]), {
+      "POST /access-requests": { status: 201, body: { request_id: "R-1", status: "PENDING" } },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Ask for access" }));
+    const reason = await screen.findByLabelText(/Your reason/);
+    click("Send request");
+    expect(screen.getByText("Please write your reason.")).toBeTruthy();
+    fireEvent.change(reason, { target: { value: "too short" } });
+    click("Send request");
+    expect(screen.getByText(/at least 10 characters/)).toBeTruthy();
+    fireEvent.change(reason, { target: { value: "x".repeat(501) } });
+    click("Send request");
+    expect(screen.getByText(/at most 500 characters/)).toBeTruthy();
+    expect(
+      api.calls.some((call) => call.path === "/access-requests" && call.method === "POST"),
+    ).toBe(false);
+    fireEvent.change(reason, { target: { value: "  I need to see the other case.  " } });
+    click("Send request");
+    await screen.findByText(/Request sent\. We will tell you when it is decided/);
+    expect(
+      api.calls.find((call) => call.path === "/access-requests" && call.method === "POST")?.body,
+    ).toEqual({
+      stub_id: "S-1",
+      reason: "I need to see the other case.",
+    });
+  });
+
+  test("a waiting request shows its date and no button", async () => {
+    await openAlso(entityDetail([], [stub("PENDING")]));
+    const card = await screen.findByLabelText("Another police area");
+    expect(within(card).getByText(/Request sent on 12 Mar 2026/)).toBeTruthy();
+    expect(within(card).queryByRole("button")).toBeNull();
+  });
+
+  test("a cooldown refusal from the API is shown in words", async () => {
+    await openAlso(entityDetail([], [stub()]), {
+      "POST /access-requests": {
+        status: 409,
+        body: { code: "REQUEST_COOLDOWN", message_key: "x" },
+      },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Ask for access" }));
+    fireEvent.change(await screen.findByLabelText(/Your reason/), {
+      target: { value: "I need to see the other case." },
+    });
+    click("Send request");
+    await screen.findByText("You can ask again 24 hours after the answer.");
+  });
+});
+
+describe("refusals from the API", () => {
+  test("404 shows the not-found state and never the restricted card", async () => {
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([])),
+      "GET /cases/C-1/entities": { status: 404, body: { code: "NOT_FOUND", message_key: "x" } },
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    await screen.findByText(/We could not find this/);
+    expect(screen.queryByLabelText("Another police area")).toBeNull();
+    expect(screen.getByRole("button", { name: "Back to my cases" })).toBeTruthy();
+  });
+
+  const decisionFailure = (status: number, code: string) => ({
+    ...baseTable("INVESTIGATOR", entityDetail([linkSummary("SUGGESTED")])),
+    "GET /links/L-1": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
+    "GET /links/L-1/explanation": ok(explanation),
+    "POST /links/L-1/confirm": { status, body: { code, message_key: "x" } },
+  });
+
+  test.each([
+    [409, "RUN_IN_PROGRESS", /updating links between cases/],
+    [503, "INTERNAL", /paused for safety/],
+    [403, "FORBIDDEN", /do not have access to this/],
+    [409, "STATE_MISMATCH", /changed while you were looking/],
+  ])(
+    "%i %s on confirm is shown in words and nothing is marked done",
+    async (status, code, text) => {
+      await openLink(decisionFailure(status, code));
+      click("Confirm they are the same");
+      await screen.findByText(text);
+      expect(screen.queryByText(/You confirmed this link/)).toBeNull();
+    },
+  );
+});
+
+describe("navigation and language", () => {
+  test("Back in the header returns to the screen before", async () => {
+    const api = mockApi(baseTable("INVESTIGATOR", entityDetail([])));
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    await screen.findByText(/People, phone numbers/);
+    click("Back");
+    await screen.findByText("Choose a case to open.");
+  });
+
+  test("My cases in the trail goes home from a deep screen", async () => {
+    const api = mockApi(baseTable("INVESTIGATOR", entityDetail([])));
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+    await screen.findByText(/Person in Case|Phone number in Case/);
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "You are here" })).getByRole("button", {
+        name: "My cases",
+      }),
+    );
+    await screen.findByText("Choose a case to open.");
+  });
+
+  test("the language chosen at sign in stays after sign in and in the session", async () => {
+    const api = mockApi(baseTable("INVESTIGATOR", entityDetail([])));
+    render(<App fetchImpl={api.fetch} />);
+    click("हिन्दी");
+    fireEvent.change(screen.getByLabelText(hi["signIn.userId"]), { target: { value: "demo" } });
+    fireEvent.change(screen.getByLabelText(hi["signIn.password"]), {
+      target: { value: "secret-pass" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: hi["signIn.submit"] }));
+    await screen.findByText(hi["cases.intro"]);
+    expect(window.sessionStorage.getItem("tracex.officer.lang")).toBe("hi");
+    expect(JSON.stringify({ ...window.sessionStorage })).not.toMatch(/access-1|refresh-1/);
+  });
+
+  test("a wrong password shows the sign-in error and tokens are never stored", async () => {
+    const api = mockApi({ "POST /auth/login": { status: 401 } });
+    render(<App fetchImpl={api.fetch} />);
+    fireEvent.change(screen.getByLabelText("Your user ID"), { target: { value: "demo" } });
+    fireEvent.change(screen.getByLabelText("Your password"), { target: { value: "wrong" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await screen.findByText(/We could not sign you in/);
+    expect(JSON.stringify({ ...window.sessionStorage })).not.toMatch(/secret|token/i);
+  });
+});

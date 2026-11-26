@@ -150,4 +150,11 @@ export const hi: Record<keyof typeof en, string> = {
   "state.sessionEnding": "2 मिनट में आप साइन आउट हो जाएँगे।",
   "state.stay": "साइन इन रहें",
   "state.sessionEnded": "आपका सत्र खत्म हो गया। कृपया फिर साइन इन करें।",
+  // Added with the screens
+  "item.fact.age": "उम्र",
+  "item.fact.address": "पता",
+  "item.fact.dob": "जन्म तिथि",
+  "item.fact.gender": "लिंग",
+  "item.fact.relative": "रिश्तेदार",
+  "why.rawValue": "मामला {number}, जैसा लिखा है: {text}",
 };

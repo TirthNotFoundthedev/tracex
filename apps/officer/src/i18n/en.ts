@@ -155,4 +155,11 @@ export const en = {
   "state.sessionEnding": "You will be signed out in 2 minutes.",
   "state.stay": "Stay signed in",
   "state.sessionEnded": "Your session has ended. Please sign in again.",
+  // Added with the screens
+  "item.fact.age": "Age",
+  "item.fact.address": "Address",
+  "item.fact.dob": "Date of birth",
+  "item.fact.gender": "Gender",
+  "item.fact.relative": "Relative",
+  "why.rawValue": "Case {number}, as written: {text}",
 } as const;
