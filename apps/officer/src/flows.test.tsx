@@ -272,16 +272,18 @@ describe("officer flow", () => {
     expect(api.calls.map((call) => call.path)).toContain("/links/L-1/explanation");
   });
 
-  test("no percentage or score shows on the why-linked screen", async () => {
+  test("the score is hidden until More detail is opened, and no percentage shows anywhere", async () => {
     await openLink({
       ...baseTable("INVESTIGATOR", entityDetail([linkSummary("SUGGESTED")])),
       "GET /links/L-1": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
       "GET /links/L-1/explanation": ok(explanation),
     });
+    const score = () =>
+      screen.getByText("Match score: 91 (out of 100). Strong match starts at 80.");
+    expect(score().closest("[hidden]")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "More detail" }));
-    const page = document.body.textContent ?? "";
-    expect(page).not.toMatch(/%/);
-    expect(page).not.toMatch(/\b91\b/);
+    expect(score().closest("[hidden]")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/%/);
   });
 
   test("confirm saves at once and shows the result without Undo for an investigator", async () => {
@@ -500,8 +502,8 @@ describe("refusals from the API", () => {
   });
 
   test.each([
-    [409, "RUN_IN_PROGRESS", /updating links between cases/],
-    [503, "INTERNAL", /paused for safety/],
+    [409, "RUN_IN_PROGRESS", /matching run is in progress/],
+    [503, "INTERNAL", /paused for a safety check/],
     [403, "FORBIDDEN", /do not have access to this/],
     [409, "STATE_MISMATCH", /changed while you were looking/],
   ])(

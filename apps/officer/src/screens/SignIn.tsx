@@ -2,7 +2,7 @@ import { Button, Loading, Message, TextField, TopBar } from "@tracex/ui";
 import { useState, type FormEvent } from "react";
 
 import type { Session } from "../api/session";
-import { messageKeyFor } from "../api/resultKeys";
+import { messageKeyFor, textForKey, type FailureKey } from "../api/resultKeys";
 import { t, type Language, type MessageKey } from "../i18n";
 
 /** O1. On success the session publishes the user and the app shows the next screen. */
@@ -21,7 +21,7 @@ export function SignIn({
   const [password, setPassword] = useState("");
   const [shown, setShown] = useState(false);
   const [working, setWorking] = useState(false);
-  const [problem, setProblem] = useState<MessageKey>();
+  const [problem, setProblem] = useState<FailureKey>();
   const tt = (key: MessageKey) => t(key, lang);
 
   async function submit(event: FormEvent) {
@@ -57,7 +57,7 @@ export function SignIn({
               </Button>
             }
           >
-            {tt(problem)}
+            {textForKey(problem, lang)}
           </Message>
         ) : null}
         <form className="officer-form" onSubmit={(event) => void submit(event)} noValidate>

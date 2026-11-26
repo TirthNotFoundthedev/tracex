@@ -1,6 +1,6 @@
 import { Button, Message } from "@tracex/ui";
 
-import { messageKeyFor, type FailureResult } from "../api/resultKeys";
+import { messageKeyFor, textForKey, type FailureResult } from "../api/resultKeys";
 import { useApp } from "../app-context";
 import { useNav } from "../router";
 import { NotFoundState } from "./NotFoundState";
@@ -40,7 +40,7 @@ export function FailureView({ result, onRetry }: { result: FailureResult; onRetr
   return (
     <>
       <Message kind="error" action={action}>
-        {tt(messageKeyFor(result))}
+        {textForKey(messageKeyFor(result), lang)}
       </Message>
       {result.kind === "serverError" ? <p className="tx-body">{tt("state.serverHelp")}</p> : null}
     </>

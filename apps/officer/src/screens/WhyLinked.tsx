@@ -240,6 +240,12 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
               <ReasonList support={content.support} against={content.against} />
               {content.sources.length > 0 ? <EvidenceSource sources={content.sources} /> : null}
               <MoreDetail>
+                <p className="tx-body">
+                  {tt("why.moreScore", {
+                    score: explanation.score,
+                    high: explanation.thresholds.high_min,
+                  })}
+                </p>
                 <ul className="tx-plainlist">
                   {explanation.records.map((record) => (
                     <li key={record.entity_id}>

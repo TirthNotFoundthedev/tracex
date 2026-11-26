@@ -139,11 +139,7 @@ export const hi: Record<keyof typeof en, string> = {
   "state.tryAgain": "फिर कोशिश करें",
   "state.notAllowed": "आपको इसकी पहुँच नहीं है।",
   "state.notFound": "हमें यह नहीं मिला। हो सकता है इसे हटा दिया गया हो। अपने मामलों पर वापस जाएँ।",
-  "state.safetyPause":
-    "सुरक्षा के लिए सिस्टम रोका गया है। कुछ भी नहीं बदला। कृपया बाद में फिर कोशिश करें।",
   "state.backToCases": "मेरे मामलों पर वापस जाएँ",
-  "state.runInProgress":
-    "सिस्टम अभी मामलों के जुड़ाव अपडेट कर रहा है। कुछ भी नहीं बदला। कृपया एक मिनट बाद फिर कोशिश करें।",
   "state.changedMeanwhile":
     "आपके देखते-देखते यह जुड़ाव बदल गया। कुछ भी नहीं बदला। कृपया इसे फिर से जाँचें।",
   "state.somethingMissing": "कुछ कमी है। कृपया जो लिखा है उसे जाँचें।",
@@ -156,5 +152,6 @@ export const hi: Record<keyof typeof en, string> = {
   "item.fact.dob": "जन्म तिथि",
   "item.fact.gender": "लिंग",
   "item.fact.relative": "रिश्तेदार",
+  "why.moreScore": "मिलान स्कोर: {score} (100 में से)। पक्का मिलान {high} से शुरू होता है।",
   "why.rawValue": "मामला {number}, जैसा लिखा है: {text}",
 };

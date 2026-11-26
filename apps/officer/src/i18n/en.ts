@@ -143,12 +143,7 @@ export const en = {
   "state.tryAgain": "Try again",
   "state.notAllowed": "You do not have access to this.",
   "state.notFound": "We could not find this. It may have been removed. Go back to your cases.",
-  // Temporary: replace with the shared packages/ui safety-pause string when it exists (see PR #44).
-  "state.safetyPause":
-    "The system is paused for safety. Nothing was changed. Please try again later.",
   "state.backToCases": "Back to my cases",
-  "state.runInProgress":
-    "The system is updating links between cases. Nothing was changed. Please try again in a minute.",
   "state.changedMeanwhile":
     "This link changed while you were looking. Nothing was changed. Please check it again.",
   "state.somethingMissing": "Something is missing. Please check what you wrote.",
@@ -161,5 +156,6 @@ export const en = {
   "item.fact.dob": "Date of birth",
   "item.fact.gender": "Gender",
   "item.fact.relative": "Relative",
+  "why.moreScore": "Match score: {score} (out of 100). Strong match starts at {high}.",
   "why.rawValue": "Case {number}, as written: {text}",
 } as const;
