@@ -133,7 +133,11 @@ export function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
               ) : (
                 <span aria-current={last ? "page" : undefined}>{item.label}</span>
               )}
-              {last ? null : <span aria-hidden="true"> &gt; </span>}
+              {last ? null : (
+                <span className="tx-breadcrumb__sep" aria-hidden="true">
+                  &gt;
+                </span>
+              )}
             </li>
           );
         })}

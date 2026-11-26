@@ -277,6 +277,17 @@
   line-height: var(--leading-en);
 }
 
+.tx-langswitch {
+  margin-inline-start: auto;
+}
+
+@media (max-width: 40em) {
+  .tx-topbar__title {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
 .tx-topbar__who {
   display: flex;
   flex-direction: column;
@@ -284,6 +295,7 @@
 }
 
 .tx-topbar .tx-button {
+  font-size: var(--text-body);
   background: var(--color-header);
   border-color: var(--color-on-header);
   color: var(--color-on-header);
@@ -297,6 +309,12 @@
   inline-size: var(--sidenav-width);
   padding: var(--space-3);
   background: var(--color-sunken);
+}
+
+@media (max-width: 40em) {
+  .tx-sidenav {
+    inline-size: 100%;
+  }
 }
 
 .tx-sidenav ul {
@@ -336,8 +354,18 @@
 .tx-breadcrumb ol {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   font-size: var(--text-secondary);
   color: var(--color-ink-2);
+}
+
+.tx-breadcrumb li {
+  display: flex;
+  align-items: center;
+}
+
+.tx-breadcrumb__sep {
+  padding-inline: var(--space-2);
 }
 
 .tx-breadcrumb__link {
@@ -472,7 +500,11 @@
   background: var(--color-sunken);
 }
 
-.tx-table [data-numeric="true"] {
+.tx-table th[data-numeric="true"] {
+  text-align: end;
+}
+
+.tx-table td[data-numeric="true"] {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   text-align: end;
@@ -525,6 +557,7 @@
   .tx-table td[data-label]::before {
     content: attr(data-label);
     flex: none;
+    font-family: var(--font-sans);
     max-inline-size: 50%;
     font-weight: var(--weight-semibold);
   }
@@ -538,6 +571,7 @@
 
 .tx-strength {
   display: inline-flex;
+  align-self: flex-start;
   flex-direction: column;
   gap: var(--space-2);
   max-inline-size: 100%;
@@ -597,6 +631,7 @@
 }
 
 .tx-badge {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -741,6 +776,7 @@
 
 .tx-message {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
@@ -752,7 +788,7 @@
 
 .tx-message__body {
   display: flex;
-  flex: 1;
+  flex: 1 1 12rem;
   flex-direction: column;
   gap: var(--space-3);
   min-inline-size: 0;
