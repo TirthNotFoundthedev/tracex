@@ -176,6 +176,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 
 ## 14. Components (the complete list; add only with a written reason)
 Button (primary, secondary, danger), TextField, SearchField, Select (admin only), Checkbox, FileDrop (admin), Tabs (admin only), TopBar, SideNav (admin), Breadcrumb, ListRow, Table (admin), Badge/StrengthBadge, ReasonList, EvidenceSource, MoreDetail (disclosure), RestrictedCard, Message (info/success/error, in-page), ConfirmStep, EmptyState, LanguageSwitch, GraphCanvas + GraphLegend (admin), Pager ("Show more").
+Also built, with a written reason: **Loading** (the text line with a still spinner icon required by section 11, so every app draws it the same way and none uses a spinning or skeleton version) and **Icon** and **UiProvider** (not screens: the first holds the fixed icon vocabulary of section 6 so no app picks a second icon for one meaning; the second carries language and app variant so size, text size and line height switch from tokens in one place). Admin-only components (Select, FileDrop, Tabs, SideNav, Table) render nothing in the officer app. Reason: section 4 forbids dropdowns, tabs, tables and side navigation there, and a component that renders anyway lets the rule be broken silently.
 Not in v1: toasts that vanish, tooltips (information hidden in hover is invisible on touch), carousels, modals other than ConfirmStep, drag and drop as the only way.
 
 ## 14a. Follow-up requirements (owner: Rao, Release Manager; not part of the design PR)
