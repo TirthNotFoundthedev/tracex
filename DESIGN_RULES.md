@@ -164,6 +164,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - Keyboard: Tab moves between nodes, Enter opens, and a "List view" toggle presents every node and edge as a table. Reason: graphs are inaccessible without a list alternative.
 - Cap 150 nodes on screen with the message "Showing the 150 closest. Narrow the search to see others." Reason: unreadable above that, and slow on admin PCs.
 - Layout is stable: moving the view never rearranges nodes. No physics bounce animation.
+- Decision (P4.2): the network shows entities, not cases, so the hexagon is used for **organisation** (the graph's fifth entity type); a case is not a node. A "connected" relation (person and their phone, account or vehicle) is a thin dotted line with no strength, and a link to another police area is a dashed line to the restricted card. The layout is computed to the end before drawing (fixed seed, fixed steps), so nothing moves on screen and the same input always gives the same picture. Reason: the API has no case nodes, and a fixed layout lets a reviewer compare two screenshots.
 
 ## 13. Hindi and language rules
 - The language switch is on the first screen and every screen header, label "हिंदी" in English mode and "English" in Hindi mode, written in the target language so it can be found by someone who cannot read the current one. Choice persists per device.
