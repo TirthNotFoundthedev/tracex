@@ -26,11 +26,11 @@ type BodyOf<K extends Operation> = operations[K] extends {
   ? B
   : never;
 
-type UploadBody = operations["uploadFiles"] extends {
-  requestBody: { content: { "multipart/form-data": infer B } };
-}
-  ? B
-  : never;
+/** The generated type says `string[]` for binary files; in the browser they are File objects. */
+export type UploadInput = Omit<
+  operations["uploadFiles"]["requestBody"]["content"]["multipart/form-data"],
+  "files"
+> & { files: Blob[] };
 
 export interface ClientOptions {
   baseUrl: string;
@@ -99,11 +99,11 @@ export function createClient(options: ClientOptions) {
     getMe: () => call<Success<"getMe">>("GET", "/me"),
 
     // A1 Upload
-    uploadFiles: (request: UploadBody) => {
+    uploadFiles: (request: UploadInput) => {
       const form = new FormData();
       form.append("case_number", request.case_number);
       form.append("district_id", request.district_id);
-      for (const file of request.files as unknown as Blob[]) form.append("files", file);
+      for (const file of request.files) form.append("files", file);
       return call<Success<"uploadFiles">>("POST", "/uploads", { body: form });
     },
     listUploads: (query: QueryOf<"listUploads"> = {}) =>
@@ -136,7 +136,7 @@ export function createClient(options: ClientOptions) {
       call<Success<"listAccessRequests">>("GET", "/access-requests", { query }),
     getAccessRequest: (requestId: string) =>
       call<Success<"getAccessRequest">>("GET", `/access-requests/${id(requestId)}`),
-    approveAccessRequest: (requestId: string, body: BodyOf<"approveAccessRequest"> = {}) =>
+    approveAccessRequest: (requestId: string, body: Partial<BodyOf<"approveAccessRequest">> = {}) =>
       call<Success<"approveAccessRequest">>("POST", `/access-requests/${id(requestId)}/approve`, {
         body,
       }),
@@ -185,8 +185,8 @@ export function createClient(options: ClientOptions) {
       call<Success<"searchEntities">>("GET", "/search/entities", { query }),
     getEntityGraph: (entityId: string, query: QueryOf<"getEntityGraph"> = {}) =>
       call<Success<"getEntityGraph">>("GET", `/entities/${id(entityId)}/graph`, { query }),
-    getEntityCluster: (entityId: string, query: QueryOf<"getEntityCluster"> = {}) =>
-      call<Success<"getEntityCluster">>("GET", `/entities/${id(entityId)}/cluster`, { query }),
+    getEntityCluster: (entityId: string) =>
+      call<Success<"getEntityCluster">>("GET", `/entities/${id(entityId)}/cluster`),
     getEntityPaths: (entityId: string, query: QueryOf<"getEntityPaths"> = {}) =>
       call<Success<"getEntityPaths">>("GET", `/entities/${id(entityId)}/paths`, { query }),
   };
