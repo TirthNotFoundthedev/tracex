@@ -58,7 +58,8 @@ def reconcile_once(state: AppState) -> None:
             raise ConfigError("DATABASE_URL must be the tracex_api login, never a superuser")
         counts = reconcile(Ctx.for_system(state, conn))
     logger.info("reconcile finished", extra={"counts": counts})
-    state.reconciled.set()
+    if not state.store_lost:
+        state.reconciled.set()
 
 
 def _reconcile_loop(state: AppState, stop: threading.Event) -> None:
@@ -67,6 +68,8 @@ def _reconcile_loop(state: AppState, stop: threading.Event) -> None:
     while not state.reconciled.is_set() and not stop.is_set():
         try:
             reconcile_once(state)
+            if not state.reconciled.is_set():
+                stop.wait(RECONCILE_RETRY_SECONDS)  # the engine store is lost: look again later
         except Exception:
             logger.exception("reconcile failed; trying again")
             stop.wait(RECONCILE_RETRY_SECONDS)

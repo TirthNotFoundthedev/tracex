@@ -79,13 +79,16 @@ class AppState:
     engine: "EngineGateway"
     alerts: list[str] = field(default_factory=list)
     reconciled: threading.Event = field(default_factory=threading.Event)
+    store_lost: bool = False
+
 
     def now(self) -> datetime:
         return self.clock()
 
     def alert(self, message: str) -> None:
         """Divergence and reconcile alerts: logged as errors and kept for the operator view."""
-        self.alerts.append(message)
+        if message not in self.alerts[-3:]:
+            self.alerts.append(message)
         logger.error("alert: %s", message)
 
 

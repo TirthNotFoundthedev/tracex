@@ -736,7 +736,18 @@ def reconcile(ctx: "Ctx") -> dict[str, int]:
             )
             ctx.state.alert(f"edge {edge.link_id} carried a decision that is not in the outbox")
             counts["reverted"] += 1
-    for row in many(conn, "SELECT * FROM links WHERE state <> 'WITHDRAWN'"):
+    live = many(conn, "SELECT * FROM links WHERE state <> 'WITHDRAWN'")
+    if live and not seen_ids:
+        # An empty store beside live links means the store was lost, not that every link is
+        # gone. Keep every state, say so, and stay not ready until the store answers again.
+        ctx.state.store_lost = True
+        ctx.state.alert(
+            f"engine store is empty but {len(live)} links are live; no link was withdrawn"
+        )
+        ctx.commit()
+        return counts
+    ctx.state.store_lost = False
+    for row in live:
         if str(row["link_id"]) not in seen_ids:
             mark_withdrawn(ctx, row, None, ctx.now())
             counts["withdrawn"] += 1
