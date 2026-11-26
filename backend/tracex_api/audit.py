@@ -262,30 +262,35 @@ def _row_columns(row: Row) -> dict[str, Any]:
 
 
 def read_anchor(path: Path) -> dict[str, Any] | None:
-    """The last well-formed anchor line, or None when the file is missing or empty."""
+    """The last well-formed anchor line, or None when the file is missing or empty.
+
+    A line counts only when it is a JSON object with an integer `seq` and a string `row_hash`; any
+    other line (not JSON, or JSON that is not an object) is skipped like a malformed one."""
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None
     for line in reversed(lines):
         try:
-            anchor: dict[str, Any] = json.loads(line)
+            anchor = json.loads(line)
         except ValueError:
             continue
-        if isinstance(anchor.get("seq"), int) and isinstance(anchor.get("row_hash"), str):
+        if (
+            isinstance(anchor, dict)
+            and isinstance(anchor.get("seq"), int)
+            and not isinstance(anchor.get("seq"), bool)
+            and isinstance(anchor.get("row_hash"), str)
+        ):
             return anchor
     return None
 
 
-def write_anchor(conn: Conn, path: Path) -> None:
-    """Append `{seq, row_hash, at}` for the current head. The file is only ever appended to."""
-    head = one(conn, "SELECT seq, row_hash FROM audit_log ORDER BY seq DESC LIMIT 1")
-    if head is None:
-        return
+def append_anchor(path: Path, seq: int, hash_bytes: bytes) -> None:
+    """Append `{seq, row_hash, at}`. The file is only ever appended to."""
     line = json.dumps(
         {
-            "seq": int(head["seq"]),
-            "row_hash": bytes(head["row_hash"]).hex(),
+            "seq": seq,
+            "row_hash": bytes(hash_bytes).hex(),
             "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
         }
     )
@@ -297,21 +302,57 @@ def write_anchor(conn: Conn, path: Path) -> None:
         os.close(fd)
 
 
+def write_anchor(conn: Conn, path: Path) -> None:
+    """Append an anchor for the current head. Use only where no verify just ran; after a verify,
+    anchor the row it checked with `anchor_checked`."""
+    head = one(conn, "SELECT seq, row_hash FROM audit_log ORDER BY seq DESC LIMIT 1")
+    if head is None:
+        return
+    append_anchor(path, int(head["seq"]), bytes(head["row_hash"]))
+
+
+@dataclass(frozen=True)
+class VerifyResult:
+    """What a verify walked: `head_seq` and `head_hash` are the last row it checked."""
+
+    ok: bool
+    first_bad_seq: int | None
+    head_seq: int
+    head_hash: bytes
+
+
+def anchor_checked(path: Path, result: VerifyResult) -> None:
+    """Anchor exactly the row a passing verify checked, never a head read later."""
+    if not result.ok or result.head_seq < 1:
+        raise ValueError("only a passing verify can be anchored")
+    append_anchor(path, result.head_seq, result.head_hash)
+
+
 def verify(conn: Conn, anchor_path: Path, tail: int | None = None) -> tuple[bool, int | None]:
-    """Check steps 1 to 4 of spec section 4. Returns (ok, first_bad_seq).
+    """Check steps 1 to 4 of spec section 4. Returns (ok, first_bad_seq)."""
+    result = verify_checked(conn, anchor_path, tail)
+    return result.ok, result.first_bad_seq
+
+
+def verify_checked(conn: Conn, anchor_path: Path, tail: int | None = None) -> VerifyResult:
+    """Check steps 1 to 4 of spec section 4 and report the last row checked.
 
     `tail` limits the walk to the last N rows (startup); the row before the window supplies the
-    expected `prev_hash`."""
+    expected `prev_hash`. The window always reaches back to the anchor, so rows that arrived
+    since the last anchor are never skipped. An empty log is BROKEN: AUDIT_CHAIN_STARTED is gone."""
+    anchor = read_anchor(anchor_path)
     start = 1
     expected_prev = ZERO_HASH
     if tail is not None:
         head = one(conn, "SELECT max(seq) AS m FROM audit_log")
         top = int(head["m"]) if head and head["m"] is not None else 0
         start = max(1, top - tail + 1)
+        if anchor is not None:
+            start = max(1, min(start, anchor["seq"]))
         if start > 1:
             before = one(conn, "SELECT row_hash FROM audit_log WHERE seq = %s", (start - 1,))
             if before is None:
-                return False, start - 1
+                return VerifyResult(False, start - 1, 0, ZERO_HASH)
             expected_prev = bytes(before["row_hash"])
     expected_seq = start
     last_seq = start - 1
@@ -321,24 +362,29 @@ def verify(conn: Conn, anchor_path: Path, tail: int | None = None) -> tuple[bool
         for row in cursor:
             seq = int(row["seq"])
             if seq != expected_seq:
-                return False, expected_seq
+                return VerifyResult(False, expected_seq, last_seq, last_hash)
             if bytes(row["prev_hash"]) != last_hash:
-                return False, seq
+                return VerifyResult(False, seq, last_seq, last_hash)
             if row_hash(last_hash, _row_columns(row)) != bytes(row["row_hash"]):
-                return False, seq
+                return VerifyResult(False, seq, last_seq, last_hash)
             last_hash = bytes(row["row_hash"])
             last_seq = seq
             expected_seq += 1
-    anchor = read_anchor(anchor_path)
+
+    def broken(at: int) -> VerifyResult:
+        return VerifyResult(False, at, last_seq, last_hash)
+
+    if last_seq < 1:
+        return broken(1)
     if anchor is None and last_seq > 1:
         # No anchor with more than one row: the file was lost or emptied. Only a log that holds
         # just AUDIT_CHAIN_STARTED may lack one (the API writes the first anchor at startup).
-        return False, 1
+        return broken(1)
     if anchor is not None:
         if last_seq < anchor["seq"]:
-            return False, int(anchor["seq"])
+            return broken(int(anchor["seq"]))
         if start <= anchor["seq"]:
             anchored = one(conn, "SELECT row_hash FROM audit_log WHERE seq = %s", (anchor["seq"],))
             if anchored is None or bytes(anchored["row_hash"]).hex() != anchor["row_hash"]:
-                return False, int(anchor["seq"])
-    return True, None
+                return broken(int(anchor["seq"]))
+    return VerifyResult(True, None, last_seq, last_hash)

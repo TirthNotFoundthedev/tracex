@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from tracex_api import audit
-from tracex_api.db import Conn, connect, many, one
+from tracex_api.db import Conn, connect, many
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ class Report:
     chain_ok: bool
     first_bad_seq: int | None
     head_seq: int
+    head_hash: bytes = b""
     mismatches: list[str] = field(default_factory=list)
 
     @property
@@ -47,7 +48,8 @@ def check_approved_changes(conn: Conn) -> list[str]:
         rows = many(
             conn,
             "SELECT actor_user_id, detail->>'change_hash' AS change_hash FROM audit_log "
-            "WHERE event_type = 'CHANGE_APPROVED' AND target_type = 'CHANGE' AND target_id = %s",
+            "WHERE event_type = 'CHANGE_APPROVED' AND outcome = 'SUCCESS' "
+            "AND target_type = 'CHANGE' AND target_id = %s",
             (change_id,),
         )
         if not rows:
@@ -62,10 +64,14 @@ def check_approved_changes(conn: Conn) -> list[str]:
 
 
 def run_checks(conn: Conn, anchor_path: Path) -> Report:
-    ok, bad = audit.verify(conn, anchor_path)
-    head = one(conn, "SELECT max(seq) AS m FROM audit_log")
-    top = int(head["m"]) if head and head["m"] is not None else 0
-    return Report(ok, bad, top, check_approved_changes(conn))
+    result = audit.verify_checked(conn, anchor_path)
+    return Report(
+        result.ok,
+        result.first_bad_seq,
+        result.head_seq,
+        result.head_hash,
+        check_approved_changes(conn),
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -103,7 +109,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         conn.commit()
         if report.ok:
-            audit.write_anchor(conn, anchor_path)
+            # the row the walk checked, not a head read afterwards
+            audit.append_anchor(anchor_path, report.head_seq, report.head_hash)
     if not report.chain_ok:
         logger.error("audit chain is BROKEN at seq %s", report.first_bad_seq)
     for problem in report.mismatches:

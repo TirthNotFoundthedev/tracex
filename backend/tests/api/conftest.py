@@ -28,7 +28,7 @@ from tracex_api import audit
 from tracex_api.config import Settings
 from tracex_api.db import Conn, bootstrap_roles, connect, many, migrate, one
 from tracex_api.engine_bridge import EngineGateway
-from tracex_api.main import create_app
+from tracex_api.main import check_chain, create_app
 from tracex_api.seed import assign_cases, load_seed, seed_jurisdictions, seed_users
 
 PG_URL = os.environ.get("TRACEX_TEST_PG_URL")
@@ -196,6 +196,7 @@ def _make_api(template: str, tmp_path: Path, engine: EngineGateway) -> Api:
     clock = FakeClock()
     app = create_app(settings, engine, clock)
     app.state.tracex.reconciled.set()  # the lifespan sweep is tested on its own; see test_startup
+    assert check_chain(app.state.tracex)  # the startup verify a started API has passed
     client = TestClient(app, raise_server_exceptions=False)
     return Api(
         client,

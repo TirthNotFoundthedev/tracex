@@ -46,7 +46,8 @@ def _engine_for(settings: Settings) -> EngineGateway:
 
 
 def record_chain(state: AppState, ok: bool) -> None:
-    """Keep the latest verify result; a BROKEN result gates the API, a later OK clears it."""
+    """Keep the latest verify result. The API serves only while the latest result is OK; the first
+    result that is not OK raises the alert once, and a later OK clears it."""
     was = state.chain_ok
     state.chain_ok = ok
     state.chain_checked_at = monotonic()
@@ -54,13 +55,25 @@ def record_chain(state: AppState, ok: bool) -> None:
         state.alert("audit chain verify is BROKEN; the API answers 503 until a verify passes")
 
 
-def chain_ready(state: AppState) -> bool:
-    """A fresh check now: the last 1000 rows plus the anchor must verify."""
+def check_chain(state: AppState, *, anchor: bool = False) -> bool:
+    """A fresh check now: the last 1000 rows plus the anchor must verify. Any exception counts as
+    not OK. With `anchor`, a passing check also anchors the row it checked, under the same lock;
+    a failing or raising check never writes an anchor."""
     with state.chain_lock:
-        with connect(state.settings.database_url) as conn:
-            ok, _ = audit.verify(conn, state.settings.audit_anchor_path, tail=1000)
-        record_chain(state, ok)
-    return ok
+        try:
+            with connect(state.settings.database_url) as conn:
+                result = audit.verify_checked(conn, state.settings.audit_anchor_path, tail=1000)
+            record_chain(state, result.ok)
+        except Exception:
+            logger.exception("audit verify failed; treating the chain as BROKEN")
+            record_chain(state, False)
+            return False
+        if result.ok and anchor:
+            try:
+                audit.anchor_checked(state.settings.audit_anchor_path, result)
+            except OSError:
+                logger.exception("anchor write failed")
+    return result.ok
 
 
 def chain_status(state: AppState) -> bool:
@@ -68,7 +81,7 @@ def chain_status(state: AppState) -> bool:
     unauthenticated caller of /ready cannot trigger more work."""
     if state.chain_ok is not None and monotonic() - state.chain_checked_at < CHAIN_RECHECK_SECONDS:
         return state.chain_ok
-    return chain_ready(state)
+    return check_chain(state)
 
 
 def startup_anchor(state: AppState) -> None:
@@ -91,40 +104,30 @@ def reconcile_once(state: AppState) -> None:
             raise ConfigError("DATABASE_URL must be the tracex_api login, never a superuser")
         counts = reconcile(Ctx.for_system(state, conn))
     logger.info("reconcile finished", extra={"counts": counts})
-    if not state.store_lost:
+    if not state.store_lost and not state.withdrawals_deferred:
         state.reconciled.set()
 
 
 def _reconcile_loop(state: AppState, stop: threading.Event) -> None:
     """Run the sweep until it succeeds once, so a database or engine that is still starting
-    delays readiness instead of leaving the API half-ready for good."""
+    delays readiness instead of leaving the API half-ready for good. A lost engine store ends the
+    loop: the alert stays and /ready stays 503 until an operator restores the store and restarts
+    the API (the runbook recovery); nothing resumes withdrawals on its own."""
     while not state.reconciled.is_set() and not stop.is_set():
         try:
             reconcile_once(state)
-            if not state.reconciled.is_set():
-                stop.wait(RECONCILE_RETRY_SECONDS)  # the engine store is lost: look again later
         except Exception:
             logger.exception("reconcile failed; trying again")
+        if state.store_lost:
+            logger.error("engine store is lost; restore it and restart the API")
+            return
+        if not state.reconciled.is_set():
             stop.wait(RECONCILE_RETRY_SECONDS)
 
 
 def _anchor_loop(state: AppState, stop: threading.Event) -> None:
     while not stop.wait(ANCHOR_INTERVAL_SECONDS):
-        try:
-            healthy = chain_ready(state)
-        except Exception:
-            logger.exception("periodic audit verify failed")
-            continue
-        if healthy:
-            _write_anchor(state)
-
-
-def _write_anchor(state: AppState) -> None:
-    try:
-        with connect(state.settings.database_url) as conn:
-            audit.write_anchor(conn, state.settings.audit_anchor_path)
-    except Exception:
-        logger.exception("anchor write failed")
+        check_chain(state, anchor=True)
 
 
 def create_app(
@@ -150,9 +153,9 @@ def create_app(
         state: AppState = app.state.tracex
         try:
             startup_anchor(state)
-            chain_ready(state)
         except Exception:
-            logger.exception("startup audit check failed")
+            logger.exception("startup anchor failed")
+        check_chain(state)  # records BROKEN on any failure; the gate stays shut until it passes
         thread = threading.Thread(target=_anchor_loop, args=(state, stop), daemon=True)
         thread.start()
         sweeper = threading.Thread(target=_reconcile_loop, args=(state, stop), daemon=True)
@@ -161,8 +164,7 @@ def create_app(
             yield
         finally:
             stop.set()
-            if state.chain_ok is not False:
-                _write_anchor(state)
+            check_chain(state, anchor=True)  # fresh check; anchors only when it passes
 
     app = FastAPI(title="TraceX API", lifespan=lifespan)
     context.install(app)
@@ -195,7 +197,7 @@ def create_app(
         state: AppState | None = getattr(app.state, "tracex", None)
         if (
             state is not None
-            and state.chain_ok is False
+            and state.chain_ok is not True
             and (request.method, request.url.path) not in GATE_EXEMPT
         ):
             return JSONResponse(ApiError("NOT_READY").body(), status_code=503)

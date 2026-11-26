@@ -84,14 +84,15 @@ def test_ready_runs_at_most_one_verify_a_minute(api: Api, monkeypatch: pytest.Mo
     busy(api)
     restore_anchor(api)
     calls: list[int] = []
-    real = audit.verify
+    real = audit.verify_checked
 
-    def counting(*args: object, **kwargs: object) -> tuple[bool, int | None]:
+    def counting(*args: object, **kwargs: object) -> audit.VerifyResult:
         calls.append(1)
         return real(*args, **kwargs)  # type: ignore[arg-type]
 
     clock = [1000.0]
-    monkeypatch.setattr("tracex_api.main.audit.verify", counting)
+    api.client.app.state.tracex.chain_checked_at = -1000.0  # type: ignore[attr-defined]
+    monkeypatch.setattr("tracex_api.main.audit.verify_checked", counting)
     monkeypatch.setattr("tracex_api.main.monotonic", lambda: clock[0])
     for _ in range(50):
         assert api.client.get("/ready").status_code == 200
