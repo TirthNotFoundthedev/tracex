@@ -12,7 +12,8 @@ The users and police areas come from `python -m tracex_api.seed` (the `migrate` 
     python -m tracex_api.seed_demo --api-url http://api:8000 --data-kit /data-kit
 
 Passwords are read from `TRACEX_SEED_PASSWORD_<USERNAME>`; nothing is stored here. The seed
-refuses to run when `TRACEX_ENV` looks like production.
+runs only when `TRACEX_ENV` is exactly development, local, test or demo and
+`TRACEX_ALLOW_DEV_SECRETS` is 1.
 """
 
 import argparse
@@ -23,6 +24,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from collections.abc import Mapping
@@ -34,7 +36,8 @@ from tracex_api.seed import load_seed
 
 ADMIN_USER = "hari"
 APPROVER_USER = "meena"  # SENIOR with all-state coverage: can approve any assignment
-PRODUCTION_WORDS = ("prod", "live", "stag", "uat", "release")
+ALLOWED_ENVIRONMENTS = ("development", "local", "test", "demo")
+ALLOW_DEV_SECRETS = "TRACEX_ALLOW_DEV_SECRETS"
 FILE_ORDER = ("fir", "notes", "sdr", "cdr", "bank")
 POLL_SECONDS = 1.0
 EXIT_OK, EXIT_FAILED, EXIT_REFUSED = 0, 1, 2
@@ -42,6 +45,10 @@ EXIT_OK, EXIT_FAILED, EXIT_REFUSED = 0, 1, 2
 
 class SeedError(RuntimeError):
     """The seed cannot continue; the message is shown to the operator."""
+
+
+class SeedRefused(SeedError):
+    """The environment is not one the demo seed may run in."""
 
 
 class Http(Protocol):
@@ -60,11 +67,20 @@ class Http(Protocol):
 
 
 def refuse_if_production(env: Mapping[str, str]) -> None:
-    value = env.get("TRACEX_ENV", "").strip().lower()
-    if not value:
-        raise SeedError("TRACEX_ENV is not set; set it to development to run the demo seed")
-    if any(word in value for word in PRODUCTION_WORDS):
-        raise SeedError(f"TRACEX_ENV={value!r} looks like production; the demo seed will not run")
+    """Run only for an exact allow-listed `TRACEX_ENV` and only with the dev-secrets flag set to 1.
+
+    The flag is the second check: the API refuses its own dev placeholder secrets without it, and a
+    real deployment never sets it.
+    """
+    value = env.get("TRACEX_ENV", "")
+    if value not in ALLOWED_ENVIRONMENTS:
+        shown = repr(value) if value else "unset"
+        raise SeedRefused(
+            f"TRACEX_ENV is {shown}; the demo seed runs only when it is exactly one of "
+            + ", ".join(ALLOWED_ENVIRONMENTS)
+        )
+    if env.get(ALLOW_DEV_SECRETS, "") != "1":
+        raise SeedRefused(f"{ALLOW_DEV_SECRETS} is not 1; the demo seed is for local use only")
 
 
 def multipart(form: Mapping[str, str], files: list[tuple[str, bytes]]) -> tuple[bytes, str]:
@@ -87,8 +103,18 @@ def multipart(form: Mapping[str, str], files: list[tuple[str, bytes]]) -> tuple[
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN201
+        raise SeedError(f"the API answered with a redirect ({code}); the seed does not follow it")
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 class UrllibHttp:
     def __init__(self, base_url: str) -> None:
+        if urllib.parse.urlsplit(base_url).scheme not in ("http", "https"):
+            raise SeedError("the API URL must start with http:// or https://")
         self.base = base_url.rstrip("/")
 
     def request(
@@ -114,7 +140,7 @@ class UrllibHttp:
             self.base + path, data=data, method=method, headers=headers
         )
         try:
-            with urllib.request.urlopen(req, timeout=300) as response:  # noqa: S310
+            with _OPENER.open(req, timeout=300) as response:
                 raw = response.read()
                 status = response.status
         except urllib.error.HTTPError as exc:
@@ -367,7 +393,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
             seed_demo(UrllibHttp(args.api_url), source, dataset, seed_dir, log)
     except SeedError as exc:
         sys.stderr.write(f"seed failed: {exc}\n")
-        return EXIT_REFUSED if "TRACEX_ENV" in str(exc) else EXIT_FAILED
+        return EXIT_REFUSED if isinstance(exc, SeedRefused) else EXIT_FAILED
     return EXIT_OK
 
 

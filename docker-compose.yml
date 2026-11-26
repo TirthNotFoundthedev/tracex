@@ -115,7 +115,8 @@ services:
       ]
     restart: "no"
     environment:
-      TRACEX_ENV: ${TRACEX_ENV:-development}
+      TRACEX_ENV: ${TRACEX_ENV:?set TRACEX_ENV in .env (development, local, test or demo)}
+      TRACEX_ALLOW_DEV_SECRETS: ${TRACEX_ALLOW_DEV_SECRETS:-}
       PYTHONPATH: /data-kit
       TRACEX_SEED_PASSWORD_MEENA: ${TRACEX_SEED_PASSWORD_MEENA:?set the TRACEX_SEED_PASSWORD_* values in .env}
       TRACEX_SEED_PASSWORD_HARI: ${TRACEX_SEED_PASSWORD_HARI:?set the TRACEX_SEED_PASSWORD_* values in .env}
