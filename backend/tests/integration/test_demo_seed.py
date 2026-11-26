@@ -12,7 +12,7 @@ from tracex_api.seed_demo import SeedError, seed_demo
 
 SEED_DIR = Path(__file__).resolve().parents[3] / "data-kit" / "seed"
 USERS = ("hari", "meena", "asha", "deepak")
-ENV = {"TRACEX_ENV": "development"} | {
+ENV = {"TRACEX_ENV": "development", "TRACEX_ALLOW_DEV_SECRETS": "1"} | {
     f"TRACEX_SEED_PASSWORD_{u.upper()}": password_of(u) for u in USERS
 }
 COUNTS = (
@@ -114,7 +114,7 @@ def test_seed_writes_audit_rows_through_the_api(seeded: Api) -> None:
     assert chain.status_code == 200
 
 
-def test_seed_refuses_production(api: Api, small_dataset: Path) -> None:
-    with pytest.raises(SeedError, match="production"):
+def test_seed_refuses_an_environment_off_the_allow_list(api: Api, small_dataset: Path) -> None:
+    with pytest.raises(SeedError, match="TRACEX_ENV"):
         seed(api, small_dataset, ENV | {"TRACEX_ENV": "production"})
     assert api.get("hari", "/uploads").json()["total"] == 0
