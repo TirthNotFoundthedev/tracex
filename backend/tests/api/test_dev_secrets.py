@@ -71,3 +71,16 @@ def test_the_published_env_example_keys_are_refused_without_the_flag() -> None:
         Settings.from_env(published)
     assert Settings.from_env({**published, "TRACEX_ALLOW_DEV_SECRETS": "1"})
     assert values["TRACEX_ALLOW_DEV_SECRETS"] == "1"
+
+
+def test_note7_the_flag_logs_a_warning_naming_the_dev_only_settings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    weak = {"TRACEX_JWT_KEY": dev_key("jwt")}
+    with caplog.at_level("WARNING"):
+        Settings.from_env(env(**weak, TRACEX_ALLOW_DEV_SECRETS="1"))
+    assert "TRACEX_JWT_KEY" in caplog.text
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        Settings.from_env(env(TRACEX_ALLOW_DEV_SECRETS="1"))
+    assert caplog.text == ""
