@@ -80,6 +80,8 @@ class AppState:
     alerts: list[str] = field(default_factory=list)
     reconciled: threading.Event = field(default_factory=threading.Event)
     store_lost: bool = False
+    withdrawals_deferred: bool = False  # a match run was RUNNING during the sweep
+    stale_runs_handled: bool = False  # interrupt_stale_runs ran once in this process
     chain_ok: bool | None = None  # latest audit verify; None until the first one ran
     chain_checked_at: float = 0.0
     chain_lock: threading.Lock = field(default_factory=threading.Lock)

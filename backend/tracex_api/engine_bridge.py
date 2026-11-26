@@ -703,7 +703,11 @@ def reconcile(ctx: "Ctx") -> dict[str, int]:
     engine = ctx.state.engine
     conn = ctx.conn
     counts = {"reverted": 0, "withdrawn": 0, "replayed": 0, "imported": 0, "interrupted": 0}
-    counts["interrupted"] = interrupt_stale_runs(ctx)
+    if not ctx.state.stale_runs_handled:
+        # Only the first sweep after process start: a RUNNING run seen later is a live one.
+        counts["interrupted"] = interrupt_stale_runs(ctx)
+        ctx.commit()
+        ctx.state.stale_runs_handled = True
     known_decisions = {
         str(r["decision_id"]) for r in many(conn, "SELECT decision_id FROM decision_outbox")
     }
@@ -747,6 +751,13 @@ def reconcile(ctx: "Ctx") -> dict[str, int]:
         ctx.commit()
         return counts
     ctx.state.store_lost = False
+    if one(conn, "SELECT 1 AS x FROM match_runs WHERE status = 'RUNNING' LIMIT 1") is not None:
+        # A live run is writing edges: a withdrawal now could hit links it has not made yet.
+        ctx.state.withdrawals_deferred = True
+        ctx.state.alert("a match run is in progress; the startup sweep waits before withdrawing")
+        ctx.commit()
+        return counts
+    ctx.state.withdrawals_deferred = False
     for row in live:
         if str(row["link_id"]) not in seen_ids:
             mark_withdrawn(ctx, row, None, ctx.now())
