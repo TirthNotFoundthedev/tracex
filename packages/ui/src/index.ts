@@ -67,6 +67,25 @@ export {
   type RestrictedItemType,
 } from "./components/RestrictedCard";
 export {
+  GRAPH_NODE_CAP,
+  GraphCanvas,
+  GraphLegend,
+  type GraphCanvasProps,
+  type GraphView,
+} from "./components/graph";
+export {
+  GRAPH_NODE_TYPES,
+  type GraphConnectedEdge,
+  type GraphEdge,
+  type GraphEntityNode,
+  type GraphLinkState,
+  type GraphNode,
+  type GraphNodeType,
+  type GraphRestrictedEdge,
+  type GraphSameAsEdge,
+  type GraphStubNode,
+} from "./components/graph-layout";
+export {
   ConfirmStep,
   EmptyState,
   Loading,

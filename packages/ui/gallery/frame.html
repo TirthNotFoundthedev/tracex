@@ -16,7 +16,13 @@
       const f = document.getElementById("f");
       f.style.width = q.get("w") + "px";
       f.style.height = "900px";
-      f.src = "./index.html?app=" + q.get("app") + "&lang=" + q.get("lang");
+      f.src =
+        "./index.html?app=" +
+        q.get("app") +
+        "&lang=" +
+        q.get("lang") +
+        "&only=" +
+        (q.get("only") || "");
       f.onload = () =>
         setTimeout(() => {
           const d = f.contentDocument.documentElement;

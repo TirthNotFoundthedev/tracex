@@ -10,6 +10,8 @@ import {
   EmptyState,
   EvidenceSource,
   FileDrop,
+  GraphCanvas,
+  GraphLegend,
   ListRow,
   Loading,
   Message,
@@ -27,6 +29,8 @@ import {
   TopBar,
   UiProvider,
   type AppVariant,
+  type GraphEdge,
+  type GraphNode,
   type Language,
 } from "../src";
 
@@ -164,6 +168,65 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/*
+ * Synthetic sample in the shape of the Irfan scenario (all names and numbers invented):
+ * two spellings of one person, a phone, an account, a vehicle, a possible organisation
+ * match, and one link into another police area.
+ */
+const sampleNodes: GraphNode[] = [
+  { id: "p1", type: "person", label: "Mohd. Irfan" },
+  { id: "p2", type: "person", label: "Irfan bhai" },
+  { id: "p3", type: "person", label: "इरफ़ान" },
+  { id: "ph1", type: "phone", label: "9000051234" },
+  { id: "ph2", type: "phone", label: "9000071203" },
+  { id: "b1", type: "bank", label: "SBIN 4471" },
+  { id: "v1", type: "vehicle", label: "UP32 AB 1234" },
+  { id: "o1", type: "org", label: "Irfan Traders" },
+  { id: "s1", restricted: true },
+  { id: "s2", restricted: true },
+];
+
+const sampleEdges: GraphEdge[] = [
+  { id: "e1", from: "p1", to: "p2", kind: "same_as", strength: "strong", state: "auto" },
+  { id: "e2", from: "p2", to: "p3", kind: "same_as", strength: "strong", state: "confirmed" },
+  { id: "e3", from: "p1", to: "o1", kind: "same_as", strength: "possible", state: "suggested" },
+  { id: "e4", from: "p1", to: "ph1", kind: "connected" },
+  { id: "e5", from: "p2", to: "ph2", kind: "connected" },
+  { id: "e6", from: "p3", to: "b1", kind: "connected" },
+  { id: "e7", from: "p2", to: "v1", kind: "connected" },
+  { id: "e8", from: "ph1", to: "s1", kind: "restricted" },
+  { id: "e9", from: "b1", to: "s2", kind: "restricted" },
+];
+
+function GraphBlock({ title }: { title: string }) {
+  const [selected, setSelected] = useState<string>("p1");
+  return (
+    <Block title={title}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "var(--space-4)",
+          alignItems: "flex-start",
+        }}
+      >
+        <div style={{ flex: "0 1 22rem", minInlineSize: 0 }}>
+          <GraphLegend />
+        </div>
+        <div style={{ flex: "1 1 24rem", minInlineSize: 0 }}>
+          <GraphCanvas
+            nodes={sampleNodes}
+            edges={sampleEdges}
+            selectedId={selected}
+            onSelect={setSelected}
+          />
+        </div>
+      </div>
+      <GraphCanvas nodes={sampleNodes} edges={sampleEdges} view="list" onSelect={setSelected} />
+    </Block>
+  );
+}
+
 function Gallery({
   app,
   lang,
@@ -183,6 +246,7 @@ function Gallery({
     direction: "up",
   });
   const admin = app === "admin";
+  const graphOnly = admin && new URLSearchParams(window.location.search).get("only") === "graph";
   const noop = () => {};
   const source = { caseNumber: "24/118", documentType: c.docType, page: 2, line: 14 };
 
@@ -232,164 +296,186 @@ function Gallery({
             background: "var(--color-paper)",
           }}
         >
-          <Block title="Breadcrumb, Button">
-            <Breadcrumb items={[{ label: c.crumbs[0], onClick: noop }, { label: c.crumbs[1] }]} />
-            <div className="tx-actions">
-              <Button variant="primary" icon="confirm">
-                {c.primary}
-              </Button>
-              <Button variant="danger" icon="reject">
-                {c.reject}
-              </Button>
-              <Button variant="secondary" icon="alsoAppearsIn">
-                {c.secondary}
-              </Button>
-            </div>
-            <Button variant="secondary">{c.longest}</Button>
-          </Block>
+          {graphOnly ? <GraphBlock title="GraphCanvas, GraphLegend (admin only)" /> : null}
+          {graphOnly ? null : (
+            <>
+              <Block title="Breadcrumb, Button">
+                <Breadcrumb
+                  items={[{ label: c.crumbs[0], onClick: noop }, { label: c.crumbs[1] }]}
+                />
+                <div className="tx-actions">
+                  <Button variant="primary" icon="confirm">
+                    {c.primary}
+                  </Button>
+                  <Button variant="danger" icon="reject">
+                    {c.reject}
+                  </Button>
+                  <Button variant="secondary" icon="alsoAppearsIn">
+                    {c.secondary}
+                  </Button>
+                </div>
+                <Button variant="secondary">{c.longest}</Button>
+              </Block>
 
-          <Block title="StrengthBadge, Badge">
-            <StrengthBadge strength="strong" {...(admin ? { adminScore: 91 } : {})} />
-            <StrengthBadge strength="possible" {...(admin ? { adminScore: 72 } : {})} />
-            <Badge icon="pending">{c.pending}</Badge>
-          </Block>
+              <Block title="StrengthBadge, Badge">
+                <StrengthBadge strength="strong" {...(admin ? { adminScore: 91 } : {})} />
+                <StrengthBadge strength="possible" {...(admin ? { adminScore: 72 } : {})} />
+                <Badge icon="pending">{c.pending}</Badge>
+              </Block>
 
-          <Block title="ReasonList, EvidenceSource, MoreDetail">
-            <ReasonList
-              support={c.reasonsFor.map((text) => ({ text, source }))}
-              against={[{ text: c.reasonAgainst, source }]}
-            />
-            <ReasonList support={[]} against={[]} />
-            <EvidenceSource sources={[source, { caseNumber: "31/207", documentType: c.docType }]} />
-            <MoreDetail defaultOpen>
-              <p>{c.detailBody}</p>
-            </MoreDetail>
-            <MoreDetail>
-              <p>{c.detailBody}</p>
-            </MoreDetail>
-          </Block>
+              <Block title="ReasonList, EvidenceSource, MoreDetail">
+                <ReasonList
+                  support={c.reasonsFor.map((text) => ({ text, source }))}
+                  against={[{ text: c.reasonAgainst, source }]}
+                />
+                <ReasonList support={[]} against={[]} />
+                <EvidenceSource
+                  sources={[source, { caseNumber: "31/207", documentType: c.docType }]}
+                />
+                <MoreDetail defaultOpen>
+                  <p>{c.detailBody}</p>
+                </MoreDetail>
+                <MoreDetail>
+                  <p>{c.detailBody}</p>
+                </MoreDetail>
+              </Block>
 
-          <Block title="RestrictedCard">
-            <RestrictedCard itemType="phone" itemValue="98xxxx1234" onAskForAccess={noop} />
-            <RestrictedCard
-              itemType="vehicle"
-              itemValue="UP32 AB 1234"
-              refused={{
-                note: lang === "en" ? "Please add the FIR number." : "कृपया एफ़आईआर नंबर जोड़ें।",
-              }}
-              onAskAgain={noop}
-            />
-            <RestrictedCard
-              itemType="person"
-              itemValue={c.name}
-              requestedOn={lang === "en" ? "12 Mar 2026" : "12 मार्च 2026"}
-            />
-          </Block>
+              <Block title="RestrictedCard">
+                <RestrictedCard itemType="phone" itemValue="98xxxx1234" onAskForAccess={noop} />
+                <RestrictedCard
+                  itemType="vehicle"
+                  itemValue="UP32 AB 1234"
+                  refused={{
+                    note:
+                      lang === "en" ? "Please add the FIR number." : "कृपया एफ़आईआर नंबर जोड़ें।",
+                  }}
+                  onAskAgain={noop}
+                />
+                <RestrictedCard
+                  itemType="person"
+                  itemValue={c.name}
+                  requestedOn={lang === "en" ? "12 Mar 2026" : "12 मार्च 2026"}
+                />
+              </Block>
 
-          <Block title="Message, ConfirmStep">
-            <Message kind="success" onDismiss={noop}>
-              {c.saved}
-            </Message>
-            <Message kind="info">{c.note}</Message>
-            <Message kind="error" action={<Button variant="secondary">{c.tryAgain}</Button>}>
-              {c.failed}
-            </Message>
-            <ConfirmStep
-              title={c.rejectTitle}
-              body={c.rejectBody}
-              confirmLabel={c.rejectYes}
-              confirmIcon="reject"
-              confirmVariant="danger"
-              onConfirm={noop}
-              onCancel={noop}
-            />
-            {admin ? (
-              <ConfirmStep
-                title={c.rejectTitle}
-                confirmLabel={c.rejectYes}
-                reason={{ label: c.adminReason, min: 10, max: 500 }}
-                onConfirm={noop}
-                onCancel={noop}
-              />
-            ) : null}
-          </Block>
+              <Block title="Message, ConfirmStep">
+                <Message kind="success" onDismiss={noop}>
+                  {c.saved}
+                </Message>
+                <Message kind="info">{c.note}</Message>
+                <Message kind="error" action={<Button variant="secondary">{c.tryAgain}</Button>}>
+                  {c.failed}
+                </Message>
+                <ConfirmStep
+                  title={c.rejectTitle}
+                  body={c.rejectBody}
+                  confirmLabel={c.rejectYes}
+                  confirmIcon="reject"
+                  confirmVariant="danger"
+                  onConfirm={noop}
+                  onCancel={noop}
+                />
+                {admin ? (
+                  <ConfirmStep
+                    title={c.rejectTitle}
+                    confirmLabel={c.rejectYes}
+                    reason={{ label: c.adminReason, min: 10, max: 500 }}
+                    onConfirm={noop}
+                    onCancel={noop}
+                  />
+                ) : null}
+              </Block>
 
-          <Block title="TextField, SearchField, Checkbox, LanguageSwitch (in header)">
-            <SearchField label={c.searchLabel} onSearch={noop} />
-            <TextField label={c.reasonLabel} multiline required maxLength={500} />
-            <TextField
-              label={c.reasonLabel}
-              required
-              error={
-                lang === "en"
-                  ? "Please fill in: Reason for the request."
-                  : "कृपया भरें: अनुरोध का कारण।"
-              }
-            />
-            <Checkbox label={c.include} checked={checked} onChange={setChecked} />
-          </Block>
+              <Block title="TextField, SearchField, Checkbox, LanguageSwitch (in header)">
+                <SearchField label={c.searchLabel} onSearch={noop} />
+                <TextField label={c.reasonLabel} multiline required maxLength={500} />
+                <TextField
+                  label={c.reasonLabel}
+                  required
+                  error={
+                    lang === "en"
+                      ? "Please fill in: Reason for the request."
+                      : "कृपया भरें: अनुरोध का कारण।"
+                  }
+                />
+                <Checkbox label={c.include} checked={checked} onChange={setChecked} />
+              </Block>
 
-          <Block title="ListRow, Pager, EmptyState, Loading">
-            <div>
-              <ListRow icon="case" title={c.rowTitle} secondary={c.rowSecondary} onOpen={noop} />
-              <ListRow
-                icon="phone"
-                title="98xxxx1234"
-                secondary={c.rowSecondary}
-                badge={<StrengthBadge strength="possible" />}
-                onOpen={noop}
-              />
-            </div>
-            <Pager shown={50} total={120} onMore={noop} />
-            <EmptyState title={c.emptyTitle} hint={c.emptyHint} />
-            <Loading label={c.loadingLabel} slowAfterMs={0} />
-          </Block>
+              <Block title="ListRow, Pager, EmptyState, Loading">
+                <div>
+                  <ListRow
+                    icon="case"
+                    title={c.rowTitle}
+                    secondary={c.rowSecondary}
+                    onOpen={noop}
+                  />
+                  <ListRow
+                    icon="phone"
+                    title="98xxxx1234"
+                    secondary={c.rowSecondary}
+                    badge={<StrengthBadge strength="possible" />}
+                    onOpen={noop}
+                  />
+                </div>
+                <Pager shown={50} total={120} onMore={noop} />
+                <EmptyState title={c.emptyTitle} hint={c.emptyHint} />
+                <Loading label={c.loadingLabel} slowAfterMs={0} />
+              </Block>
 
-          {admin ? (
-            <Block title="Tabs, Table, Select, FileDrop (admin only)">
-              <Tabs
-                label={c.sections[2]}
-                selectedId={tab}
-                onSelect={setTab}
-                items={[
-                  { id: "waiting", label: c.tabs[0], count: 14, panel: <p>{c.tabs[0]}</p> },
-                  { id: "rejected", label: c.tabs[1], count: 3, panel: <p>{c.tabs[1]}</p> },
-                  { id: "undone", label: c.tabs[2], count: 1, panel: <p>{c.tabs[2]}</p> },
-                ]}
-              />
-              <Table
-                caption={c.sections[2]}
-                rowKey={(row) => row.id}
-                rows={rows}
-                sort={sort}
-                onSort={(columnId) =>
-                  setSort((s) => ({ columnId, direction: s.direction === "up" ? "down" : "up" }))
-                }
-                onOpenRow={noop}
-                columns={[
-                  { id: "case", header: c.cols[0], sortable: true, cell: (row) => row.a },
-                  { id: "phone", header: c.cols[1], numeric: true, cell: (row) => row.b },
-                  {
-                    id: "strength",
-                    header: c.cols[2],
-                    cell: (row) => (
-                      <StrengthBadge strength={row.s} adminScore={row.s === "strong" ? 91 : 72} />
-                    ),
-                  },
-                ]}
-              />
-              <Select
-                label={c.area}
-                value={area}
-                onChange={setArea}
-                options={[
-                  { value: "a", label: c.area + " A" },
-                  { value: "b", label: c.area + " B" },
-                ]}
-              />
-              <FileDrop label={c.upload} fileName={file} onFile={(f) => setFile(f.name)} />
-            </Block>
-          ) : null}
+              {admin ? (
+                <Block title="Tabs, Table, Select, FileDrop (admin only)">
+                  <Tabs
+                    label={c.sections[2]}
+                    selectedId={tab}
+                    onSelect={setTab}
+                    items={[
+                      { id: "waiting", label: c.tabs[0], count: 14, panel: <p>{c.tabs[0]}</p> },
+                      { id: "rejected", label: c.tabs[1], count: 3, panel: <p>{c.tabs[1]}</p> },
+                      { id: "undone", label: c.tabs[2], count: 1, panel: <p>{c.tabs[2]}</p> },
+                    ]}
+                  />
+                  <Table
+                    caption={c.sections[2]}
+                    rowKey={(row) => row.id}
+                    rows={rows}
+                    sort={sort}
+                    onSort={(columnId) =>
+                      setSort((s) => ({
+                        columnId,
+                        direction: s.direction === "up" ? "down" : "up",
+                      }))
+                    }
+                    onOpenRow={noop}
+                    columns={[
+                      { id: "case", header: c.cols[0], sortable: true, cell: (row) => row.a },
+                      { id: "phone", header: c.cols[1], numeric: true, cell: (row) => row.b },
+                      {
+                        id: "strength",
+                        header: c.cols[2],
+                        cell: (row) => (
+                          <StrengthBadge
+                            strength={row.s}
+                            adminScore={row.s === "strong" ? 91 : 72}
+                          />
+                        ),
+                      },
+                    ]}
+                  />
+                  <Select
+                    label={c.area}
+                    value={area}
+                    onChange={setArea}
+                    options={[
+                      { value: "a", label: c.area + " A" },
+                      { value: "b", label: c.area + " B" },
+                    ]}
+                  />
+                  <FileDrop label={c.upload} fileName={file} onFile={(f) => setFile(f.name)} />
+                </Block>
+              ) : null}
+              {admin ? <GraphBlock title="GraphCanvas, GraphLegend (admin only)" /> : null}
+            </>
+          )}
         </main>
       </div>
     </>
@@ -408,6 +494,10 @@ function App() {
 }
 
 const admin = new URLSearchParams(window.location.search).get("app") === "admin";
+// ?gray=1 renders in monochrome, to check that nothing depends on colour (section 8).
+if (new URLSearchParams(window.location.search).get("gray") === "1") {
+  document.documentElement.style.filter = "grayscale(1)";
+}
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(<App />);
