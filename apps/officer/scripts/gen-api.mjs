@@ -1,3 +1,4 @@
+import process from "node:process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -13,7 +14,7 @@ const check = process.argv.includes("--check");
 const normalise = (text) => text.replace(/\r\n/g, "\n");
 
 const ast = await openapiTS(pathToFileURL(contract));
-const raw = `/* eslint-disable */\n${astToString(ast)}`;
+const raw = astToString(ast);
 const options = (await resolveConfig(target)) ?? {};
 const generated = normalise(await format(raw, { ...options, filepath: target }));
 
@@ -25,10 +26,10 @@ if (check) {
     current = "";
   }
   if (current !== generated) {
-    console.error("src/api/schema.d.ts is stale. Run: npm run gen:api -w @tracex/officer");
+    process.stderr.write("src/api/schema.d.ts is stale. Run: npm run gen:api -w @tracex/officer\n");
     process.exit(1);
   }
-  console.log("src/api/schema.d.ts matches contracts/openapi.yaml");
+  process.stdout.write("src/api/schema.d.ts matches contracts/openapi.yaml\n");
 } else {
   writeFileSync(target, generated);
 }
