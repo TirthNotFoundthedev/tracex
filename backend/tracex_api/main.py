@@ -2,12 +2,13 @@
 
 import logging
 import threading
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
+from time import monotonic
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from tracex_api import audit, context
@@ -30,6 +31,8 @@ from tracex_api.routers import (
 
 logger = logging.getLogger(__name__)
 ANCHOR_INTERVAL_SECONDS = 60
+CHAIN_RECHECK_SECONDS = 60
+GATE_EXEMPT = {("GET", "/health"), ("GET", "/ready"), ("POST", "/audit/verify")}
 RECONCILE_RETRY_SECONDS = 5
 
 
@@ -41,11 +44,40 @@ def _engine_for(settings: Settings) -> EngineGateway:
     return EngineGateway.in_memory()
 
 
+def record_chain(state: AppState, ok: bool) -> None:
+    """Keep the latest verify result; a BROKEN result gates the API, a later OK clears it."""
+    was = state.chain_ok
+    state.chain_ok = ok
+    state.chain_checked_at = monotonic()
+    if not ok and was is not False:
+        state.alert("audit chain verify is BROKEN; the API answers 503 until a verify passes")
+
+
 def chain_ready(state: AppState) -> bool:
-    """Startup and /ready: the last 1000 rows plus the anchor must verify."""
-    with connect(state.settings.database_url) as conn:
-        ok, _ = audit.verify(conn, state.settings.audit_anchor_path, tail=1000)
+    """A fresh check now: the last 1000 rows plus the anchor must verify."""
+    with state.chain_lock:
+        with connect(state.settings.database_url) as conn:
+            ok, _ = audit.verify(conn, state.settings.audit_anchor_path, tail=1000)
+        record_chain(state, ok)
     return ok
+
+
+def chain_status(state: AppState) -> bool:
+    """The cached verify result; a new check runs at most once every CHAIN_RECHECK_SECONDS, so an
+    unauthenticated caller of /ready cannot trigger more work."""
+    if state.chain_ok is not None and monotonic() - state.chain_checked_at < CHAIN_RECHECK_SECONDS:
+        return state.chain_ok
+    return chain_ready(state)
+
+
+def startup_anchor(state: AppState) -> None:
+    """A log that holds only its first row gets its first anchor now; later rows need one."""
+    with connect(state.settings.database_url) as conn:
+        head = conn.execute("SELECT max(seq) AS m FROM audit_log").fetchone()
+        if (head is None or (head["m"] or 0) <= 1) and audit.read_anchor(
+            state.settings.audit_anchor_path
+        ) is None:
+            audit.write_anchor(conn, state.settings.audit_anchor_path)
 
 
 def reconcile_once(state: AppState) -> None:
@@ -77,7 +109,13 @@ def _reconcile_loop(state: AppState, stop: threading.Event) -> None:
 
 def _anchor_loop(state: AppState, stop: threading.Event) -> None:
     while not stop.wait(ANCHOR_INTERVAL_SECONDS):
-        _write_anchor(state)
+        try:
+            healthy = chain_ready(state)
+        except Exception:
+            logger.exception("periodic audit verify failed")
+            continue
+        if healthy:
+            _write_anchor(state)
 
 
 def _write_anchor(state: AppState) -> None:
@@ -108,6 +146,11 @@ def create_app(
                 return
             app.state.tracex = AppState(loaded, clock, engine or _engine_for(loaded))
         state: AppState = app.state.tracex
+        try:
+            startup_anchor(state)
+            chain_ready(state)
+        except Exception:
+            logger.exception("startup audit check failed")
         thread = threading.Thread(target=_anchor_loop, args=(state, stop), daemon=True)
         thread.start()
         sweeper = threading.Thread(target=_reconcile_loop, args=(state, stop), daemon=True)
@@ -116,7 +159,8 @@ def create_app(
             yield
         finally:
             stop.set()
-            _write_anchor(state)
+            if state.chain_ok is not False:
+                _write_anchor(state)
 
     app = FastAPI(title="TraceX API", lifespan=lifespan)
     context.install(app)
@@ -134,13 +178,26 @@ def create_app(
     def ready() -> Any:
         state: AppState | None = getattr(app.state, "tracex", None)
         try:
-            ok = state is not None and state.reconciled.is_set() and chain_ready(state)
+            ok = state is not None and state.reconciled.is_set() and chain_status(state)
         except Exception:
             logger.exception("readiness check failed")
             ok = False
         if not ok:
             return JSONResponse(ApiError("NOT_READY").body(), status_code=503)
         return {"status": "ok"}
+
+    @app.middleware("http")
+    async def audit_gate(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        state: AppState | None = getattr(app.state, "tracex", None)
+        if (
+            state is not None
+            and state.chain_ok is False
+            and (request.method, request.url.path) not in GATE_EXEMPT
+        ):
+            return JSONResponse(ApiError("NOT_READY").body(), status_code=503)
+        return await call_next(request)
 
     for module in (auth, cases, links, queue, graph, access, admin, changes, audit_routes):
         app.include_router(module.router)

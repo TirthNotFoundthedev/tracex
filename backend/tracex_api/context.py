@@ -80,7 +80,9 @@ class AppState:
     alerts: list[str] = field(default_factory=list)
     reconciled: threading.Event = field(default_factory=threading.Event)
     store_lost: bool = False
-
+    chain_ok: bool | None = None  # latest audit verify; None until the first one ran
+    chain_checked_at: float = 0.0
+    chain_lock: threading.Lock = field(default_factory=threading.Lock)
 
     def now(self) -> datetime:
         return self.clock()

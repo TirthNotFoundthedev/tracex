@@ -330,6 +330,10 @@ def verify(conn: Conn, anchor_path: Path, tail: int | None = None) -> tuple[bool
             last_seq = seq
             expected_seq += 1
     anchor = read_anchor(anchor_path)
+    if anchor is None and last_seq > 1:
+        # No anchor with more than one row: the file was lost or emptied. Only a log that holds
+        # just AUDIT_CHAIN_STARTED may lack one (the API writes the first anchor at startup).
+        return False, 1
     if anchor is not None:
         if last_seq < anchor["seq"]:
             return False, int(anchor["seq"])

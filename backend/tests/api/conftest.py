@@ -191,6 +191,8 @@ def _make_api(template: str, tmp_path: Path, engine: EngineGateway) -> Api:
         neo4j_user="",
         neo4j_password="",
     )
+    with connect(_with_database(PG_URL, name, "tracex_migrator", MIGRATOR_PASSWORD)) as conn:
+        audit.write_anchor(conn, settings.audit_anchor_path)  # what a started API has done
     clock = FakeClock()
     app = create_app(settings, engine, clock)
     app.state.tracex.reconciled.set()  # the lifespan sweep is tested on its own; see test_startup

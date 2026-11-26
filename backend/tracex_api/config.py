@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
-
-DEV_SECRET_PREFIX = "dev-only"
+DEV_SECRET_PREFIX = "dev-only"  # noqa: S105 - the marker that a value is a public placeholder
 ALLOW_DEV_SECRETS = "TRACEX_ALLOW_DEV_SECRETS"
 
 

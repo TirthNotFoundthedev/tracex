@@ -253,6 +253,9 @@ def list_audit(
 def verify_chain(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
     path = ctx.state.settings.audit_anchor_path
     ok, bad = audit.verify(ctx.conn, path)
+    from tracex_api.main import record_chain  # local import: main imports this module
+
+    record_chain(ctx.state, ok)
     head = one(ctx.conn, "SELECT max(seq) AS m FROM audit_log")
     anchor = audit.read_anchor(path)
     detail: dict[str, Any] = {
