@@ -62,6 +62,11 @@ export interface ConfirmStepProps {
   confirmVariant?: "primary" | "danger";
   /** Admin steps that need a written reason (Reject, Undo, Reopen, Delete). */
   reason?: { label: string; min: number; max: number };
+  /**
+   * The safe choice ("No, go back"). Defaults to primary when the confirm is danger,
+   * so the safe choice is the easiest (design-flows O7), and to secondary otherwise.
+   */
+  cancelVariant?: "primary" | "secondary";
   onConfirm: (reason?: string) => void;
   onCancel: () => void;
 }
@@ -77,6 +82,7 @@ export function ConfirmStep({
   confirmIcon,
   confirmVariant = "primary",
   reason,
+  cancelVariant = confirmVariant === "danger" ? "primary" : "secondary",
   onConfirm,
   onCancel,
 }: ConfirmStepProps) {
@@ -142,12 +148,25 @@ export function ConfirmStep({
         />
       ) : null}
       <div className="tx-actions">
-        <Button variant={confirmVariant} icon={confirmIcon} onClick={submit}>
-          {confirmLabel}
-        </Button>
-        <Button variant="secondary" onClick={onCancel}>
-          {t("confirm.no")}
-        </Button>
+        {cancelVariant === "primary" ? (
+          <>
+            <Button variant="primary" onClick={onCancel}>
+              {t("confirm.no")}
+            </Button>
+            <Button variant={confirmVariant} icon={confirmIcon} onClick={submit}>
+              {confirmLabel}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant={confirmVariant} icon={confirmIcon} onClick={submit}>
+              {confirmLabel}
+            </Button>
+            <Button variant="secondary" onClick={onCancel}>
+              {t("confirm.no")}
+            </Button>
+          </>
+        )}
       </div>
     </section>
   );

@@ -272,6 +272,14 @@ function Gallery({
           <Block title="RestrictedCard">
             <RestrictedCard itemType="phone" itemValue="98xxxx1234" onAskForAccess={noop} />
             <RestrictedCard
+              itemType="vehicle"
+              itemValue="UP32 AB 1234"
+              refused={{
+                note: lang === "en" ? "Please add the FIR number." : "कृपया एफ़आईआर नंबर जोड़ें।",
+              }}
+              onAskAgain={noop}
+            />
+            <RestrictedCard
               itemType="person"
               itemValue={c.name}
               requestedOn={lang === "en" ? "12 Mar 2026" : "12 मार्च 2026"}

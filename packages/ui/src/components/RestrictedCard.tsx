@@ -16,6 +16,8 @@ const ITEM_ICON: Record<RestrictedItemType, IconName> = {
  * request state. There is deliberately no children, no case number, name, place, date,
  * count or strength prop, so no caller can put another area's data into the card
  * (DESIGN_RULES section 10). Access is enforced by the API; the UI holds nothing to hide.
+ *
+ * States, in this order: refused, request sent, no request yet.
  */
 export interface RestrictedCardProps {
   itemType: RestrictedItemType;
@@ -23,17 +25,24 @@ export interface RestrictedCardProps {
   itemValue: string;
   /** Set after the request: the date as the app formats it, for example "12 Mar 2026". */
   requestedOn?: string;
-  /** Opens the access request form. Not shown once a request was sent. */
+  /** The request was refused. `note` is the approver's words, shown only when given. */
+  refused?: { note?: string };
+  /** Opens the access request form. Shown only when no request is open. */
   onAskForAccess?: () => void;
+  /** Opens the form again after a refusal. */
+  onAskAgain?: () => void;
 }
 
 export function RestrictedCard({
   itemType,
   itemValue,
   requestedOn,
+  refused,
   onAskForAccess,
+  onAskAgain,
 }: RestrictedCardProps) {
   const { t } = useUi();
+  const note = refused?.note?.trim();
   return (
     <section className="tx-restricted" aria-label={t("restricted.title")}>
       <p className="tx-restricted__title">
@@ -46,11 +55,26 @@ export function RestrictedCard({
           {t(`item.${itemType}`)}: <span className="tx-mono">{itemValue}</span>
         </span>
       </p>
-      <p className="tx-body">{t("restricted.body")}</p>
-      {requestedOn ? (
+      <p className="tx-body">{t("access.stub.connection_exists")}</p>
+      <p className="tx-body">{t("restricted.cannotSee")}</p>
+      {refused ? (
+        <>
+          <p className="tx-body tx-restricted__state">{t("restricted.refused")}</p>
+          {note ? (
+            <p className="tx-body">
+              {t("restricted.refusedNote")} {note}
+            </p>
+          ) : null}
+          {onAskAgain ? (
+            <Button variant="primary" onClick={onAskAgain}>
+              {t("restricted.askAgain")}
+            </Button>
+          ) : null}
+        </>
+      ) : requestedOn ? (
         <p className="tx-body">{t("restricted.sent", { date: requestedOn })}</p>
       ) : onAskForAccess ? (
-        <Button variant="secondary" onClick={onAskForAccess}>
+        <Button variant="primary" onClick={onAskForAccess}>
           {t("restricted.ask")}
         </Button>
       ) : null}

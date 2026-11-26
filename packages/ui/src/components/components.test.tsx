@@ -399,6 +399,7 @@ describe("RestrictedCard (section 10)", () => {
     expect(container.querySelector(".tx-restricted__title svg")).not.toBeNull();
     expect(screen.getByText("9800001234")).toBeTruthy();
     expect(screen.getByText("Also appears in a case in another police area.")).toBeTruthy();
+    expect(screen.getByText("You cannot see that case.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Ask for access" }));
     expect(onAsk).toHaveBeenCalled();
   });
@@ -485,7 +486,13 @@ describe("feedback", () => {
     expect(document.activeElement).toBe(
       within(dialog).getByRole("heading", { name: "Reject this link?" }),
     );
-    expect(container.querySelectorAll('[data-variant="primary"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-variant="primary"]')).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "No, go back" }).getAttribute("data-variant")).toBe(
+      "primary",
+    );
+    expect(screen.getByRole("button", { name: "Yes, reject" }).getAttribute("data-variant")).toBe(
+      "danger",
+    );
     fireEvent.click(screen.getByRole("button", { name: "No, go back" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(dialog, { key: "Escape" });
@@ -523,7 +530,7 @@ describe("feedback", () => {
     expect(screen.getByText("Please fill in: Reason.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: "short" } });
     fireEvent.click(screen.getByRole("button", { name: "Yes, reopen" }));
-    expect(screen.getByText("Please write at least 10 letters in: Reason.")).toBeTruthy();
+    expect(screen.getByText("Please write a little more: at least 10 characters.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Reason/), {
       target: { value: "Checked the call record again" },
     });
