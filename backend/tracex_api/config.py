@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 DEV_SECRET_PREFIX = "dev-only"  # noqa: S105 - the marker that a value is a public placeholder
 ALLOW_DEV_SECRETS = "TRACEX_ALLOW_DEV_SECRETS"
+TOOL_PASSWORD_NAMES = ("TRACEX_MIGRATOR_DB_PASSWORD", "TRACEX_API_DB_PASSWORD")
 
 
 def dev_secret_names(source: Mapping[str, str], keys: Mapping[str, bytes]) -> list[str]:
@@ -19,6 +20,35 @@ def dev_secret_names(source: Mapping[str, str], keys: Mapping[str, bytes]) -> li
     if (urlsplit(source.get("DATABASE_URL", "")).password or "").startswith(DEV_SECRET_PREFIX):
         weak.append("DATABASE_URL")
     return weak
+
+
+def tool_dev_secret_names(source: Mapping[str, str]) -> list[str]:
+    """Names of the migrate and seed settings that still carry a published `dev-only` value."""
+    weak = [
+        name
+        for name, value in source.items()
+        if (name.startswith("TRACEX_SEED_PASSWORD_") or name in TOOL_PASSWORD_NAMES)
+        and value.startswith(DEV_SECRET_PREFIX)
+    ]
+    if (urlsplit(source.get("DATABASE_ADMIN_URL", "")).password or "").startswith(
+        DEV_SECRET_PREFIX
+    ):
+        weak.append("DATABASE_ADMIN_URL")
+    return sorted(weak)
+
+
+def refuse_dev_secrets_in_tools(source: Mapping[str, str] | None = None) -> None:
+    """`migrate` and `seed` create the logins and the synthetic users, so they refuse the public
+    `dev-only` passwords unless `TRACEX_ALLOW_DEV_SECRETS` is exactly 1 (same rule as the API)."""
+    env = os.environ if source is None else source
+    if env.get(ALLOW_DEV_SECRETS, "") == "1":
+        return
+    weak = tool_dev_secret_names(env)
+    if weak:
+        raise ConfigError(
+            f"{', '.join(weak)} hold public dev-only values; set real secrets, or set "
+            f"{ALLOW_DEV_SECRETS}=1 for a local development setup only"
+        )
 
 
 class ConfigError(RuntimeError):
