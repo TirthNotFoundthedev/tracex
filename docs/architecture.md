@@ -19,7 +19,7 @@ Owner: Khan (Backend Lead). Contract: `contracts/openapi.yaml`, `contracts/expla
 | Engine (`backend/tracex_engine`)    | Ingest, extraction, case graphs, matching, scoring, SAME_AS edges in Neo4j. Jurisdiction-blind. Never imports the API, never writes audit rows. Returns transition records and run records.                       |
 | Postgres                            | Users, sessions, cases, assignments, documents, a link index with explanation payloads, stubs, access requests and grants, pending changes, settings, audit log.                                                  |
 | Neo4j                               | Entity nodes, case-graph edges (owns, called, transferred to, seen at) and SAME_AS edges with `link_id`, score, gates, evidence and history. Used for blocking, 2-hop neighbourhoods, cluster and path traversal. |
-| Audit anchor                        | One line `{seq, row_hash, at}` appended to `AUDIT_ANCHOR_PATH` every 60 s and on shutdown, only after a verify passed, and it names the row that verify checked. The database credentials cannot write it.                                                             |
+| Audit anchor                        | One line `{seq, row_hash, at}` appended to `AUDIT_ANCHOR_PATH` every 60 s and on shutdown, only after a verify passed, and it names the row that verify checked. The database credentials cannot write it.        |
 
 ## 2. Postgres versus Neo4j
 
