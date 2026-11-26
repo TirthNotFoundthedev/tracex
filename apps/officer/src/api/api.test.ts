@@ -52,10 +52,10 @@ async function signedIn(handler: Handler) {
 describe("error mapping", () => {
   const table: [string, number, unknown, unknown][] = [
     [
-      "404 hidden or unknown id",
+      "404 unknown, hidden or withdrawn id",
       404,
       { code: "NOT_FOUND", message_key: "error.not_found" },
-      { kind: "restricted" },
+      { kind: "notFound" },
     ],
     [
       "403 role does not allow",
@@ -99,11 +99,13 @@ describe("error mapping", () => {
       { kind: "serverError" },
     ],
     [
-      "503 not ready",
+      "503 safety pause",
       503,
       { code: "NOT_READY", message_key: "error.not_ready" },
-      { kind: "serverError" },
+      { kind: "safetyPause" },
     ],
+    ["503 with any other body", 503, { code: "SOMETHING_ELSE" }, { kind: "safetyPause" }],
+    ["503 with no body", 503, undefined, { kind: "safetyPause" }],
   ];
 
   test.each(table)("%s", async (_name, status, body, expected) => {
@@ -122,11 +124,23 @@ describe("error mapping", () => {
     expect(await client.listCases()).toEqual({ kind: "networkError" });
   });
 
-  test("a 404 never carries data the UI could read", async () => {
+  test("a 404 on entity, link, explanation and stub ids is notFound, never restricted", async () => {
     const { client } = await signedIn(() =>
       json(404, { code: "NOT_FOUND", message_key: "error.not_found" }),
     );
-    expect(await client.getEntity("e-1")).toStrictEqual({ kind: "restricted" });
+    const results = [
+      await client.getEntity("e-1"),
+      await client.getLink("l-1"),
+      await client.getLinkExplanation("l-1"),
+      await client.getStub("s-1"),
+    ];
+    for (const result of results) expect(result).toStrictEqual({ kind: "notFound" });
+  });
+
+  test("a stub from the API is ok data, not an error kind", async () => {
+    const stub = { id: "s-1" };
+    const { client } = await signedIn(() => json(200, stub));
+    expect(await client.getStub("s-1")).toEqual({ kind: "ok", data: stub });
   });
 });
 
@@ -269,5 +283,39 @@ describe("session", () => {
     expect(setItem).not.toHaveBeenCalled();
     expect(document.cookie).toBe("");
     setItem.mockRestore();
+  });
+});
+
+describe("access request reason", () => {
+  const send = (reason: string) => {
+    return signedIn(() => json(201, { id: "r-1" })).then(async ({ client, fetchImpl }) => ({
+      result: await client.createAccessRequest({ stub_id: "s-1", reason } as never),
+      fetchImpl,
+    }));
+  };
+  const posted = (fetchImpl: ReturnType<typeof fakeFetch>) =>
+    fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/access-requests"));
+
+  test.each([
+    [9, "too_short"],
+    [501, "too_long"],
+    [0, "too_short"],
+  ])("%i characters is refused before any request", async (length, code) => {
+    const { result, fetchImpl } = await send("a".repeat(length));
+    expect(result).toEqual({ kind: "invalid", fieldErrors: [{ field: "reason", code }] });
+    expect(posted(fetchImpl)).toHaveLength(0);
+  });
+
+  test.each([10, 500])("%i characters is sent", async (length) => {
+    const { result, fetchImpl } = await send("a".repeat(length));
+    expect(result.kind).toBe("ok");
+    expect(posted(fetchImpl)).toHaveLength(1);
+  });
+
+  test("spaces are trimmed before counting and sending", async () => {
+    expect((await send("   123456789   ")).result.kind).toBe("invalid");
+    const { fetchImpl } = await send("  " + "b".repeat(10) + "  ");
+    const body = JSON.parse(String((posted(fetchImpl)[0]?.[1] as RequestInit).body));
+    expect(body.reason).toBe("b".repeat(10));
   });
 });

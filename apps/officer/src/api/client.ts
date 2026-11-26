@@ -31,9 +31,17 @@ export interface ClientOptions {
   fetch?: FetchLike;
 }
 
+export const REASON_MIN = 10;
+export const REASON_MAX = 500;
+
+/** The access-request reason must be 10 to 500 characters after trimming (contract minLength, maxLength). */
+export function isValidReason(trimmedReason: string): boolean {
+  return trimmedReason.length >= REASON_MIN && trimmedReason.length <= REASON_MAX;
+}
+
 /** Base URL from the Vite environment; empty means same origin. */
 export function apiBaseFromEnv(): string {
-  const value: unknown = import.meta.env.VITE_API_BASE;
+  const value: unknown = import.meta.env.VITE_API_URL;
   return typeof value === "string" ? value : "";
 }
 
@@ -93,8 +101,20 @@ export function createClient(options: ClientOptions) {
       call<Success<"undoLink">>("POST", `/links/${id(linkId)}/undo`, { body }),
 
     getStub: (stubId: string) => call<Success<"getStub">>("GET", `/stubs/${id(stubId)}`),
-    createAccessRequest: (body: BodyOf<"createAccessRequest">) =>
-      call<Success<"createAccessRequest">>("POST", "/access-requests", { body }),
+    createAccessRequest: (body: BodyOf<"createAccessRequest">) => {
+      const reason = body.reason.trim();
+      if (!isValidReason(reason)) {
+        return Promise.resolve<ApiResult<Success<"createAccessRequest">>>({
+          kind: "invalid",
+          fieldErrors: [
+            { field: "reason", code: reason.length < REASON_MIN ? "too_short" : "too_long" },
+          ],
+        });
+      }
+      return call<Success<"createAccessRequest">>("POST", "/access-requests", {
+        body: { ...body, reason },
+      });
+    },
     listAccessRequests: (query: QueryOf<"listAccessRequests">) =>
       call<Success<"listAccessRequests">>("GET", "/access-requests", { query }),
     getAccessRequest: (requestId: string) =>
