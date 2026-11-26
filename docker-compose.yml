@@ -104,7 +104,15 @@ services:
     build: ./backend
     profiles: ["seed"]
     command:
-      ["python", "-m", "tracex_api.seed_demo", "--api-url", "http://api:8000", "--data-kit", "/data-kit"]
+      [
+        "python",
+        "-m",
+        "tracex_api.seed_demo",
+        "--api-url",
+        "http://api:8000",
+        "--data-kit",
+        "/data-kit",
+      ]
     restart: "no"
     environment:
       TRACEX_ENV: ${TRACEX_ENV:-development}
