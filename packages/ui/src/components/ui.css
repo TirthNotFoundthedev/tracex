@@ -474,6 +474,7 @@
 }
 
 .tx-table__caption {
+  display: block;
   padding-block-end: var(--space-2);
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
@@ -851,4 +852,146 @@
 .tx-root[data-app="admin"] .tx-empty__title,
 .tx-root[data-app="admin"] .tx-loading__line {
   font-size: var(--text-body);
+}
+
+/* ---- Graph canvas and legend (admin only; DESIGN_RULES sections 8, 10, 12) ---- */
+.tx-graph {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.tx-graph__bar,
+.tx-graph__zoom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+  align-items: center;
+}
+
+.tx-graph__bar {
+  justify-content: space-between;
+}
+
+.tx-graph__frame {
+  border: var(--border-2) solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  overflow: hidden;
+}
+
+.tx-graph__svg {
+  display: block;
+  inline-size: 100%;
+  touch-action: pan-y;
+  font-family: var(--font-sans);
+}
+
+.tx-graph__lists {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.tx-graph__edge line {
+  stroke: var(--color-ink-2);
+}
+
+.tx-graph__edge[data-style="solid-heavy"] line {
+  stroke: var(--color-strong-edge);
+}
+
+.tx-graph__edge[data-style="dashed"] line {
+  stroke: var(--color-check-edge);
+}
+
+.tx-graph__edge[data-style="dashed-restricted"] line {
+  stroke: var(--color-restricted-edge);
+}
+
+.tx-graph__edge-label,
+.tx-graph__label {
+  fill: var(--color-ink);
+  font-size: var(--text-xs);
+  paint-order: stroke;
+  stroke: var(--color-paper);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.tx-graph__edge-label {
+  font-weight: var(--weight-bold);
+}
+
+.tx-graph__label[data-selected="true"] {
+  font-weight: var(--weight-bold);
+}
+
+.tx-graph__node {
+  cursor: pointer;
+}
+
+.tx-graph__shape {
+  fill: var(--color-paper);
+  stroke: var(--color-ink);
+}
+
+.tx-graph__node[data-shape="restricted"] .tx-graph__shape {
+  fill: var(--color-restricted-bg);
+  stroke: var(--color-restricted-edge);
+}
+
+.tx-graph__node .tx-icon {
+  color: var(--color-ink);
+}
+
+.tx-graph__node[data-shape="restricted"] .tx-icon {
+  color: var(--color-restricted-fg);
+}
+
+.tx-graph__node:focus-visible .tx-graph__shape {
+  stroke: var(--focus-ring-color);
+  stroke-width: 7;
+}
+
+.tx-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-2) solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+}
+
+.tx-legend__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.tx-legend__head {
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink-2);
+}
+
+.tx-legend__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tx-legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-body);
+}
+
+.tx-legend__swatch {
+  flex: none;
 }
