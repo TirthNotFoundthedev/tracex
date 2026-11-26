@@ -164,6 +164,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - Keyboard: Tab moves between nodes, Enter opens, and a "List view" toggle presents every node and edge as a table. Reason: graphs are inaccessible without a list alternative.
 - Cap 150 nodes on screen with the message "Showing the 150 closest. Narrow the search to see others." Reason: unreadable above that, and slow on admin PCs.
 - Layout is stable: moving the view never rearranges nodes. No physics bounce animation.
+- Decision (P4.2): the network shows entities, not cases, so the hexagon is used for **organisation** (the graph's fifth entity type); a case is not a node. A "connected" relation (person and their phone, account or vehicle) is a thin dotted line with no strength, and a link to another police area is a dashed line to the restricted card. The layout is computed to the end before drawing (fixed seed, fixed steps), so nothing moves on screen and the same input always gives the same picture. Reason: the API has no case nodes, and a fixed layout lets a reviewer compare two screenshots.
 
 ## 13. Hindi and language rules
 - The language switch is on the first screen and every screen header, label "हिंदी" in English mode and "English" in Hindi mode, written in the target language so it can be found by someone who cannot read the current one. Choice persists per device.
@@ -176,6 +177,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 
 ## 14. Components (the complete list; add only with a written reason)
 Button (primary, secondary, danger), TextField, SearchField, Select (admin only), Checkbox, FileDrop (admin), Tabs (admin only), TopBar, SideNav (admin), Breadcrumb, ListRow, Table (admin), Badge/StrengthBadge, ReasonList, EvidenceSource, MoreDetail (disclosure), RestrictedCard, Message (info/success/error, in-page), ConfirmStep, EmptyState, LanguageSwitch, GraphCanvas + GraphLegend (admin), Pager ("Show more").
+Also built, with a written reason: **Loading** (the text line with a still spinner icon required by section 11, so every app draws it the same way and none uses a spinning or skeleton version) and **Icon** and **UiProvider** (not screens: the first holds the fixed icon vocabulary of section 6 so no app picks a second icon for one meaning; the second carries language and app variant so size, text size and line height switch from tokens in one place). Admin-only components (Select, FileDrop, Tabs, SideNav, Table) render nothing in the officer app. Reason: section 4 forbids dropdowns, tabs, tables and side navigation there, and a component that renders anyway lets the rule be broken silently.
 Not in v1: toasts that vanish, tooltips (information hidden in hover is invisible on touch), carousels, modals other than ConfirmStep, drag and drop as the only way.
 
 ## 14a. Follow-up requirements (owner: Rao, Release Manager; not part of the design PR)
