@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-11-22, end of session S3. P3 is complete, merged into `main` (PR #38, owner's OK) and tagged `m3-engine`. P4 starts in a new session.
+Last updated: 2026-11-26, session S4 restarted in worktree `phase-04-orchestrator` (P4 apps). The 2026-11-25 S4 agents stalled at checkout and left no commits; the D63 plan was re-launched with new branch names. P3 is merged into `main` and tagged `m3-engine`.
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
@@ -12,9 +12,14 @@ Last updated: 2026-11-22, end of session S3. P3 is complete, merged into `main` 
 - Later in S2, merged with the owner's OK by number (PRs #22, #24, #23, #20, #26, #25, #21), `main` green: Neo4j service in backend CI with Neo4j pinned to `5.26.12-community` and root devDependencies exact-pinned (Rao); extractor fix for role word + `M/s` and the raw_text rule (Naidu); reference scorer `python -m datakit score`, `engine-result/1` schema, G-09 isolation, ground-truth bare-name `raw_text` (Bose); noise persons in one case have distinct names, G-17 (Bose); spec errata 2/3 (Iyer); per-case graphs, order-independent within-case dedupe, Neo4j store and `docs/specs/engine-graph.md` (Bose, 2.3). The 9 Neo4j tests run in GitHub CI (822 backend tests, none skipped). Decisions D55-D56.
 - PR #28 merged with the owner's OK, tag `m2-slice`: Tier 1 matching, scoring skeleton (composite score, bands, gates), SAME_AS link stores (in-memory and Neo4j), runs with the D37 rerun rules, human decisions as engine calls, explanation payload builder, `engine-result/1` adapter and the end-to-end kit gate (Iyer, 2.4; Khan approved after one fix round). 1006 backend tests in CI, Neo4j path included. Decisions D57.
 
-## In progress
-- Nothing running. P3 merged into `main` by PR #38 with the owner's OK ("Yes, merge to main"); tag `m3-engine` on the merge commit. Branch `opus-5.5-phase-2-attempt-1` is kept as history.
-
+## In progress (S4, D63), checkpoint 2026-11-26
+- PR #43 Sen, P4.1 shared components (`feat/ui-components-s4`), CI green. Mehta consumer review: CHANGES 1-4 (refused state on RestrictedCard, ConfirmStep safe choice primary, shared strings for roles / `match.*` / `access.stub.connection_exists`, O9 wording). Sen is on the fix round. Fable checked the officer screenshots: restricted card follows §10. Not yet rendered: focus ring by keyboard, 200% zoom + grayscale (do on first real screens).
+- PR #44 Mehta, P4.2 part 1 officer client/session/strings (`feat/officer-client-s4`), CI green; Khan review (separate review agent) running. D64 rulings applied.
+- PR #42 Khan, demo seed (`feat/api-demo-seed`): Fable reviewed the diff, OK. CI: frontend failed only on Prettier for docker-compose.yml; Khan told to fix. `/review-queue` stays closed to ADMIN (spec A51), so the admin panel queue page is for SUPERVISOR/SENIOR.
+- Khan, task B: carried security items N1-N3, item 12, nightly verify, explanation runtime validation (`fix/api-security-carry`); Dutta gates it.
+- PR #41: this state file + D64.
+- Then: officer screens O1-O12 (Mehta) once #43 and #44 merge, Sen screenshot review; GraphCanvas PR (Sen); admin panel (Pillai, to hire). Merges need the owner's OK by number.
+- Stale empty worktrees still hold `feat/ui-components` and `feat/officer-api-client`; do not reuse those names. Branch `opus-5.5-phase-2-attempt-1` is kept as history.
 ## Session S3 (2026-11-21), on branch `opus-5.5-phase-2-attempt-1`
 - Merged into the branch after review and green CI (D58): #31 Tier 2 (Naidu; Iyer review, phonetic floor rejected, D59), #32 Tier 3 + scorer `--defer` + kit 1.1 (Bose; Iyer approved, kit fixes K1-K3, D60), #33 case district from the FIR header (Bose, D61), #35 rarity needs a spelling match (Naidu, into #34), #34 P3.3 run context for providers, PER_NEAR_PHONE, MULTI_USER by `name_sim`, every AC with engine tests (Iyer; Fable reviewed), #36 scorer ignores refused steps + Neo4j district test (Bose), #30 FastAPI backend: Postgres model + migrations, DB roles, scrypt + JWT with refresh rotation, policy on all 57 routes, hash-chained append-only audit log, engine bridge with outbox and reconcile, compose with `migrate` service (Khan; Dutta APPROVE after one fix round, D62).
 - Last CI on the full branch (PR #30 head after update): backend, data-kit, frontend, smoke all green.
