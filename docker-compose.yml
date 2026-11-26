@@ -35,7 +35,10 @@ services:
   # the audit chain and seeds the synthetic users. It is the only service that gets the Postgres
   # superuser URL; the api service never does.
   migrate:
-    build: ./backend
+    build:
+      context: ./backend
+      additional_contexts:
+        contracts: ./contracts
     command:
       ["sh", "-c", "python -m tracex_api.migrate && python -m tracex_api.seed --seed-dir /seed"]
     restart: "no"
@@ -64,7 +67,10 @@ services:
         condition: service_healthy
 
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      additional_contexts:
+        contracts: ./contracts
     environment:
       DATABASE_URL: postgresql://tracex_api:${TRACEX_API_DB_PASSWORD:?set TRACEX_API_DB_PASSWORD in .env}@postgres:5432/${POSTGRES_DB}
       NEO4J_URI: bolt://neo4j:7687

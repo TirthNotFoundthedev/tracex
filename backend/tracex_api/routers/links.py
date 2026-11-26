@@ -11,6 +11,7 @@ from tracex_api.context import OFFICER, Ctx, authed_ctx, endpoint
 from tracex_api.db import many, need, one
 from tracex_api.engine_bridge import close_grants_if_needed, run_in_progress, send_decision
 from tracex_api.errors import ApiError, invalid
+from tracex_api.explanation_check import InvalidExplanation, check_explanation
 from tracex_api.policy import DECISIONS, LinkAccess, decision_block
 from tracex_api.views import (
     LinkFacts,
@@ -137,6 +138,11 @@ def get_explanation(link_id: str, ctx: Ctx = Depends(authed_ctx)) -> dict[str, A
     f = one_link_facts(ctx, link_id)
     f = hidden_or_404(ctx, link_id, f, resolved=link_id if f else None)
     payload = explanation_payload(ctx, f)
+    try:
+        check_explanation(payload)
+    except InvalidExplanation as exc:
+        ctx.state.alert(f"explanation of link {f.link_id} breaks the contract at {exc.paths}")
+        raise ApiError("INTERNAL") from None
     ctx.audit(
         "EXPLANATION_VIEWED",
         refs=link_cases(f),

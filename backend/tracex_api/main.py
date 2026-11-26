@@ -17,6 +17,7 @@ from tracex_api.context import AppState, Ctx, RouteSpec, utc_now
 from tracex_api.db import connect
 from tracex_api.engine_bridge import EngineGateway, reconcile
 from tracex_api.errors import ApiError
+from tracex_api.explanation_check import load_schema
 from tracex_api.routers import (
     access,
     admin,
@@ -131,6 +132,7 @@ def create_app(
     engine: EngineGateway | None = None,
     clock: Callable[[], datetime] = utc_now,
 ) -> FastAPI:
+    load_schema()  # a missing contract file stops the API from starting
     stop = threading.Event()
 
     @asynccontextmanager

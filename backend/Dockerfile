@@ -10,6 +10,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY tracex_engine ./tracex_engine
 COPY tracex_api ./tracex_api
+COPY --from=contracts explanation.schema.json ./contracts/explanation.schema.json
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
