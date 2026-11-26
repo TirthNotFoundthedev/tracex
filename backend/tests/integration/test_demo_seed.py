@@ -1,12 +1,13 @@
 """The demo seed against a real Postgres and the real API app (in-process, in-memory engine)."""
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from tests.api.conftest import Api, password_of
+from tests.api.conftest import Api, _drop_database, _make_api, password_of
+from tracex_api.engine_bridge import EngineGateway
 from tracex_api.seed_demo import SeedError, seed_demo
 
 SEED_DIR = Path(__file__).resolve().parents[3] / "data-kit" / "seed"
@@ -57,12 +58,21 @@ def seed(api: Api, dataset: Path, env: Mapping[str, str] = ENV) -> tuple[str, li
     return result, lines
 
 
-def test_seed_gives_officers_cases_restricted_links_and_a_queue(
-    api: Api, small_dataset: Path
-) -> None:
-    result, _ = seed(api, small_dataset)
+@pytest.fixture(scope="module")
+def seeded(
+    pg_template: str, small_dataset: Path, tmp_path_factory: pytest.TempPathFactory
+) -> Iterator[Api]:
+    """One seeded world for the read-only checks: the seed takes minutes on the engine."""
+    made = _make_api(pg_template, tmp_path_factory.mktemp("seeded"), EngineGateway.in_memory())
+    result, _ = seed(made, small_dataset)
     assert result.startswith("seeded")
+    yield made
+    made.client.close()
+    _drop_database(made.dbname)
 
+
+def test_seed_gives_officers_cases_restricted_links_and_a_queue(seeded: Api) -> None:
+    api = seeded
     mine = api.get("asha", "/cases").json()
     assigned = {c["case_number"] for c in mine["items"] if c["is_assigned"]}
     assert "C-101" in assigned
@@ -81,8 +91,8 @@ def test_seed_gives_officers_cases_restricted_links_and_a_queue(
     assert {"HIGH", "MEDIUM"} <= {item["band"] for item in shown}
 
 
-def test_seed_is_idempotent(api: Api, small_dataset: Path) -> None:
-    seed(api, small_dataset)
+def test_seed_is_idempotent(seeded: Api, small_dataset: Path) -> None:
+    api = seeded
     with api.owner() as conn:
         before = conn.execute(COUNTS).fetchone()
     result, lines = seed(api, small_dataset)
@@ -93,8 +103,8 @@ def test_seed_is_idempotent(api: Api, small_dataset: Path) -> None:
     assert before == after
 
 
-def test_seed_writes_audit_rows_through_the_api(api: Api, small_dataset: Path) -> None:
-    seed(api, small_dataset)
+def test_seed_writes_audit_rows_through_the_api(seeded: Api) -> None:
+    api = seeded
     uploaded = api.audit_rows("DATA_UPLOADED")
     assert uploaded
     assert {r["actor_kind"] for r in uploaded} == {"USER"}

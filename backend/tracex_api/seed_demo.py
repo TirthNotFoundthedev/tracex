@@ -67,9 +67,7 @@ def refuse_if_production(env: Mapping[str, str]) -> None:
         raise SeedError(f"TRACEX_ENV={value!r} looks like production; the demo seed will not run")
 
 
-def multipart(
-    form: Mapping[str, str], files: list[tuple[str, bytes]]
-) -> tuple[bytes, str]:
+def multipart(form: Mapping[str, str], files: list[tuple[str, bytes]]) -> tuple[bytes, str]:
     boundary = uuid.uuid4().hex
     parts: list[bytes] = []
     for name, value in form.items():
@@ -301,7 +299,7 @@ def jurisdiction_ids(admin: Session, seed_dir: Path) -> dict[str, str]:
         for d in state["districts"]
     }
     return {
-        d["id_digit"]: by_name[d["name"]]
+        str(d["id_digit"]): by_name[d["name"]]
         for state in jurisdictions["states"]
         for d in state["districts"]
     }

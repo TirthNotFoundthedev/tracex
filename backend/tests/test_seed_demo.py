@@ -104,5 +104,5 @@ def test_login_failure_is_reported_without_the_password() -> None:
 def test_login_returns_a_session() -> None:
     fake = FakeHttp(200)
     session = login(fake, "hari", {"TRACEX_SEED_PASSWORD_HARI": "pw"})
-    assert session.token == "t"
+    assert session.token == "t"  # noqa: S105 - fake token
     assert fake.calls == [("POST", "/auth/login", {"username": "hari", "password": "pw"})]
