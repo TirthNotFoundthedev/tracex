@@ -1,10 +1,4 @@
-import {
-  useId,
-  useState,
-  type ChangeEvent,
-  type InputHTMLAttributes,
-  type ReactNode,
-} from "react";
+import { useId, useState, type ChangeEvent, type InputHTMLAttributes, type ReactNode } from "react";
 
 import { Button } from "./Button";
 import { useUi } from "./context";
@@ -49,8 +43,10 @@ function describedBy(id: string, hint?: string, error?: string) {
   return ids.length > 0 ? ids.join(" ") : undefined;
 }
 
-export interface TextFieldProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, "className" | "id" | "size" | "onChange"> {
+export interface TextFieldProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "className" | "id" | "size" | "onChange"
+> {
   label: string;
   hint?: string;
   /** Full sentence in words, e.g. "Please fill in: Reason." */
@@ -252,7 +248,9 @@ export function FileDrop({ label, accept, fileName, onFile }: FileDropProps) {
         <span>{t("filedrop.choose")}</span>
       </label>
       <p className="tx-field__hint">{t("filedrop.drop")}</p>
-      {fileName ? <p className="tx-filedrop__chosen">{t("filedrop.chosen", { name: fileName })}</p> : null}
+      {fileName ? (
+        <p className="tx-filedrop__chosen">{t("filedrop.chosen", { name: fileName })}</p>
+      ) : null}
     </div>
   );
 }

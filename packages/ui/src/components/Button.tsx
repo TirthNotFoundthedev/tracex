@@ -13,7 +13,13 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   children: ReactNode;
 }
 
-export function Button({ variant = "secondary", icon, children, type = "button", ...rest }: ButtonProps) {
+export function Button({
+  variant = "secondary",
+  icon,
+  children,
+  type = "button",
+  ...rest
+}: ButtonProps) {
   return (
     <button type={type} className="tx-button" data-variant={variant} {...rest}>
       {icon ? <Icon name={icon} /> : null}

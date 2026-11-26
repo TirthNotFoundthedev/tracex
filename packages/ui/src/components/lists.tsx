@@ -93,7 +93,11 @@ export function Table<Row>({
         <tr>
           {columns.map((column) => {
             const active = sort?.columnId === column.id;
-            const ariaSort = active ? (sort.direction === "up" ? "ascending" : "descending") : "none";
+            const ariaSort = active
+              ? sort.direction === "up"
+                ? "ascending"
+                : "descending"
+              : "none";
             return (
               <th
                 key={column.id}
@@ -109,7 +113,9 @@ export function Table<Row>({
                     onClick={() => onSort(column.id)}
                   >
                     <span>{column.header}</span>
-                    <Icon name={active ? (sort.direction === "up" ? "sortUp" : "sortDown") : "sortNone"} />
+                    <Icon
+                      name={active ? (sort.direction === "up" ? "sortUp" : "sortDown") : "sortNone"}
+                    />
                   </button>
                 ) : (
                   column.header

@@ -37,7 +37,12 @@ export function Message({ kind, children, action, onDismiss }: MessageProps) {
         {action ? <div className="tx-actions">{action}</div> : null}
       </div>
       {onDismiss ? (
-        <Button variant="secondary" icon="reject" onClick={onDismiss} aria-label={t("message.dismiss")}>
+        <Button
+          variant="secondary"
+          icon="reject"
+          onClick={onDismiss}
+          aria-label={t("message.dismiss")}
+        >
           {t("message.dismiss")}
         </Button>
       ) : null}
