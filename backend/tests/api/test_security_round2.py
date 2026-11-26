@@ -442,3 +442,31 @@ def test_b4_seed_refuses_before_touching_the_database(
     seed_dir = Path(__file__).resolve().parents[3] / "data-kit" / "seed"
     with pytest.raises(SystemExit, match="refused"):
         seed.main(["--seed-dir", str(seed_dir)])
+
+
+# ------------------------------------------------------------------------- the 503 contract
+
+PLACEHOLDERS = ("case_id", "entity_id", "document_id", "link_id", "stub_id", "request_id")
+
+
+def test_the_gate_body_matches_the_contract_on_every_gated_route(api: Api) -> None:
+    from tests.api.contract import _spec, validate
+
+    busy(api)
+    state = api.client.app.state.tracex  # type: ignore[attr-defined]
+    api.settings.audit_anchor_path.unlink()
+    assert check_chain(state) is False
+    checked = 0
+    for path, item in _spec()["paths"].items():
+        for method in ("get", "post"):
+            if method not in item or (method.upper(), path) in GATE_EXEMPT:
+                continue
+            url = path
+            for name in PLACEHOLDERS:
+                url = url.replace("{" + name + "}", str(uuid.uuid4()))
+            response = api.client.request(method.upper(), url)  # the gate answers before any token
+            assert response.status_code == 503, (method, path)
+            validate("SafetyPauseError", response.json())
+            assert response.json() == {"code": "NOT_READY", "message_key": "error.not_ready"}
+            checked += 1
+    assert checked == 48
