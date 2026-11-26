@@ -7,13 +7,14 @@ export type FieldError = NonNullable<ApiError["field_errors"]>[number];
 export type ApiResult<T> =
   | { kind: "ok"; data: T }
   | { kind: "sessionExpired" }
-  | { kind: "restricted" }
+  | { kind: "notFound" }
   | { kind: "notAllowed" }
   | { kind: "tryAgainShortly" }
   | { kind: "conflict"; code: ApiError["code"] | undefined }
   | { kind: "invalid"; fieldErrors: FieldError[] }
   | { kind: "tooManyAttempts" }
   | { kind: "networkError" }
+  | { kind: "safetyPause" }
   | { kind: "serverError" };
 
 /** Same as ApiResult, but 401 is left for the caller to name (wrong password, or expired session). */
@@ -44,8 +45,9 @@ async function readError(response: Response): Promise<ApiError | undefined> {
 }
 
 /**
- * Status mapping (access spec R2). 404 means "not found or not yours": the body is identical for both, so the
- * UI gets one "restricted" result and never guesses which. 403 means the case is visible but the role or the
+ * Status mapping (access spec R2). 404 means "not found or not yours": unknown, hidden, withdrawn and redacted ids
+ * all look the same, so the UI gets one "notFound" result and never guesses which. Only a stub from the API
+ * (GET /stubs/{id}) shows the other-police-area card (D43). 403 means the case is visible but the role or the
  * grant does not allow the action.
  */
 export async function toResult<T>(response: Response): Promise<HttpResult<T>> {
@@ -56,7 +58,9 @@ export async function toResult<T>(response: Response): Promise<HttpResult<T>> {
   }
   if (status === 401) return { kind: "unauthorized" };
   if (status === 403) return { kind: "notAllowed" };
-  if (status === 404) return { kind: "restricted" };
+  if (status === 404) return { kind: "notFound" };
+  // Any 503 is the safety pause; the app does not read the body code.
+  if (status === 503) return { kind: "safetyPause" };
   if (status === 429) return { kind: "tooManyAttempts" };
   if (status === 409) {
     const error = await readError(response);

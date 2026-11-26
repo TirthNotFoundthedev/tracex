@@ -142,7 +142,10 @@ export const en = {
   "state.serverHelp": "If it keeps happening, tell your admin.",
   "state.tryAgain": "Try again",
   "state.notAllowed": "You do not have access to this.",
-  "state.notAvailable": "We cannot show this.",
+  "state.notFound": "We could not find this. It may have been removed. Go back to your cases.",
+  // Temporary: replace with the shared packages/ui safety-pause string when it exists (see PR #44).
+  "state.safetyPause":
+    "The system is paused for safety. Nothing was changed. Please try again later.",
   "state.backToCases": "Back to my cases",
   "state.runInProgress":
     "The system is updating links between cases. Nothing was changed. Please try again in a minute.",
