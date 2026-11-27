@@ -8,6 +8,7 @@ import { t, type Language } from "./i18n";
 import { entryForPath, navFor, type PageId } from "./nav";
 import { usePath } from "./router";
 
+import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { MatchingPage } from "./pages/MatchingPage";
 import { ReviewQueuePage } from "./pages/ReviewQueuePage";
 import { ThresholdsPage } from "./pages/ThresholdsPage";
@@ -16,7 +17,7 @@ import { UploadPage } from "./pages/UploadPage";
 type User = components["schemas"]["User"];
 
 /** Pages that are not built yet show the placeholder. */
-const PENDING_PAGES: PageId[] = ["approvals", "users", "audit", "graph"];
+const PENDING_PAGES: PageId[] = ["users", "audit", "graph"];
 
 type Me =
   | { state: "loading" }
@@ -146,6 +147,9 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
               search={search}
               navigate={navigate}
             />
+          ) : null}
+          {current.id === "approvals" ? (
+            <ApprovalsPage api={api} lang={lang} role={me.user.role} userId={me.user.user_id} />
           ) : null}
           {current.id === "thresholds" ? (
             <ThresholdsPage api={api} lang={lang} role={me.user.role} />

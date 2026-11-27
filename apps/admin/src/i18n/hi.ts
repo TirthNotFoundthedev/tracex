@@ -250,6 +250,21 @@ export const hi: Record<keyof typeof en, string> = {
   "approvals.change.thresholds": "मिलान की सेटिंग: पक्का मिलान {high} से शुरू, संभावित {medium} से",
   "approvals.state.on": "चालू",
   "approvals.state.off": "बंद",
+  "approvals.tab.access": "पहुँच के अनुरोध",
+  "approvals.tab.changes": "बदलाव",
+  "approvals.signInName": "साइन-इन नाम",
+  "approvals.area.none": "कोई क्षेत्र नहीं",
+  "approvals.area.unknown": "अज्ञात क्षेत्र",
+  "approvals.area.hidden":
+    "कुछ क्षेत्रों के नाम अभी नहीं मिले, इसलिए नाम मिलने तक मंज़ूर करने का बटन छिपा है।",
+  "approvals.change.assignmentAdd": "{name} को मामला {case} दें",
+  "approvals.change.assignmentRemove": "{name} से मामला {case} हटाएँ",
+  "approvals.access.ownRequest": "यह पहुँच आपने खुद माँगी थी। कोई दूसरा व्यक्ति इसका फ़ैसला करेगा।",
+  "approvals.access.status.PENDING": "प्रतीक्षा में",
+  "approvals.access.status.APPROVED": "मंज़ूर",
+  "approvals.access.status.DENIED": "अस्वीकृत",
+  "approvals.access.status.WITHDRAWN": "वापस लिया गया",
+  "approvals.access.status.EXPIRED": "समय समाप्त",
 
   // A5
   "users.title": "उपयोगकर्ता और भूमिकाएँ",
