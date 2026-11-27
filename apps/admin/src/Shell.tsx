@@ -5,10 +5,17 @@ import type { AdminApi } from "./api";
 import { messageKeyFor, type FailureResult } from "./api/resultKeys";
 import type { components } from "./api/schema";
 import { t, type Language } from "./i18n";
-import { entryForPath, navFor } from "./nav";
+import { entryForPath, navFor, type PageId } from "./nav";
 import { usePath } from "./router";
 
+import { MatchingPage } from "./pages/MatchingPage";
+import { ThresholdsPage } from "./pages/ThresholdsPage";
+import { UploadPage } from "./pages/UploadPage";
+
 type User = components["schemas"]["User"];
+
+/** Pages that are not built yet show the placeholder. */
+const PENDING_PAGES: PageId[] = ["reviewQueue", "approvals", "users", "audit", "graph"];
 
 type Me =
   | { state: "loading" }
@@ -128,7 +135,14 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
           }}
         />
         <main className="admin-main" data-page={current.id}>
-          <Message kind="info">{t("shell.placeholder", lang)}</Message>
+          {current.id === "upload" ? <UploadPage api={api} lang={lang} /> : null}
+          {current.id === "matching" ? <MatchingPage api={api} lang={lang} /> : null}
+          {current.id === "thresholds" ? (
+            <ThresholdsPage api={api} lang={lang} role={me.user.role} />
+          ) : null}
+          {PENDING_PAGES.includes(current.id) ? (
+            <Message kind="info">{t("shell.placeholder", lang)}</Message>
+          ) : null}
         </main>
       </div>
     </>

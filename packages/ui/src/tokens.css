@@ -58,6 +58,7 @@
   --leading-tight: 1.3; /* titles of one line only */
   --measure: 40rem; /* longest reading line, about 60 characters */
   --page-width: 45rem; /* officer app single column, 720px (DESIGN_RULES section 4) */
+  --page-width-wide: 72rem; /* admin content area, 1152px: tables and graph use width, text still obeys --measure (DESIGN_RULES section 4) */
   --sidenav-width: 15rem; /* admin left navigation, 240px */
   --topbar-height: 4rem; /* fixed header, 64px */
 

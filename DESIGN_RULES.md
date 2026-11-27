@@ -66,7 +66,7 @@ Rules:
 - Left navigation (240px) with icon + label for each section: Upload, Matching, Review queue, Approvals, Users, Audit log, Settings, Network graph. Content area uses tables with 44px rows and sortable columns labelled in words.
 - Header shows user, jurisdiction, language switch, sign out. Breadcrumbs for depth above two.
 - Tables: header row sticky, number columns right aligned in mono, row actions in a single "Open" button, not icon clusters. Reason: reduces misclicks across many rows.
-- Wide screens use width; text blocks still obey the 60-character measure.
+- Wide screens use width, up to the content maximum `--page-width-wide` (72rem, 1152px), centred inside the area right of the navigation; text blocks still obey the 60-character measure. Reason: a table or graph needs room, but rows wider than about 1150px make the eye lose its line.
 
 ## 5. One primary action
 - Each screen has exactly one primary button: solid `action` fill, white text 24px/600 (officer), always bottom of content, verb + object ("Show where it appears").
