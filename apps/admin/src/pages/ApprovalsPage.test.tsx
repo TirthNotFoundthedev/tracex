@@ -84,7 +84,8 @@ const body = (calls: { method: string; path: string; init: RequestInit }[], path
 test("a supervisor sees only Access requests and never calls the pending changes", async () => {
   const { calls } = setup("SUPERVISOR");
   expect(await screen.findByText("Meena Rao")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Access requests (1)" })).toBeTruthy();
+  // The count reaches the button one render after the rows (the page reports it from an effect).
+  expect(await screen.findByRole("button", { name: "Access requests (1)" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Changes/ })).toBeNull();
   expect(calls.some((c) => c.path === "/pending-changes")).toBe(false);
 });
