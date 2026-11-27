@@ -37,8 +37,18 @@ const jurisdictions = json(200, {
 
 const roles = json(200, {
   items: [
-    { role: "JUNIOR", name_key: "role.junior", description_key: "role.junior.d", scope: "DISTRICT" },
-    { role: "INVESTIGATOR", name_key: "role.investigator", description_key: "x", scope: "DISTRICT" },
+    {
+      role: "JUNIOR",
+      name_key: "role.junior",
+      description_key: "role.junior.d",
+      scope: "DISTRICT",
+    },
+    {
+      role: "INVESTIGATOR",
+      name_key: "role.investigator",
+      description_key: "x",
+      scope: "DISTRICT",
+    },
     { role: "SUPERVISOR", name_key: "role.supervisor", description_key: "x", scope: "DISTRICT" },
     { role: "SENIOR", name_key: "role.senior", description_key: "x", scope: "COVERAGE" },
     { role: "ADMIN", name_key: "role.admin", description_key: "x", scope: "NONE" },
@@ -75,7 +85,13 @@ const asha = {
   active: true,
   assignment_count: 1,
 };
-const off = { ...asha, user_id: "c0000000-0000-4000-8000-000000000009", display_name: "Old Hand", username: "old", active: false };
+const off = {
+  ...asha,
+  user_id: "c0000000-0000-4000-8000-000000000009",
+  display_name: "Old Hand",
+  username: "old",
+  active: false,
+};
 
 const page = (items: unknown[]) => json(200, { items, next_cursor: null, total: items.length });
 
@@ -153,9 +169,9 @@ test("pending tags come from one list of waiting changes, not from reads per row
       return page([change()]);
     },
   });
-  const row = ((await screen.findByText("Ravi Kumar")).closest("tr")) as HTMLElement;
+  const row = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
   expect(within(row).getByText("Change waiting for approval")).toBeTruthy();
-  const other = ((await screen.findByText("Asha Devi")).closest("tr")) as HTMLElement;
+  const other = (await screen.findByText("Asha Devi")).closest("tr") as HTMLElement;
   expect(within(other).queryByText("Change waiting for approval")).toBeNull();
   expect(urls).toHaveLength(1);
   expect(new URL(urls[0] as string).searchParams.get("state")).toBe("PENDING");
@@ -164,14 +180,14 @@ test("pending tags come from one list of waiting changes, not from reads per row
 
 test("the table shows name, user ID, role in words, area and status; no role codes anywhere", async () => {
   setup("ADMIN");
-  const row = ((await screen.findByText("Ravi Kumar")).closest("tr")) as HTMLElement;
+  const row = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
   expect(within(row).getByText("ravi")).toBeTruthy();
   expect(within(row).getByText("Supervisor")).toBeTruthy();
   expect(within(row).getByText("Rivergate")).toBeTruthy();
   expect(within(row).getByText("Active")).toBeTruthy();
-  const senior = ((await screen.findByText("Meena Rao")).closest("tr")) as HTMLElement;
+  const senior = (await screen.findByText("Meena Rao")).closest("tr") as HTMLElement;
   expect(within(senior).getByText("All areas")).toBeTruthy();
-  const old = ((await screen.findByText("Old Hand")).closest("tr")) as HTMLElement;
+  const old = (await screen.findByText("Old Hand")).closest("tr") as HTMLElement;
   expect(within(old).getByText("Turned off")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Add user" }));
   expect(document.body.textContent).not.toMatch(
@@ -206,7 +222,12 @@ test("create, district role: sends district_id and no coverage", async () => {
   expect(await screen.findByText(SENT)).toBeTruthy();
   expect(bodyOf(posts(calls)[0])).toEqual({
     kind: "USER_CREATE",
-    new_value: { username: "sunil", display_name: "Sunil Rao", role: "SUPERVISOR", district_id: D2 },
+    new_value: {
+      username: "sunil",
+      display_name: "Sunil Rao",
+      role: "SUPERVISOR",
+      district_id: D2,
+    },
   });
 });
 
@@ -394,7 +415,7 @@ test("a save by an administrator is a proposal: Sent for approval, and the tag s
     true,
   );
   fireEvent.click(screen.getByRole("button", { name: "Back to the list" }));
-  const row = ((await screen.findByText("Ravi Kumar")).closest("tr")) as HTMLElement;
+  const row = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
   expect(within(row).getByText("Change waiting for approval")).toBeTruthy();
 });
 
