@@ -26,7 +26,7 @@ export async function login(page, user, lang = "en") {
   await page.getByRole("textbox").first().fill(user);
   await page.locator('input[type="password"]').fill(PW(user));
   await page.locator('form button[type="submit"]').click();
-  await page.waitForSelector("nav", { timeout: 15000 });
+  await page.waitForSelector("main[data-page], main.admin-main", { timeout: 15000 });
   await settle(page);
 }
 

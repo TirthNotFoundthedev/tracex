@@ -1,14 +1,14 @@
-# Admin panel screenshots (P4.4, TIR-20)
+# Admin panel screenshots (P4.4, TIR-20), retake after review round 1
 
-Rendered screenshots of every admin screen on the real seeded stack, for the Design Lead review against DESIGN_RULES section 15. Nothing in the DOM is faked: all rows come from the API.
+Rendered screenshots of every admin screen on the real seeded stack, for the Design Lead review against DESIGN_RULES section 15. Nothing in the DOM is faked: all rows come from the API. All 194 files were retaken after the round 1 fixes in apps/admin (body reset, hidden table caption, Thresholds fix, stacked actions on phone, state headings, no counts while loading, phone menu, no-wrap case numbers and dates).
 
-Naming follows `docs/design/screenshots/officer/`: `<screen id>-<name>-<en|hi>[-mobile|-zoom200|-grayscale].png`. Screen ids are from `docs/specs/design-flows.md` section 3 (A1 upload, A2 matching, A3 review queue, A3b link detail, A3c Rejected/Undone filters, A3d rejected or undone link, A4 approvals, A4a change to approve, A5 users and roles, A6 audit log, A7 thresholds, A8 network graph). `A0` is the admin sign-in page (it has no id in the flows file). Desktop files are 1280 wide, `-mobile` files are 375 wide; all are full-page captures.
+Naming follows `docs/design/screenshots/officer/`: `<screen id>-<name>-<en|hi>[-mobile|-zoom200|-grayscale].png`. Screen ids are from `docs/specs/design-flows.md` section 3 (A1 upload, A2 matching, A3 review queue, A3b link detail, A3c Rejected/Undone filters, A3d rejected or undone link, A4 approvals, A4a change to approve, A5 users and roles, A6 audit log, A7 thresholds, A8 network graph). `A0` is the admin sign-in page. `F-` files are keyboard focus captures (Tab). Desktop files are 1280 wide, `-mobile` files are 375 wide; A/F screens are full-page except `F-` files, which are viewport shots (1280x900, mobile 375x812).
 
 ## Checks done on every capture
 
-- Fonts: after every capture the script read `document.fonts`. Noto Sans 400/600/700, Noto Sans Devanagari 400/600/700 and Noto Sans Mono 400 all reported status `loaded`. Every `-hi` file had Noto Sans Devanagari loaded. The app root and all controls use `"Noto Sans", "Noto Sans Devanagari", system-ui, ...` (the `body` element itself has no font set, see Known issues).
-- Horizontal scroll at 375: `document.documentElement.scrollWidth` equals 375 on every `-mobile` file except the four Thresholds files (`A7-thresholds-*-mobile.png`: 469 wide in English, 410 in Hindi). The cause is `.admin-zone` (the three-zone bar), a real defect listed in the PR. The measured widths are in the last column below.
-- All other 1280 files and all zoom200/grayscale files have scroll width equal to the viewport width.
+- Fonts: after every capture the script read `document.fonts`. Noto Sans 400/600/700, Noto Sans Devanagari 400/600/700 and Noto Sans Mono 400 all reported status `loaded`. Every `-hi` file had Noto Sans Devanagari loaded. `body` itself now uses `"Noto Sans", "Noto Sans Devanagari", ...` (computed).
+- Horizontal scroll at 375: `document.documentElement.scrollWidth` is 375 on all 80 `-mobile` files (none differs). All 1280, zoom200 and grayscale files also have scroll width equal to the viewport width. The last column shows the measured value.
+- Focus ring: 3px solid ring with a 2px offset on every focus capture, in the ink-blue action colour. The ring sits in the page colour gap, so on a filled button it neighbours the page background on both sides: ring against page 10.1:1 to 11.5:1 (measured on the render, see the notes column). No focus capture lacks a ring.
 
 ## Files
 
@@ -144,13 +144,13 @@ Columns: file, role signed in as, what it shows, page scroll width / viewport wi
 | A6-audit-en.png | SENIOR (meena) | Activity log, real chain written by the seed and this session | 1280/1280 |
 | A6-audit-hi-mobile.png | SENIOR (meena) | Activity log, real chain written by the seed and this session | 375/375 |
 | A6-audit-hi.png | SENIOR (meena) | Activity log, real chain written by the seed and this session | 1280/1280 |
-| A7-thresholds-en-mobile.png | SENIOR (meena) | Match settings as SENIOR | 469/375 |
+| A7-thresholds-en-mobile.png | SENIOR (meena) | Match settings as SENIOR | 375/375 |
 | A7-thresholds-en.png | SENIOR (meena) | Match settings as SENIOR | 1280/1280 |
-| A7-thresholds-hi-mobile.png | SENIOR (meena) | Match settings as SENIOR | 410/375 |
+| A7-thresholds-hi-mobile.png | SENIOR (meena) | Match settings as SENIOR | 375/375 |
 | A7-thresholds-hi.png | SENIOR (meena) | Match settings as SENIOR | 1280/1280 |
-| A7-thresholds-invalid-en-mobile.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 469/375 |
+| A7-thresholds-invalid-en-mobile.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 375/375 |
 | A7-thresholds-invalid-en.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 1280/1280 |
-| A7-thresholds-invalid-hi-mobile.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 410/375 |
+| A7-thresholds-invalid-hi-mobile.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 375/375 |
 | A7-thresholds-invalid-hi.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 1280/1280 |
 | A8-graph-link-panel-en-mobile.png | SENIOR (meena) | Why linked panel opened from the graph | 375/375 |
 | A8-graph-link-panel-en.png | SENIOR (meena) | Why linked panel opened from the graph | 1280/1280 |
@@ -188,24 +188,46 @@ Columns: file, role signed in as, what it shows, page scroll width / viewport wi
 | A8-graph-search-en.png | SENIOR (meena) | Search form | 1280/1280 |
 | A8-graph-search-hi-mobile.png | SENIOR (meena) | Search form | 375/375 |
 | A8-graph-search-hi.png | SENIOR (meena) | Search form | 1280/1280 |
+| F-filter-button-en.png | SENIOR (meena) | Keyboard focus on a status filter button (Rejected) (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-filter-button-hi.png | SENIOR (meena) | Keyboard focus on a status filter button (Rejected) (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-form-field-en.png | ADMIN (hari) | Add user form: focus on the first field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-form-field-hi.png | ADMIN (hari) | Add user form: focus on the first field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-graph-node-en.png | SENIOR (meena) | Keyboard focus on a graph node (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-graph-node-hi.png | SENIOR (meena) | Keyboard focus on a graph node (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-menu-button-en-mobile.png | SENIOR (meena) | 375 wide: keyboard focus on the Menu button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
+| F-menu-button-hi-mobile.png | SENIOR (meena) | 375 wide: keyboard focus on the Menu button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
+| F-menu-item-en.png | SENIOR (meena) | Keyboard focus on a menu item (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
+| F-menu-item-hi.png | SENIOR (meena) | Keyboard focus on a menu item (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
+| F-menu-open-en-mobile.png | SENIOR (meena) | 375 wide: menu opened with Enter | viewport shot |
+| F-menu-open-hi-mobile.png | SENIOR (meena) | 375 wide: menu opened with Enter | viewport shot |
+| F-primary-button-en.png | ADMIN (hari) | Add user form: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
+| F-primary-button-hi.png | ADMIN (hari) | Add user form: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
+| F-queue-row-open-en.png | SENIOR (meena) | Keyboard focus on a queue row Open button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-queue-row-open-hi.png | SENIOR (meena) | Keyboard focus on a queue row Open button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-reject-step-button-en.png | SENIOR (meena) | Reject second step: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.4:1, ring/outside 11.5:1) | viewport shot |
+| F-reject-step-button-hi.png | SENIOR (meena) | Reject second step: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.4:1, ring/outside 11.5:1) | viewport shot |
+| F-reject-step-field-en.png | SENIOR (meena) | Reject second step: focus on the reason field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-reject-step-field-hi.png | SENIOR (meena) | Reject second step: focus on the reason field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-sign-in-button-en.png | none | Keyboard focus on the sign-in button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
+| F-sign-in-button-hi.png | none | Keyboard focus on the sign-in button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
 
 ## How the data was made
 
 Data comes from the demo seed (`small` tier: 122 cases, 138 strong and 28 possible links, 44 case assignments). Because the seed leaves some lists empty, I added real data through the app and the API on the throw-away stack. This changes nothing in the repo:
 
-- `setup.mjs`: as `meena` rejected two possible links in the review queue (one reason in English, one in Hindi) and undid one strong link (Irfan network) from the graph panel. So the Rejected (2) and Undone (1) filters hold real rows; the Waiting count drops from 28 to 26. As `hari` proposed a role change for `asha`, so Approvals / Changes has one waiting change.
-- `make-access-requests.mjs`: as `asha` sent two access requests through the API (`POST /access-requests`, one with a 330-character reason), so Approvals / Access requests has two waiting rows.
+- `capture/setup.mjs`: as `meena` rejected two possible links in the review queue (one reason in English, one in Hindi) and undid one strong link from the graph panel, so the Rejected (2) and Undone (1) filters hold real rows and the Waiting count is 26. As `hari` proposed a role change for `asha`, so Approvals / Changes has one waiting change.
+- `capture/make-access-requests.mjs` (not re-copied in this round, unchanged): as `asha` sent two access requests through the API (`POST /access-requests`, one with a 330-character reason).
 - Second steps (Reject, Reopen, Approve) are captured open but never confirmed.
 
 ## What was not captured, and why
 
-- Server problem, safety pause, session ending and too-many-tries states: the stack cannot reach them without faking a response. Not captured.
-- Loading and no-connection (`A3-review-loading-*`, `A3-review-no-connection-*`) are real UI on the real stack, but made with a test browser route: the `/review-queue` answer was held back 6 seconds (loading) or the request was cut (no connection). The counts show (0) while the list fails to load.
+- Server problem, safety pause, session ending and too-many-tries states: the stack cannot reach them without faking a response. They use the same failure view as no-connection.
+- Loading and no-connection (`A3-review-loading-*`, `A3-review-no-connection-*`) are real UI on the real stack, but made with a test browser route: the `/review-queue` answer was held back 6 seconds (loading) or the request was cut (no connection). Both now show the filter buttons without a count.
 - Matching "running" state: not captured, to avoid starting a second run on the seeded data.
 - Zoom 200 percent is a 640 CSS px wide viewport at device scale 2 (same layout as browser zoom 200 percent on a 1280 screen). Grayscale is `filter: grayscale(1)` on `html`. Both are for the review queue and the graph, EN and HI.
-- Keyboard focus rings (section 15 item 11) were not captured; this PR does not cover that item.
-- ADMIN has no review queue or graph (nav.ts). Those two are shown as the plain not-available state (`A8-graph-not-available-*`, `A3-review-not-available-*`).
-- Users form: the edit form is shown for `hari` (second user in the list); the `meena` view is the read-only detail.
+- ADMIN has no review queue or graph (nav.ts). Those two are shown as the plain not-available state.
+- Users form: the edit form is shown for `hari`; the `meena` view is the read-only detail.
+- Focus captures cover: sign-in button, menu button at 375 (and the menu opened), a menu item, a filter button, a queue row Open, the Reject second step (reason field and primary button), a graph node, a form field and a primary button, in EN and HI. Not every screen has its own focus capture.
 
 ## How they were made
 
@@ -223,7 +245,8 @@ SHOTS_OUT=<dir> VP=1280 node main.mjs
 SHOTS_OUT=<dir> VP=375  node main.mjs
 SHOTS_OUT=<dir> node zoom-gray.mjs
 SHOTS_OUT=<dir> node states.mjs
+SHOTS_OUT=<dir> node focus.mjs
 docker compose -p tracex-shots down -v
 ```
 
-The scripts in `capture/` import `playwright` and `lib.mjs` from their own folder; copy them to a scratch folder and run `npm i playwright` there. `vite.shots.mjs` leaves the app code untouched and defines `VITE_API_URL=/api` itself. Playwright was Chromium (headless), `device scale 1` except zoom200. Seed passwords are the dev defaults in `.env.example`.
+The scripts in `capture/` import `playwright` and `lib.mjs` from their own folder; copy them to a scratch folder and run `npm i playwright` there. `vite.shots.mjs` leaves the app code untouched and defines `VITE_API_URL=/api` itself. Chromium headless, device scale 1 except zoom200. Seed passwords are the dev defaults in `.env.example`.
