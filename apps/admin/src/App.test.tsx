@@ -260,3 +260,11 @@ test("ADMIN who opens /graph directly sees a plain not-available page and no gra
   expect(navLabels()).not.toContain("Network graph");
   expect(urls.filter((u) => /\/(search|entities|links|stubs)/.test(u))).toEqual([]);
 });
+
+test("the graph page heading is 'Network of links' (A8), not the short menu label", async () => {
+  window.history.replaceState(null, "", "/graph");
+  await signIn(setup(() => json(200, person("SENIOR", null))));
+  await screen.findByRole("navigation", { name: /Main sections/i });
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Network of links");
+  expect(navLabels()).toContain("Network graph");
+});
