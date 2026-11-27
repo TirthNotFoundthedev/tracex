@@ -21,6 +21,9 @@ Keep the Linear project **TraceX** (team TIR) up to date with the work in this r
 - Update Linear at each STATE.md checkpoint.
 
 <!-- claude-reflect: learned rules (saved from the band; edit freely) -->
+
 ## Learned rules
+
 - Keep the Linear project updated by adding or removing tasks and milestones as the work changes.
+
 <!-- end claude-reflect -->
