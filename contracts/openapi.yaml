@@ -3463,10 +3463,15 @@ components:
         new_value:
           type: object
           additionalProperties: false
+          description: "`district_id` for district roles, `coverage` for SENIOR; never both (422)."
           required:
             - username
             - display_name
             - role
+          not:
+            required:
+              - district_id
+              - coverage
           properties:
             username:
               type: string
@@ -3534,11 +3539,17 @@ components:
         new_value:
           type: object
           additionalProperties: false
+          description: One of `district_id` (district roles) or `coverage` (SENIOR), never both. A value that carries both is refused with 422.
           properties:
             district_id:
               $ref: "#/components/schemas/Uuid"
             coverage:
               $ref: "#/components/schemas/Coverage"
+          oneOf:
+            - required:
+                - district_id
+            - required:
+                - coverage
     ProposeAssignment:
       type: object
       additionalProperties: false

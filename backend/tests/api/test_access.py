@@ -665,12 +665,12 @@ def test_far_case_number_is_on_the_deciders_view_only(world: World) -> None:
     assert detail["view"] == "TO_DECIDE"
     assert detail["far_case_id"] == world.cases[far_number]
     assert detail["far_case_number"] == far_number
-    listed = api.get("farid", "/access-requests?scope=to_decide").json()["items"]
+    listed = api.get("farid", "/access-requests", scope="to_decide").json()["items"]
     assert [i["far_case_number"] for i in listed if i["request_id"] == rid] == [far_number]
     # The requester's own detail and list never carry it: the field is absent, not null.
     for view in (
         api.get("bharat", f"/access-requests/{rid}").json(),
-        *api.get("bharat", "/access-requests?scope=mine").json()["items"],
+        *api.get("bharat", "/access-requests", scope="mine").json()["items"],
     ):
         assert view["view"] == "MINE"
         assert not {"far_case_id", "far_case_number"} & set(view)
@@ -688,3 +688,32 @@ def test_a_denial_note_over_200_characters_is_a_422(world: World) -> None:
     url = f"/access-requests/{created['request_id']}/deny"
     assert api.post("farid", url, {"note": "x" * 201}).status_code == 422
     assert api.post("farid", url, {"note": "x" * 200}).status_code == 200
+
+
+def test_a_user_change_cannot_carry_both_a_district_and_a_coverage(world: World) -> None:
+    api = world.api
+    with api.owner() as conn:
+        users = {r["username"]: str(r["id"]) for r in many(conn, "SELECT id, username FROM users")}
+        district = str(one(conn, "SELECT id FROM districts LIMIT 1")["id"])  # type: ignore[index]
+    both = {"district_id": district, "coverage": {"all_states": True}}
+    for subject in ("bharat", "meena"):
+        response = api.post(
+            "hari",
+            "/pending-changes",
+            {"kind": "USER_JURISDICTION", "subject_user_id": users[subject], "new_value": both},
+        )
+        assert response.status_code == 422, (subject, response.text)
+    created = api.post(
+        "hari",
+        "/pending-changes",
+        {
+            "kind": "USER_CREATE",
+            "new_value": {
+                "username": "both.fields",
+                "display_name": "Both Fields",
+                "role": "SENIOR",
+                **both,
+            },
+        },
+    )
+    assert created.status_code == 422, created.text

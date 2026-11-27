@@ -215,6 +215,12 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
         subject = _user(ctx, str(raw.get("subject_user_id", "")))
         if subject is None:
             raise invalid("subject_user_id", "unknown_user")
+    if (
+        kind in ("USER_CREATE", "USER_JURISDICTION")
+        and new.get("district_id")
+        and new.get("coverage")
+    ):
+        raise invalid("new_value", "district_and_coverage")
     districts: list[str] = []
     needs_all = False
     if kind == "USER_CREATE":

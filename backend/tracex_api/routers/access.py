@@ -142,7 +142,8 @@ def approver_stub(ctx: Ctx, r: Row) -> dict[str, Any]:
 
 def _case_number(ctx: Ctx, case_id: Any) -> str:
     row = one(ctx.conn, "SELECT case_number FROM cases WHERE id = %s", (case_id,))
-    assert row is not None
+    if row is None:  # the far case row exists as long as the request does
+        raise LookupError("far case missing")
     return str(row["case_number"])
 
 

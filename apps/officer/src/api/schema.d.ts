@@ -1477,6 +1477,7 @@ export interface components {
     ProposeUserCreate: {
       /** @constant */
       kind: "USER_CREATE";
+      /** @description `district_id` for district roles, `coverage` for SENIOR; never both (422). */
       new_value: {
         username: string;
         display_name: string;
@@ -1502,10 +1503,11 @@ export interface components {
       /** @constant */
       kind: "USER_JURISDICTION";
       subject_user_id: components["schemas"]["Uuid"];
+      /** @description One of `district_id` (district roles) or `coverage` (SENIOR), never both. A value that carries both is refused with 422. */
       new_value: {
         district_id?: components["schemas"]["Uuid"];
         coverage?: components["schemas"]["Coverage"];
-      };
+      } & (unknown | unknown);
     };
     ProposeAssignment: {
       /** @enum {string} */
@@ -1760,6 +1762,8 @@ export interface components {
       reason: string;
       requester: components["schemas"]["UserRef"];
       far_case_id: components["schemas"]["Id"];
+      /** @description Case number of the far case, which lies in the decider's own district (SUPERVISOR) or coverage (SENIOR). No other far-case field is carried. AccessRequestMine never carries it. */
+      far_case_number: string;
       stub: components["schemas"]["Stub"];
       grant?: components["schemas"]["GrantAuthority"] | null;
     };
