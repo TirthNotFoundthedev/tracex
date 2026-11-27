@@ -28,6 +28,8 @@ type Proposal = components["schemas"]["ProposeChangeRequest"];
 const PAGE = 50;
 /** Changes waiting for approval are read once, at the contract's largest page. */
 const PENDING_LIMIT = 100;
+/** A stop for a list that never ends. */
+const PENDING_MAX_PAGES = 100;
 const ROLES: Role[] = ["JUNIOR", "INVESTIGATOR", "SUPERVISOR", "SENIOR", "ADMIN"];
 
 const roleWord = (role: Role, lang: Language) =>
@@ -48,8 +50,26 @@ type RefLoad =
   | { state: "failed"; result: FailureResult }
   | { state: "ready"; ref: Reference };
 
+/** Every waiting change. The list is read to its last page, so no tag is missing and no second proposal slips through. */
+async function readAllPending(api: AdminApi): Promise<ApiResult<Change[]>> {
+  const all: Change[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < PENDING_MAX_PAGES; page++) {
+    const result = await api.client.listPendingChanges({
+      state: "PENDING",
+      limit: PENDING_LIMIT,
+      ...(cursor ? { cursor } : {}),
+    });
+    if (result.kind !== "ok") return result;
+    all.push(...result.data.items);
+    cursor = result.data.next_cursor ?? undefined;
+    if (!cursor) break;
+  }
+  return { kind: "ok", data: all };
+}
+
 /**
- * Role scopes, area names and the waiting changes: one call each, once per visit. The tags on the table
+ * Role scopes, area names and the waiting changes: one call each (the waiting list, one per page), once per visit. The tags on the table
  * rows come from the one list of waiting changes, never from a read of each user (D69, D71).
  */
 function useReference(api: AdminApi, attempt: number): RefLoad {
@@ -60,7 +80,7 @@ function useReference(api: AdminApi, attempt: number): RefLoad {
     void Promise.all([
       api.client.listRoles(),
       api.client.listJurisdictions(),
-      api.client.listPendingChanges({ state: "PENDING", limit: PENDING_LIMIT }),
+      readAllPending(api),
     ]).then(([roles, areas, pending]) => {
       if (!live) return;
       if (roles.kind !== "ok") return setLoad({ state: "failed", result: roles });
@@ -77,7 +97,7 @@ function useReference(api: AdminApi, attempt: number): RefLoad {
             ),
           ),
           stateNames: new Map(areas.data.items.map((s) => [s.state_id, s.name] as const)),
-          pending: pending.data.items,
+          pending: pending.data,
         },
       });
     });

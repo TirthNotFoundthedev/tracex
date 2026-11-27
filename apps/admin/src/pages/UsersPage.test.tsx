@@ -276,6 +276,8 @@ test("a role that /roles does not list cannot be chosen or saved", async () => {
 });
 
 test.each([
+  ["state_ids"],
+  ["all_states"],
   ["coverage.state_ids"],
   ["coverage.all_states"],
   ["new_value.coverage.district_ids"],
