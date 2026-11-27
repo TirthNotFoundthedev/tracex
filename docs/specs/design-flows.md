@@ -83,7 +83,7 @@ Title: "Case 24/118". Breadcrumb: "My cases > Case 24/118". Subtitle: "People, p
 | (landmark) Bank accounts (1)                    |
 | (car) Vehicles (2)                              |
 ```
-Rows with no other cases show "Only in this case". Row with a possible match waiting for the officer shows "(alert) Please check". Primary action: none on this screen (rows are the actions). Rule 5 exception recorded: navigation screens have no button.
+An organisation item stays in the People group; its second line says "Organisation" so the row is not called a person. There is no fifth group (DESIGN_RULES section 4). Rows with no other cases show "Only in this case". Row with a possible match waiting for the officer shows "(alert) Please check". Primary action: none on this screen (rows are the actions). Rule 5 exception recorded: navigation screens have no button.
 
 ### O4 Item
 Title: the value, e.g. "Mohd. Irfan" or "98xxxx1234". Under it, the type: "Person in Case 24/118". Facts as plain label-value lines ("Age: 34", "Address: ..."). Primary button:
@@ -163,7 +163,7 @@ Errors: empty -> "Please write your reason. [Fix]"; short -> "Please write a lit
 - No connection: "No connection. Nothing was changed. [Try again]".
 - Not allowed: "You do not have access to this. [Back to my cases]".
 - Server problem: "Something went wrong on our side. Nothing was changed. [Try again]. If it keeps happening, tell your admin."
-- Session ending: "You will be signed out in 2 minutes. [Stay signed in]".
+- Session ending: "You will be signed out in 2 minutes. Your decisions are already saved. Please sign in again after." No button: the 8 hour limit cannot be extended (DESIGN_RULES section 11).
 
 ### Officer flow in one line
 Sign in -> My cases -> Case -> Item -> Also appears in -> Why linked -> Confirm or Reject (role permitting) -> Back to this case. Restricted branch: Also appears in -> Another police area -> Ask for access -> Request sent. Maximum 6 clicks from sign-in to a decision.
