@@ -16,7 +16,7 @@ from tracex_api import audit
 from tracex_api.audit import Actor, AuditError, AuditEvent
 from tracex_api.audit_events import EVENTS, registry_rows
 from tracex_api.db import many, one
-from tracex_api.main import chain_ready
+from tracex_api.main import check_chain
 
 PACKAGE = Path(__file__).resolve().parents[2] / "tracex_api"
 
@@ -238,7 +238,7 @@ def test_u16_a_broken_chain_in_the_tail_blocks_readiness(api: Api) -> None:
     assert api.client.get("/ready").status_code == 200
     _tamper(api, ["UPDATE audit_log SET outcome = 'FAILED' WHERE seq = 3"])
     state = api.client.app.state.tracex  # type: ignore[attr-defined]
-    assert chain_ready(state) is False
+    assert check_chain(state) is False
     response = api.client.get("/ready")
     assert response.status_code == 503 and response.json()["code"] == "NOT_READY"
 

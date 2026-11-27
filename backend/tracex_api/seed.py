@@ -17,6 +17,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from tracex_api.config import ConfigError, refuse_dev_secrets_in_tools
 from tracex_api.db import Conn, connect, many, need, one
 from tracex_api.security import hash_password
 
@@ -133,6 +134,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Seed the synthetic jurisdictions and users.")
     parser.add_argument("--seed-dir", type=Path, default=Path("data-kit/seed"))
     args = parser.parse_args(argv)
+    try:
+        refuse_dev_secrets_in_tools()
+    except ConfigError as exc:
+        raise SystemExit(f"refused: {exc}") from None
     jurisdictions, users, pairs = load_seed(args.seed_dir)
     admin_url = os.environ.get("DATABASE_ADMIN_URL")
     if not admin_url:

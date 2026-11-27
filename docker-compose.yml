@@ -35,7 +35,10 @@ services:
   # the audit chain and seeds the synthetic users. It is the only service that gets the Postgres
   # superuser URL; the api service never does.
   migrate:
-    build: ./backend
+    build:
+      context: ./backend
+      additional_contexts:
+        contracts: ./contracts
     command:
       ["sh", "-c", "python -m tracex_api.migrate && python -m tracex_api.seed --seed-dir /seed"]
     restart: "no"
@@ -43,6 +46,7 @@ services:
       DATABASE_ADMIN_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       TRACEX_MIGRATOR_DB_PASSWORD: ${TRACEX_MIGRATOR_DB_PASSWORD:?set TRACEX_MIGRATOR_DB_PASSWORD in .env}
       TRACEX_API_DB_PASSWORD: ${TRACEX_API_DB_PASSWORD:?set TRACEX_API_DB_PASSWORD in .env}
+      TRACEX_ALLOW_DEV_SECRETS: ${TRACEX_ALLOW_DEV_SECRETS:-}
       TRACEX_SEED_PASSWORD_ASHA: ${TRACEX_SEED_PASSWORD_ASHA:?set the TRACEX_SEED_PASSWORD_* values in .env}
       TRACEX_SEED_PASSWORD_ISHA: ${TRACEX_SEED_PASSWORD_ISHA:?set the TRACEX_SEED_PASSWORD_* values in .env}
       TRACEX_SEED_PASSWORD_JATIN: ${TRACEX_SEED_PASSWORD_JATIN:?set the TRACEX_SEED_PASSWORD_* values in .env}
@@ -64,12 +68,16 @@ services:
         condition: service_healthy
 
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      additional_contexts:
+        contracts: ./contracts
     environment:
       DATABASE_URL: postgresql://tracex_api:${TRACEX_API_DB_PASSWORD:?set TRACEX_API_DB_PASSWORD in .env}@postgres:5432/${POSTGRES_DB}
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: ${NEO4J_USER}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      TRACEX_ALLOW_DEV_SECRETS: ${TRACEX_ALLOW_DEV_SECRETS:-}
       TRACEX_JWT_KEY: ${TRACEX_JWT_KEY:?set the four TRACEX_*_KEY values in .env}
       TRACEX_CURSOR_KEY: ${TRACEX_CURSOR_KEY:?set the four TRACEX_*_KEY values in .env}
       TRACEX_ROW_REF_KEY: ${TRACEX_ROW_REF_KEY:?set the four TRACEX_*_KEY values in .env}
@@ -96,6 +104,38 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+
+  # One-shot demo seed (D63): loads the synthetic data-kit cases through the API upload path,
+  # runs matching and assigns cases. Run it on demand: docker compose run --rm seed
+  # It is behind a profile so `docker compose up` does not start it. It never gets a database URL.
+  seed:
+    build:
+      context: ./backend
+      additional_contexts:
+        contracts: ./contracts
+    profiles: ["seed"]
+    command:
+      [
+        "python",
+        "-m",
+        "tracex_api.seed_demo",
+        "--api-url",
+        "http://api:8000",
+        "--data-kit",
+        "/data-kit",
+      ]
+    restart: "no"
+    environment:
+      TRACEX_ENV: ${TRACEX_ENV:?set TRACEX_ENV in .env (development, local, test or demo)}
+      TRACEX_ALLOW_DEV_SECRETS: ${TRACEX_ALLOW_DEV_SECRETS:-}
+      PYTHONPATH: /data-kit
+      TRACEX_SEED_PASSWORD_MEENA: ${TRACEX_SEED_PASSWORD_MEENA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_HARI: ${TRACEX_SEED_PASSWORD_HARI:?set the TRACEX_SEED_PASSWORD_* values in .env}
+    volumes:
+      - ./data-kit:/data-kit:ro
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   pg-data:

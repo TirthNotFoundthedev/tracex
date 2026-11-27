@@ -1021,6 +1021,13 @@ export interface components {
       | "TOO_MANY_REQUESTS"
       | "NOT_READY"
       | "INTERNAL";
+    /** @description Body of the safety-pause 503. Both values are fixed. */
+    SafetyPauseError: {
+      /** @enum {string} */
+      code: "NOT_READY";
+      /** @enum {string} */
+      message_key: "error.not_ready";
+    };
     Error: {
       code: components["schemas"]["ErrorCode"];
       /** @description i18n key; the client owns the wording. Fixed per code. */
@@ -2721,6 +2728,21 @@ export interface components {
         "application/json": components["schemas"]["Error"];
       };
     };
+    /** @description The audit chain does not verify, or has not been verified yet, so the API is paused for safety. Every route except `GET /health`, `GET /ready` and `POST /audit/verify` answers this until a verify passes. The body is fixed, carries no data, and the client shows the safety-pause message. */
+    SafetyPause: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "code": "NOT_READY",
+         *       "message_key": "error.not_ready"
+         *     }
+         */
+        "application/json": components["schemas"]["SafetyPauseError"];
+      };
+    };
     /** @description Login throttled (5 failures per username string and IP in 15 minutes), applied whether or not the username exists. */
     TooManyRequests: {
       headers: {
@@ -2813,13 +2835,13 @@ export interface operations {
           "application/json": components["schemas"]["HealthStatus"];
         };
       };
-      /** @description Not ready. Body is the fixed `NOT_READY` error. */
+      /** @description Not ready. Body is the fixed `NOT_READY` error (the same body as the safety pause). */
       503: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["Error"];
+          "application/json": components["schemas"]["SafetyPauseError"];
         };
       };
     };
@@ -2850,6 +2872,7 @@ export interface operations {
       422: components["responses"]["Unprocessable"];
       429: components["responses"]["TooManyRequests"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   refreshToken: {
@@ -2877,6 +2900,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   logout: {
@@ -2897,6 +2921,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getMe: {
@@ -2919,6 +2944,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listCases: {
@@ -2950,6 +2976,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listCaseEntities: {
@@ -2981,6 +3008,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getEntity: {
@@ -3006,6 +3034,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   searchEntities: {
@@ -3036,6 +3065,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getSourceLines: {
@@ -3066,6 +3096,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listLinks: {
@@ -3098,6 +3129,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getLink: {
@@ -3123,6 +3155,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getLinkExplanation: {
@@ -3148,6 +3181,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   confirmLink: {
@@ -3180,6 +3214,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   rejectLink: {
@@ -3212,6 +3247,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   undoLink: {
@@ -3244,6 +3280,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   reopenLink: {
@@ -3276,6 +3313,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listReviewQueue: {
@@ -3312,6 +3350,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getEntityGraph: {
@@ -3341,6 +3380,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getEntityCluster: {
@@ -3366,6 +3406,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getEntityPaths: {
@@ -3395,6 +3436,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getStub: {
@@ -3420,6 +3462,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listAccessRequests: {
@@ -3451,6 +3494,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   createAccessRequest: {
@@ -3481,6 +3525,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getAccessRequest: {
@@ -3506,6 +3551,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   withdrawAccessRequest: {
@@ -3532,6 +3578,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       409: components["responses"]["Conflict"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   approveAccessRequest: {
@@ -3564,6 +3611,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   denyAccessRequest: {
@@ -3596,6 +3644,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listGrants: {
@@ -3627,6 +3676,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getGrant: {
@@ -3652,6 +3702,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   revokeGrant: {
@@ -3679,6 +3730,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       409: components["responses"]["Conflict"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listUploads: {
@@ -3707,6 +3759,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   uploadFiles: {
@@ -3735,6 +3788,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getUpload: {
@@ -3761,6 +3815,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listMatchingRuns: {
@@ -3789,6 +3844,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   startMatchingRun: {
@@ -3818,6 +3874,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getMatchingRun: {
@@ -3844,6 +3901,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listJurisdictions: {
@@ -3866,6 +3924,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listRoles: {
@@ -3888,6 +3947,7 @@ export interface operations {
       };
       401: components["responses"]["Unauthorized"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listUsers: {
@@ -3918,6 +3978,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getUser: {
@@ -3944,6 +4005,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getThresholds: {
@@ -3967,6 +4029,7 @@ export interface operations {
       401: components["responses"]["Unauthorized"];
       403: components["responses"]["Forbidden"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listPendingChanges: {
@@ -3997,6 +4060,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   proposeChange: {
@@ -4026,6 +4090,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   getPendingChange: {
@@ -4052,6 +4117,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   approveChange: {
@@ -4084,6 +4150,7 @@ export interface operations {
       409: components["responses"]["Conflict"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   denyChange: {
@@ -4111,6 +4178,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
       409: components["responses"]["Conflict"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   listAudit: {
@@ -4149,6 +4217,7 @@ export interface operations {
       403: components["responses"]["Forbidden"];
       422: components["responses"]["Unprocessable"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
   verifyAuditChain: {
@@ -4196,6 +4265,7 @@ export interface operations {
       /** @description Any non-ADMIN caller. */
       404: components["responses"]["NotFound"];
       500: components["responses"]["ServerError"];
+      503: components["responses"]["SafetyPause"];
     };
   };
 }
