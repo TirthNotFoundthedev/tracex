@@ -31,6 +31,11 @@ export interface RestrictedCardProps {
   onAskForAccess?: () => void;
   /** Opens the form again after a refusal. */
   onAskAgain?: () => void;
+  /**
+   * Weight of the button. Default "primary". A page that shows several cards, or other
+   * primary buttons, gives "primary" to one and "secondary" to the rest (DESIGN_RULES section 5).
+   */
+  emphasis?: "primary" | "secondary";
 }
 
 export function RestrictedCard({
@@ -40,6 +45,7 @@ export function RestrictedCard({
   refused,
   onAskForAccess,
   onAskAgain,
+  emphasis = "primary",
 }: RestrictedCardProps) {
   const { t } = useUi();
   const note = refused?.note?.trim();
@@ -66,7 +72,7 @@ export function RestrictedCard({
             </p>
           ) : null}
           {onAskAgain ? (
-            <Button variant="primary" onClick={onAskAgain}>
+            <Button variant={emphasis} onClick={onAskAgain}>
               {t("restricted.askAgain")}
             </Button>
           ) : null}
@@ -74,7 +80,7 @@ export function RestrictedCard({
       ) : requestedOn ? (
         <p className="tx-body">{t("restricted.sent", { date: requestedOn })}</p>
       ) : onAskForAccess ? (
-        <Button variant="primary" onClick={onAskForAccess}>
+        <Button variant={emphasis} onClick={onAskForAccess}>
           {t("restricted.ask")}
         </Button>
       ) : null}

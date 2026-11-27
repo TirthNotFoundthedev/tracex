@@ -154,7 +154,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - Loading: a text line "Loading your cases..." with a spinner icon; no skeleton animation. Waiting over 10 seconds adds "This is taking long. Please wait or try again."
 - Errors say what happened, whether data is safe, and what to do: "We could not save. Nothing was changed. [Try again]". Never codes, never blame ("you entered an invalid value"), never a dead end; always a button.
 - Empty states say why and what next: "No cases yet. Ask your supervisor to add your cases."
-- Session timeout warns 2 minutes before, with a button "Stay signed in".
+- Session limit: the session lasts 8 hours and cannot be extended, so the notice 2 minutes before the end has no "Stay signed in" button. It says what will happen and that decisions are already saved: "You will be signed out in 2 minutes. Your decisions are already saved. Please sign in again after." Reason: a button that cannot do what it says would lie. If the API later allows a refresh, the button returns.
 - Destructive admin actions state the effect in the button ("Delete this user") and need a second confirm. Every Administrator change to users, roles, areas, assignments or match settings is a proposal: after Save the page says "Sent for approval. Nothing changes until a senior officer approves it." and the item shows a tag with icon and words until a Senior officer decides (D35). Reason: the Administrator cannot change access alone, and the screen must not look as if the change already happened.
 
 ## 12. Graph view (admin only)
