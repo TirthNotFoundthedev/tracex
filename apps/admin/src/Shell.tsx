@@ -1,5 +1,5 @@
 import { Button, Loading, Message, SideNav, TopBar } from "@tracex/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AdminApi } from "./api";
 import { messageKeyFor, type FailureResult } from "./api/resultKeys";
@@ -41,6 +41,12 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
   const [me, setMe] = useState<Me>({ state: "loading" });
   // Only a phone uses this: below 40em the section list sits behind a "Menu" button.
   const [menuOpen, setMenuOpen] = useState(false);
+  const toggleBox = useRef<HTMLDivElement>(null);
+  // The list is hidden when the menu closes, so focus goes back to the Menu button instead of the page top.
+  const closeMenu = () => {
+    setMenuOpen(false);
+    toggleBox.current?.querySelector("button")?.focus();
+  };
 
   const load = useCallback(async () => {
     setMe({ state: "loading" });
@@ -133,30 +139,39 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
         {...header}
       />
       <div className="admin-frame">
-        <div className="admin-menu" id="admin-menu" data-open={menuOpen ? "true" : "false"}>
-          <div className="admin-menu__toggle">
+        <div
+          className="admin-menu"
+          data-open={menuOpen ? "true" : "false"}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && menuOpen) closeMenu();
+          }}
+        >
+          <div className="admin-menu__toggle" ref={toggleBox}>
             <Button
               icon="list"
               aria-expanded={menuOpen}
-              aria-controls="admin-menu"
+              aria-controls="admin-menu-list"
               onClick={() => setMenuOpen((open) => !open)}
             >
               {t("shell.menu", lang)}
             </Button>
           </div>
-          <SideNav
-            items={entries.map((entry) => ({
-              id: entry.id,
-              label: t(entry.labelKey, lang),
-              icon: entry.icon,
-            }))}
-            currentId={current.id}
-            onSelect={(id) => {
-              const target = entries.find((entry) => entry.id === id);
-              setMenuOpen(false);
-              if (target) navigate(target.path);
-            }}
-          />
+          <div id="admin-menu-list">
+            <SideNav
+              items={entries.map((entry) => ({
+                id: entry.id,
+                label: t(entry.labelKey, lang),
+                icon: entry.icon,
+              }))}
+              currentId={current.id}
+              onSelect={(id) => {
+                const target = entries.find((entry) => entry.id === id);
+                // Only the phone has an open menu to close; on a wide screen focus stays on the item.
+                if (menuOpen) closeMenu();
+                if (target) navigate(target.path);
+              }}
+            />
+          </div>
         </div>
         <main className="admin-main" data-page={current.id}>
           {current.id === "upload" ? <UploadPage api={api} lang={lang} /> : null}
