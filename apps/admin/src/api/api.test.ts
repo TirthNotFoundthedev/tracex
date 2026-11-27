@@ -481,6 +481,34 @@ describe("reasons", () => {
     },
   );
 
+  test.each(["rejectLink", "undoLink", "reopenLink"] as const)(
+    "%s with a reason shorter than 3 or longer than 1000 characters does not call the API",
+    async (name) => {
+      const { client, fetchImpl } = await signedIn(() => json(200, {}));
+      const before = fetchImpl.mock.calls.length;
+      expect(await client[name](ID, { reason: " ab " })).toEqual({
+        kind: "invalid",
+        fieldErrors: [{ field: "reason", code: "too_short" }],
+      });
+      expect(await client[name](ID, { reason: "x".repeat(1001) })).toEqual({
+        kind: "invalid",
+        fieldErrors: [{ field: "reason", code: "too_long" }],
+      });
+      expect(fetchImpl.mock.calls.length).toBe(before);
+    },
+  );
+
+  test.each(["rejectLink", "undoLink", "reopenLink"] as const)(
+    "%s sends a reason of exactly 3 and exactly 1000 characters",
+    async (name) => {
+      const { client, fetchImpl } = await signedIn(() => json(200, {}));
+      const before = fetchImpl.mock.calls.length;
+      await client[name](ID, { reason: "abc" });
+      await client[name](ID, { reason: "x".repeat(1000) });
+      expect(fetchImpl.mock.calls.length).toBe(before + 2);
+    },
+  );
+
   test("denyChange and denyAccessRequest send no note when it is blank", async () => {
     const { client, fetchImpl } = await signedIn(() => json(200, {}));
     await client.denyAccessRequest(ID, { note: "  " });

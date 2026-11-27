@@ -78,17 +78,27 @@ export function createClient(options: ClientOptions) {
   }
 
   const id = encodeURIComponent;
+  const REASON_MIN = 3;
+  const REASON_MAX = 1000;
 
-  /** Reject, undo and reopen need a written reason (D43). A blank one never leaves the browser. */
+  /** Reject, undo and reopen need a written reason of 3 to 1000 characters (D43, LinkReasonRequest). Any other length never leaves the browser. */
   function withReason<K extends "rejectLink" | "undoLink" | "reopenLink">(
     action: "reject" | "undo" | "reopen",
   ) {
     return (linkId: string, body: BodyOf<K>) => {
       const reason = (body as { reason: string }).reason.trim();
-      if (reason.length === 0) {
+      const code =
+        reason.length === 0
+          ? "required"
+          : reason.length < REASON_MIN
+            ? "too_short"
+            : reason.length > REASON_MAX
+              ? "too_long"
+              : undefined;
+      if (code) {
         return Promise.resolve<ApiResult<Success<K>>>({
           kind: "invalid",
-          fieldErrors: [{ field: "reason", code: "required" }],
+          fieldErrors: [{ field: "reason", code }],
         });
       }
       return call<Success<K>>("POST", `/links/${id(linkId)}/${action}`, { body: { reason } });
