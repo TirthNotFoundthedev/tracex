@@ -224,7 +224,7 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
               header: t("common.status", lang),
               cell: (b) =>
                 b.status === "FAILED"
-                  ? `${t("upload.status.failed", lang, { reason: t("upload.reason.default", lang) })}. ${t("upload.retryHint", lang)}`
+                  ? `${t("upload.failed.row", lang)} ${t("upload.retryHint", lang)}`
                   : t(STATUS_KEY[b.status], lang),
             },
             {
