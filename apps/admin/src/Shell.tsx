@@ -9,13 +9,14 @@ import { entryForPath, navFor, type PageId } from "./nav";
 import { usePath } from "./router";
 
 import { MatchingPage } from "./pages/MatchingPage";
+import { ReviewQueuePage } from "./pages/ReviewQueuePage";
 import { ThresholdsPage } from "./pages/ThresholdsPage";
 import { UploadPage } from "./pages/UploadPage";
 
 type User = components["schemas"]["User"];
 
 /** Pages that are not built yet show the placeholder. */
-const PENDING_PAGES: PageId[] = ["reviewQueue", "approvals", "users", "audit", "graph"];
+const PENDING_PAGES: PageId[] = ["approvals", "users", "audit", "graph"];
 
 type Me =
   | { state: "loading" }
@@ -35,7 +36,7 @@ interface ShellProps {
  * from the sign-in answer. Hiding a menu item is a convenience only; each page still handles the API saying no.
  */
 export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellProps) {
-  const { path, navigate, replace } = usePath();
+  const { path, search, navigate, replace } = usePath();
   const [me, setMe] = useState<Me>({ state: "loading" });
 
   const load = useCallback(async () => {
@@ -137,6 +138,15 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
         <main className="admin-main" data-page={current.id}>
           {current.id === "upload" ? <UploadPage api={api} lang={lang} /> : null}
           {current.id === "matching" ? <MatchingPage api={api} lang={lang} /> : null}
+          {current.id === "reviewQueue" ? (
+            <ReviewQueuePage
+              api={api}
+              lang={lang}
+              path={path}
+              search={search}
+              navigate={navigate}
+            />
+          ) : null}
           {current.id === "thresholds" ? (
             <ThresholdsPage api={api} lang={lang} role={me.user.role} />
           ) : null}

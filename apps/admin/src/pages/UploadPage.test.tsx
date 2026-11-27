@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 
+import { t } from "../i18n";
 import { DISTRICT, fakeApi, json, renderPage, type Routes } from "../testing";
 import { UploadPage } from "./UploadPage";
 
@@ -174,7 +175,7 @@ test("more than 20 files is refused before sending", async () => {
 test.each([
   [403, undefined, "You do not have access to do this."],
   [404, undefined, "We could not find this. Go back and try again."],
-  [429, undefined, "Too many tries. Please wait 15 minutes, then try again."],
+  [429, undefined, "The system is busy. Please wait a moment, then try again."],
   [503, undefined, "The system is paused for a safety check. Try again later."],
   [409, { code: "RUN_IN_PROGRESS" }, "A matching run is in progress. Try again in a few minutes."],
   [500, undefined, "Something went wrong on our side. Nothing was changed. Try again."],
@@ -241,4 +242,19 @@ test("the page reads in Hindi", async () => {
   expect(await screen.findByRole("button", { name: "फ़ाइलें अपलोड करें" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "फ़ाइलें अपलोड करें" }));
   expect(await screen.findByText("कृपया भरें: मामला।")).toBeTruthy();
+});
+
+test("a failed file row reads as full sentences in Hindi, each ending with the danda", async () => {
+  const { api } = page({
+    "GET /uploads": json(200, { items: [batch({ status: "FAILED" })], next_cursor: null }),
+  });
+  renderPage(<UploadPage api={api} lang="hi" />);
+  const row = await screen.findByText(/पढ़ नहीं सके/);
+  expect(row.textContent).toBe(
+    "पढ़ नहीं सके: फ़ाइल खुल नहीं सकी। फिर कोशिश करने के लिए फ़ाइल दोबारा चुनें।",
+  );
+  expect(row.textContent).not.toContain(".");
+  // The Hindi text differs from the English text for the keys this row uses.
+  expect(t("upload.failed.row", "hi")).not.toBe(t("upload.failed.row", "en"));
+  expect(t("upload.retryHint", "hi")).not.toBe(t("upload.retryHint", "en"));
 });

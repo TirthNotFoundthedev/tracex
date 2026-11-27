@@ -31,7 +31,14 @@ export function SignIn({ session, lang, sessionEnded }: SignInProps) {
     setWorking(false);
     if (result.kind === "ok") return;
     setPassword("");
-    setProblem(result.kind === "badCredentials" ? "signIn.error" : messageKeyFor(result));
+    // A 429 on the sign-in call is the lockout; anywhere else it is a plain "busy" (see resultKeys).
+    setProblem(
+      result.kind === "badCredentials"
+        ? "signIn.error"
+        : result.kind === "tooManyAttempts"
+          ? "signIn.tooManyTries"
+          : messageKeyFor(result),
+    );
   }
 
   const notice: AnyMessageKey | undefined =

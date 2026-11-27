@@ -17,7 +17,7 @@ export const failureKeys: Record<FailureKind, AnyMessageKey> = {
   tryAgainShortly: "error.runInProgress",
   conflict: "state.changedMeanwhile",
   invalid: "state.somethingMissing",
-  tooManyAttempts: "signIn.tooManyTries",
+  tooManyAttempts: "state.tooManyRequests",
   networkError: "state.noConnection",
   safetyPause: "error.safetyPause",
   serverError: "state.serverProblem",
