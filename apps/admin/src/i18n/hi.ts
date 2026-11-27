@@ -154,6 +154,33 @@ export const hi: Record<keyof typeof en, string> = {
   "queue.error.notFound": "हमें यह लिंक नहीं मिला।",
   "queue.showList": "सूची दिखाएँ",
   "queue.detail.open": "एडमिन ब्योरा",
+  "queue.panel.strong": "ये लिंक क्यों हैं",
+  "queue.panel.possible": "कृपया इस लिंक को जाँचें",
+  "queue.autoNote": "यह अपने-आप जुड़ा था। ग़लत हो तो इसे वापस ले सकते हैं।",
+  "queue.more.score": "मिलान अंक: {score} (100 में से)",
+  "queue.more.levels": "पक्का मिलान {high} से शुरू होता है। संभावित मिलान {medium} से शुरू होता है।",
+  "queue.more.raw": "मामला {case}, जैसा दर्ज है: {text}",
+  "queue.reject.title": "इस लिंक को अस्वीकार करें?",
+  "queue.reject.body": "दोनों रिकॉर्ड अब एक जैसे नहीं दिखाए जाएँगे।",
+  "queue.reject.yes": "हाँ, अस्वीकार करें",
+  "queue.undo.title": "इस लिंक को वापस लें?",
+  "queue.undo.body": "दोनों रिकॉर्ड अब एक जैसे नहीं दिखाए जाएँगे।",
+  "queue.undo.yes": "हाँ, वापस लें",
+  "queue.decided.confirmed": "आपने यह लिंक पक्का किया। दोनों रिकॉर्ड अब एक जैसे दिखाए जाते हैं।",
+  "queue.decided.rejected":
+    "आपने यह लिंक अस्वीकार किया। सुपरवाइज़र इसे अस्वीकृत सूची से फिर से खोल सकते हैं।",
+  "queue.decided.undone":
+    "आपने यह लिंक वापस लिया। सुपरवाइज़र इसे वापस लिए गए लिंक की सूची से फिर से खोल सकते हैं।",
+  "queue.block.viewOnly": "आप इस लिंक को देख सकते हैं, पर इस पर फ़ैसला नहीं ले सकते।",
+  "queue.block.twoAreas":
+    "यह लिंक दो पुलिस क्षेत्रों को जोड़ता है। इस पर केवल वरिष्ठ अधिकारी फ़ैसला ले सकते हैं।",
+  "queue.block.notBothAreas": "आप दोनों पुलिस क्षेत्रों को नहीं देखते।",
+  "queue.block.notBothCases": "आपके पास दोनों मामलों तक पहुँच नहीं है।",
+  "queue.rejected.historyNoName": "{date} को अस्वीकार किया गया",
+  "queue.undone.historyNoName": "{date} को वापस लिया गया",
+  "queue.history.reason": "कारण: {reason}",
+  "queue.someone": "कोई व्यक्ति",
+  "queue.type.all": "सभी प्रकार",
 
   // A4
   "approvals.title": "मंज़ूरियाँ",
