@@ -258,6 +258,62 @@ function areaKindOf(
 
 type Mode = { kind: "new" } | { kind: "user"; user: User };
 
+/**
+ * Opening a user reads that one user and builds the form from the answer: a list row can be stale, and a
+ * changed coverage is sent back as a whole replacement. Only on open, never per row (D69).
+ */
+function FreshUser({
+  api,
+  lang,
+  mode,
+  onBack,
+  children,
+}: {
+  api: AdminApi;
+  lang: Language;
+  mode: Mode;
+  onBack: () => void;
+  children: (mode: Mode) => React.ReactNode;
+}) {
+  const id = mode.kind === "user" ? mode.user.user_id : undefined;
+  const [attempt, setAttempt] = useState(0);
+  const [read, setRead] = useState<
+    | { state: "loading" }
+    | { state: "failed"; result: FailureResult }
+    | { state: "ready"; user: User }
+  >({ state: "loading" });
+  useEffect(() => {
+    if (!id) return;
+    let live = true;
+    setRead({ state: "loading" });
+    void api.client.getUser(id).then((result) => {
+      if (!live) return;
+      setRead(
+        result.kind === "ok" ? { state: "ready", user: result.data } : { state: "failed", result },
+      );
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, id, attempt]);
+
+  if (!id) return <>{children(mode)}</>;
+  if (read.state === "loading") return <Loading label={t("loading.default", lang)} />;
+  if (read.state === "failed") {
+    return (
+      <>
+        <FailureView result={read.result} lang={lang} onRetry={() => setAttempt((n) => n + 1)} />
+        <div className="admin-actions">
+          <Button variant="secondary" onClick={onBack}>
+            {t("state.backToList", lang)}
+          </Button>
+        </div>
+      </>
+    );
+  }
+  return <>{children({ kind: "user", user: read.user })}</>;
+}
+
 interface FormProps {
   api: AdminApi;
   lang: Language;
@@ -562,7 +618,7 @@ interface UsersPageProps {
  * A5 Users and roles. An administrator proposes (add, role, area, turn on or off) and a Senior officer
  * decides on the Approvals page (D35); a Senior officer reads the users inside their coverage. The form
  * always sends exactly one of `district_id` or `coverage` where the role has an area (see userChange.ts).
- * Opening a row reads nothing more: the details are in the list row (D69).
+ * Opening a row reads that one user (never one per row, D69).
  */
 export function UsersPage({ api, lang, role }: UsersPageProps) {
   const [attempt, setAttempt] = useState(0);
@@ -605,17 +661,26 @@ export function UsersPage({ api, lang, role }: UsersPageProps) {
     return (
       <div className="admin-page">
         <h2 className="admin-panel-title">{t("users.title", lang)}</h2>
-        <UserForm
+        <FreshUser
           key={mode.kind === "user" ? mode.user.user_id : "new"}
           api={api}
           lang={lang}
           mode={mode}
-          canEdit={canEdit}
-          reference={reference}
-          waiting={mode.kind === "user" ? bySubject.get(mode.user.user_id) : undefined}
-          onSent={(change) => setSent((now) => [...now, change])}
           onBack={() => setMode(undefined)}
-        />
+        >
+          {(fresh) => (
+            <UserForm
+              api={api}
+              lang={lang}
+              mode={fresh}
+              canEdit={canEdit}
+              reference={reference}
+              waiting={fresh.kind === "user" ? bySubject.get(fresh.user.user_id) : undefined}
+              onSent={(change) => setSent((now) => [...now, change])}
+              onBack={() => setMode(undefined)}
+            />
+          )}
+        </FreshUser>
       </div>
     );
   }
