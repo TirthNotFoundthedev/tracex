@@ -283,6 +283,49 @@ test("the menu has a visible 'Menu' button that opens and closes the section lis
   expect(screen.getByRole("button", { name: "Menu" }).getAttribute("aria-expanded")).toBe("false");
 });
 
+test("aria-controls points at the element that holds only the section list, not the button", async () => {
+  await signIn(setup(() => json(200, person("ADMIN", null))));
+  const nav = await screen.findByRole("navigation", { name: /Main sections/i });
+  const toggle = screen.getByRole("button", { name: "Menu" });
+  const list = document.getElementById(toggle.getAttribute("aria-controls") as string);
+  expect(list?.contains(nav)).toBe(true);
+  expect(list?.contains(toggle)).toBe(false);
+});
+
+test("choosing a section from the open menu returns focus to the Menu button", async () => {
+  await signIn(setup(() => json(200, person("ADMIN", null))));
+  const nav = await screen.findByRole("navigation", { name: /Main sections/i });
+  const toggle = screen.getByRole("button", { name: "Menu" });
+  fireEvent.click(toggle);
+  const matching = within(nav).getByRole("button", { name: "Matching" });
+  matching.focus();
+  fireEvent.click(matching);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(toggle);
+});
+
+test("Escape closes the open menu and returns focus to the Menu button", async () => {
+  await signIn(setup(() => json(200, person("ADMIN", null))));
+  const nav = await screen.findByRole("navigation", { name: /Main sections/i });
+  const toggle = screen.getByRole("button", { name: "Menu" });
+  fireEvent.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  const item = within(nav).getByRole("button", { name: "Matching" });
+  item.focus();
+  fireEvent.keyDown(item, { key: "Escape" });
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(toggle);
+});
+
+test("Escape with the menu closed does nothing", async () => {
+  await signIn(setup(() => json(200, person("ADMIN", null))));
+  const nav = await screen.findByRole("navigation", { name: /Main sections/i });
+  const item = within(nav).getByRole("button", { name: "Matching" });
+  item.focus();
+  fireEvent.keyDown(item, { key: "Escape" });
+  expect(document.activeElement).toBe(item);
+});
+
 test("the menu button reads in Hindi", async () => {
   await signIn(
     setup(() => json(200, person("ADMIN", null))),
