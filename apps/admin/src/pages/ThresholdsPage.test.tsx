@@ -123,7 +123,7 @@ test.each([
   [404, undefined, "We could not find this. Go back and try again."],
   [409, { code: "RUN_IN_PROGRESS" }, "A matching run is in progress. Try again in a few minutes."],
   [409, { code: "CONFLICT" }, "Someone changed this while you were looking. Please open it again."],
-  [429, undefined, "Too many tries. Please wait 15 minutes, then try again."],
+  [429, undefined, "The system is busy. Please wait a moment, then try again."],
   [503, undefined, "The system is paused for a safety check. Try again later."],
 ])(
   "a %s answer to Save shows the shared message and keeps the typed numbers",
@@ -167,7 +167,7 @@ test("the page reads in Hindi", async () => {
 test.each([
   [403, "You do not have access to do this."],
   [404, "We could not find this. Go back and try again."],
-  [429, "Too many tries. Please wait 15 minutes, then try again."],
+  [429, "The system is busy. Please wait a moment, then try again."],
   [503, "The system is paused for a safety check. Try again later."],
 ])(
   "a %s answer on the waiting-changes list shows the failure, no Save form and Try again",

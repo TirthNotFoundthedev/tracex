@@ -139,7 +139,8 @@ test("SUPERVISOR shows the area name and no system pages", async () => {
   await signIn(setup(() => json(200, person("SUPERVISOR"))));
   await screen.findByRole("navigation", { name: /Main sections/i });
   expect(navLabels()).toEqual(["Review queue", "Approvals", "Audit log", "Network graph"]);
-  expect(await screen.findByText("Rivergate")).toBeTruthy();
+  // The Area filter on the review queue lists the same name, so look in the header.
+  expect(await within(screen.getByRole("banner")).findByText("Rivergate")).toBeTruthy();
   expect(window.location.pathname).toBe("/review");
 });
 
@@ -207,4 +208,17 @@ test("sign out returns to the sign-in page", async () => {
   );
   expect(api.session.accessToken()).toBeUndefined();
   expect(screen.queryByText("Your session has ended. Please sign in again.")).toBeNull();
+});
+
+test("a 429 on sign-in is the lockout text, not the plain busy text", async () => {
+  const fetchImpl = vi.fn(() =>
+    Promise.resolve(json(429, { code: "RATE_LIMITED" })),
+  ) as unknown as typeof fetch;
+  render(<App api={createApi({ baseUrl: "http://api.test", fetch: fetchImpl })} />);
+  fireEvent.change(screen.getByLabelText(/user ID/), { target: { value: "x" } });
+  fireEvent.change(screen.getByLabelText(/^Your password/), { target: { value: "y" } });
+  fireEvent.click(screen.getAllByRole("button", { name: "Sign in" }).at(0) as HTMLElement);
+  expect(
+    await screen.findByText("Too many tries. Please wait 15 minutes, then try again."),
+  ).toBeTruthy();
 });
