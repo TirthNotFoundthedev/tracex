@@ -175,7 +175,7 @@ test("more than 20 files is refused before sending", async () => {
 test.each([
   [403, undefined, "You do not have access to do this."],
   [404, undefined, "We could not find this. Go back and try again."],
-  [429, undefined, "Too many tries. Please wait 15 minutes, then try again."],
+  [429, undefined, "The system is busy. Please wait a moment, then try again."],
   [503, undefined, "The system is paused for a safety check. Try again later."],
   [409, { code: "RUN_IN_PROGRESS" }, "A matching run is in progress. Try again in a few minutes."],
   [500, undefined, "Something went wrong on our side. Nothing was changed. Try again."],

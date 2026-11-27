@@ -107,7 +107,7 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
     reopening?.earlier?.actorId,
   ]);
 
-  if (load.state === "loading") return <Loading label={t("shell.loadingUser", lang)} />;
+  if (load.state === "loading") return <Loading label={t("loading.default", lang)} />;
   if (load.state === "failed") {
     const gone = load.result.kind === "notFound";
     return (
@@ -130,7 +130,7 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
   const waitingForNames = [decision?.actorId, reopening?.actorId, reopening?.earlier?.actorId].some(
     (id) => id !== undefined && !(id in actors),
   );
-  if (waitingForNames) return <Loading label={t("shell.loadingUser", lang)} />;
+  if (waitingForNames) return <Loading label={t("loading.default", lang)} />;
 
   async function decide(
     outcome: Outcome,
@@ -190,7 +190,7 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
       <div className="admin-page">
         {problem}
         {busy ? (
-          <Loading label={t("shell.loadingUser", lang)} />
+          <Loading label={t("queue.saving", lang)} />
         ) : (
           <ConfirmStep
             title={t(copy[view.name].title, lang)}
@@ -252,15 +252,7 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
   const decided = detail.state === "REJECTED" || detail.state === "UNDONE";
   const suggested = detail.state === "SUGGESTED";
   const strength = detail.state === "AUTO" || detail.state === "CONFIRMED" ? "strong" : "possible";
-  const primary = canConfirm
-    ? "confirm"
-    : canUndo
-      ? "undo"
-      : canReopen
-        ? "reopen"
-        : canReject
-          ? "reject"
-          : undefined;
+  const primary = canConfirm ? "confirm" : canUndo ? "undo" : canReopen ? "reopen" : undefined;
   const variant = (which: string) => (primary === which ? "primary" : "secondary");
   const record = (id: string) => explanation.records.find((r) => r.case_id === id);
 
@@ -360,7 +352,7 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
         <p className="admin-body">{t("queue.autoNote", lang)}</p>
       ) : null}
       {blocked ? <Message kind="info">{t(blocked, lang)}</Message> : null}
-      {busy ? <Loading label={t("shell.loadingUser", lang)} /> : null}
+      {busy ? <Loading label={t("queue.saving", lang)} /> : null}
       <div className="admin-actions">
         {canConfirm ? (
           <Button

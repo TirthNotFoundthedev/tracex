@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-libra
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, expect, test } from "vitest";
 
-import type { AdminApi } from "../api";
+import { createApi, type AdminApi } from "../api";
 import { t } from "../i18n";
 import type { Role } from "../nav";
 import { usePath } from "../router";
@@ -976,4 +976,248 @@ test("a network error on the name look-up is not kept either", async () => {
   await screen.findAllByText("24/118");
   fireEvent.click(button("Open"));
   expect(await screen.findByText(NAMED)).toBeTruthy();
+});
+
+/** A fake `fetch` whose queue answers can be held back by the test and released later. */
+function heldApi(answer: (url: URL) => { hold?: boolean; response: Response }) {
+  const held: (() => void)[] = [];
+  const fetchImpl = ((input: RequestInfo | URL) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/jurisdictions") return Promise.resolve(places.clone());
+    if (url.pathname !== "/review-queue") return Promise.resolve(json(404));
+    const { hold, response } = answer(url);
+    if (!hold) return Promise.resolve(response);
+    return new Promise<Response>((resolve) => held.push(() => resolve(response)));
+  }) as unknown as typeof fetch;
+  return {
+    api: createApi({ baseUrl: "http://api.test", fetch: fetchImpl }),
+    release: () => held.splice(0).forEach((f) => f()),
+  };
+}
+
+const page = (items: unknown[], extra: Record<string, unknown> = {}) =>
+  json(200, { items, next_cursor: null, total: items.length, ...extra });
+
+test("a late answer for an earlier filter does not overwrite the list for the current one", async () => {
+  const { api, release } = heldApi((url) =>
+    url.searchParams.get("limit") === "1"
+      ? { response: page([]) }
+      : url.searchParams.get("entity_type") === "PHONE"
+        ? { response: page([item({ link_id: LINK2 })]) }
+        : {
+            hold: true,
+            response: page([item({ ends: [end(1, "OLD/1"), end(2, "OLD/2")] })]),
+          },
+  );
+  window.history.replaceState(null, "", "/review");
+  renderPage(<Harness api={api} />);
+  await screen.findByRole("option", { name: "Rivergate" });
+  fireEvent.change(screen.getByLabelText("Type"), { target: { value: "PHONE" } });
+  expect((await screen.findAllByText("24/118")).length).toBeGreaterThan(0);
+  await act(async () => release());
+  expect(screen.queryByText("OLD/1")).toBeNull();
+  expect(screen.getAllByText("24/118").length).toBeGreaterThan(0);
+});
+
+test("a late Show more answer for an earlier filter is not added to the new list", async () => {
+  const { api, release } = heldApi((url) => {
+    if (url.searchParams.get("limit") === "1") return { response: page([]) };
+    if (url.searchParams.get("cursor"))
+      return {
+        hold: true,
+        response: page([item({ link_id: LINK2, ends: [end(1, "LATE/1"), end(2, "LATE/2")] })]),
+      };
+    return url.searchParams.get("entity_type") === "PHONE"
+      ? { response: page([item()]) }
+      : { response: page([item()], { next_cursor: "next-page", total: 80 }) };
+  });
+  window.history.replaceState(null, "", "/review");
+  renderPage(<Harness api={api} />);
+  await screen.findAllByText("24/118");
+  await screen.findByRole("option", { name: "Rivergate" });
+  fireEvent.click(button("Show more"));
+  fireEvent.change(screen.getByLabelText("Type"), { target: { value: "PHONE" } });
+  await waitFor(() => expect(window.location.search).toContain("type=PHONE"));
+  await screen.findAllByText("24/118");
+  await act(async () => release());
+  expect(screen.queryByText("LATE/1")).toBeNull();
+  expect(screen.getAllByRole("button", { name: "Open" }).length).toBe(1);
+});
+
+test("when Show more fails the loaded rows stay and the failure shows under them", async () => {
+  let failing = true;
+  open({
+    "GET /review-queue": ({ url }) => {
+      const params = new URL(url).searchParams;
+      if (params.get("limit") === "1")
+        return json(200, { items: [], next_cursor: null, total: 80 });
+      if (params.get("cursor"))
+        return failing
+          ? json(503)
+          : json(200, { items: [item({ link_id: LINK2 })], next_cursor: null, total: 80 });
+      return json(200, { items: [item()], next_cursor: "next-page", total: 80 });
+    },
+    "GET /jurisdictions": places,
+  });
+  await screen.findAllByText("24/118");
+  fireEvent.click(button("Show more"));
+  expect(
+    await screen.findByText("The system is paused for a safety check. Try again later."),
+  ).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: "Open" }).length).toBe(1);
+  failing = false;
+  fireEvent.click(button("Try again"));
+  await waitFor(() => expect(screen.getAllByRole("button", { name: "Open" }).length).toBe(2));
+  expect(
+    screen.queryByText("The system is paused for a safety check. Try again later."),
+  ).toBeNull();
+});
+
+test("the count under the list is the API total, and no count is shown when the API gives none", async () => {
+  open({
+    "GET /review-queue": ({ url }) => {
+      const params = new URL(url).searchParams;
+      return params.get("limit") === "1"
+        ? json(200, { items: [], next_cursor: null, total: 80 })
+        : json(200, { items: [item()], next_cursor: "next-page", total: 80 });
+    },
+    "GET /jurisdictions": places,
+  });
+  expect(await screen.findByText("Showing 1 of 80")).toBeTruthy();
+  cleanup();
+  open({
+    "GET /review-queue": ({ url }) => {
+      const params = new URL(url).searchParams;
+      return params.get("limit") === "1"
+        ? json(200, { items: [], next_cursor: null })
+        : json(200, { items: [item()], next_cursor: "next-page" });
+    },
+    "GET /jurisdictions": places,
+  });
+  await screen.findAllByText("24/118");
+  expect(button("Show more")).toBeTruthy();
+  expect(screen.queryByText(/Showing \d+ of/)).toBeNull();
+});
+
+test("Back from a link keeps the Type, Area and waiting-time filters", async () => {
+  open({
+    ...queue({ SUGGESTED: [item()] }),
+    [`GET /links/${LINK}`]: json(200, detail()),
+    [`GET /links/${LINK}/explanation`]: json(200, explanation()),
+  });
+  await screen.findAllByText("24/118");
+  await screen.findByRole("option", { name: "Rivergate" });
+  fireEvent.change(screen.getByLabelText("Type"), { target: { value: "PHONE" } });
+  fireEvent.change(screen.getByLabelText("Area"), { target: { value: DISTRICT } });
+  fireEvent.click(screen.getByLabelText("Waiting more than 7 days"));
+  await waitFor(() => expect(window.location.search).toContain("old=1"));
+  fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+  await screen.findByText("Please check this link");
+  fireEvent.click(button("Back to the list"));
+  await screen.findAllByText("24/118");
+  expect((screen.getByLabelText("Type") as HTMLSelectElement).value).toBe("PHONE");
+  expect((screen.getByLabelText("Area") as HTMLSelectElement).value).toBe(DISTRICT);
+  expect((screen.getByLabelText("Waiting more than 7 days") as HTMLInputElement).checked).toBe(
+    true,
+  );
+  expect(window.location.search).toContain("type=PHONE");
+});
+
+test("a reason of 1000 characters is accepted and 1001 is refused", async () => {
+  const { calls } = open(
+    {
+      ...queue({ SUGGESTED: [item()] }),
+      [`GET /links/${LINK}`]: json(200, detail()),
+      [`GET /links/${LINK}/explanation`]: json(200, explanation()),
+      [`POST /links/${LINK}/reject`]: json(
+        200,
+        detail({ state: "REJECTED", allowed_actions: ["REOPEN"] }),
+      ),
+    },
+    "en",
+    `/review/${LINK}`,
+  );
+  await screen.findByText("Please check this link");
+  fireEvent.click(button("Reject this link"));
+  fireEvent.change(screen.getByLabelText(/Why are you rejecting it\?/), {
+    target: { value: "x".repeat(1001) },
+  });
+  fireEvent.click(button("Yes, reject"));
+  expect(await screen.findByText(t("state.somethingMissing", "en"))).toBeTruthy();
+  expect(calls.some((c) => c.path.endsWith("/reject"))).toBe(false);
+  fireEvent.change(screen.getByLabelText(/Why are you rejecting it\?/), {
+    target: { value: "x".repeat(1000) },
+  });
+  fireEvent.click(button("Yes, reject"));
+  await screen.findByText(
+    "You rejected this link. A supervisor can reopen it from the Rejected list.",
+  );
+  expect(sentBody(calls, `/links/${LINK}/reject`).reason).toBe("x".repeat(1000));
+});
+
+test("a 429 on the link panel says the system is busy, not the sign-in lockout", async () => {
+  open(
+    {
+      ...queue({ SUGGESTED: [item()] }),
+      [`GET /links/${LINK}`]: json(429),
+      [`GET /links/${LINK}/explanation`]: json(200, explanation()),
+    },
+    "en",
+    `/review/${LINK}`,
+  );
+  expect(await screen.findByText(t("state.tooManyRequests", "en"))).toBeTruthy();
+  expect(screen.queryByText(/15 minutes/)).toBeNull();
+  expect(t("state.tooManyRequests", "hi")).not.toBe(t("state.tooManyRequests", "en"));
+});
+
+test("when Reject is the only allowed decision it is not the primary button", async () => {
+  open(
+    {
+      ...queue({ SUGGESTED: [item()] }),
+      [`GET /links/${LINK}`]: json(200, detail({ allowed_actions: ["REJECT"] })),
+      [`GET /links/${LINK}/explanation`]: json(200, explanation()),
+    },
+    "en",
+    `/review/${LINK}`,
+  );
+  await screen.findByText("Please check this link");
+  expect(button("Reject this link").getAttribute("data-variant")).toBe("secondary");
+});
+
+/** Answers the link read and the list at once, and keeps the POST open until the test lets it go. */
+function slowPostApi() {
+  let finish: () => void = () => {};
+  const fetchImpl = ((input: RequestInfo | URL, init: RequestInit = {}) => {
+    const url = new URL(String(input));
+    if (init.method === "POST")
+      return new Promise<Response>((resolve) => {
+        finish = () => resolve(json(200, detail({ state: "CONFIRMED", allowed_actions: [] })));
+      });
+    if (url.pathname === `/links/${LINK}`) return Promise.resolve(json(200, detail()));
+    if (url.pathname === `/links/${LINK}/explanation`)
+      return Promise.resolve(json(200, explanation()));
+    return Promise.resolve(json(404));
+  }) as unknown as typeof fetch;
+  return {
+    api: createApi({ baseUrl: "http://api.test", fetch: fetchImpl }),
+    finish: () => finish(),
+  };
+}
+
+test("the link panel loads with the shared Loading text and saves with its own line", async () => {
+  const neverAnswers = (() => new Promise<Response>(() => {})) as unknown as typeof fetch;
+  const waiting = createApi({ baseUrl: "http://api.test", fetch: neverAnswers });
+  window.history.replaceState(null, "", `/review/${LINK}`);
+  renderPage(<Harness api={waiting} />);
+  expect(screen.getByText("Loading...")).toBeTruthy();
+  expect(screen.queryByText("Loading your details...")).toBeNull();
+  cleanup();
+
+  const { api, finish } = slowPostApi();
+  renderPage(<Harness api={api} />);
+  await screen.findByText("Please check this link");
+  fireEvent.click(button("Confirm they are the same"));
+  expect(await screen.findByText("Saving your decision...")).toBeTruthy();
+  expect(screen.queryByText("Loading your details...")).toBeNull();
+  await act(async () => finish());
 });

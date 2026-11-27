@@ -43,6 +43,8 @@ export const en = {
   "state.changedMeanwhile": "Someone changed this while you were looking. Please open it again.",
   "state.somethingMissing": "Something is missing. Check the fields marked below.",
   "state.noConnection": "No connection. Check your network and try again.",
+  "state.tooManyRequests": "The system is busy. Please wait a moment, then try again.",
+  "queue.saving": "Saving your decision...",
   "state.serverProblem": "Something went wrong on our side. Nothing was changed. Try again.",
   "state.tryAgain": "Try again",
   "state.backToList": "Back to the list",

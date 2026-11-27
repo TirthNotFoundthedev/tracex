@@ -38,6 +38,8 @@ export const hi: Record<keyof typeof en, string> = {
   "state.changedMeanwhile": "आपके देखते समय किसी ने इसे बदल दिया। कृपया इसे फिर से खोलें।",
   "state.somethingMissing": "कुछ कमी है। नीचे चिह्नित खाने जाँचें।",
   "state.noConnection": "कनेक्शन नहीं है। अपना नेटवर्क जाँचें और फिर कोशिश करें।",
+  "state.tooManyRequests": "सिस्टम अभी व्यस्त है। थोड़ा रुकें, फिर कोशिश करें।",
+  "queue.saving": "आपका निर्णय सहेजा जा रहा है...",
   "state.serverProblem": "हमारी तरफ़ कुछ गड़बड़ हुई। कुछ भी बदला नहीं गया। फिर कोशिश करें।",
   "state.tryAgain": "फिर कोशिश करें",
   "state.backToList": "सूची पर वापस जाएँ",

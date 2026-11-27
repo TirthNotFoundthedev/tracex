@@ -209,3 +209,16 @@ test("sign out returns to the sign-in page", async () => {
   expect(api.session.accessToken()).toBeUndefined();
   expect(screen.queryByText("Your session has ended. Please sign in again.")).toBeNull();
 });
+
+test("a 429 on sign-in is the lockout text, not the plain busy text", async () => {
+  const fetchImpl = vi.fn(() =>
+    Promise.resolve(json(429, { code: "RATE_LIMITED" })),
+  ) as unknown as typeof fetch;
+  render(<App api={createApi({ baseUrl: "http://api.test", fetch: fetchImpl })} />);
+  fireEvent.change(screen.getByLabelText(/user ID/), { target: { value: "x" } });
+  fireEvent.change(screen.getByLabelText(/^Your password/), { target: { value: "y" } });
+  fireEvent.click(screen.getAllByRole("button", { name: "Sign in" }).at(0) as HTMLElement);
+  expect(
+    await screen.findByText("Too many tries. Please wait 15 minutes, then try again."),
+  ).toBeTruthy();
+});
