@@ -365,7 +365,8 @@ test("an administrator sees the status of their changes and no Approve button", 
 
 test("a senior officer asks only for the pending changes; an administrator asks for all of theirs", async () => {
   const senior = setup("SENIOR");
-  await screen.findByRole("button", { name: /Changes/ });
+  fireEvent.click(await screen.findByRole("button", { name: /Changes/ }));
+  await screen.findByText("Ravi Kumar: Supervisor to Senior officer");
   const asked = senior.calls.filter((c) => c.path === "/pending-changes");
   expect(asked.length).toBeGreaterThan(0);
   cleanup();
@@ -613,7 +614,7 @@ test("a new user shows the sign-in name, role and area", async () => {
     ],
     "Add user Meena Rao",
   );
-  expect(await screen.findByText("Sign-in name")).toBeTruthy();
+  expect((await screen.findAllByText("Sign-in name")).length).toBeGreaterThan(0);
   expect(screen.getByText("meena.senior")).toBeTruthy();
   expect(screen.getByText("Bengaluru Urban")).toBeTruthy();
 });

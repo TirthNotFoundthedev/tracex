@@ -97,6 +97,13 @@ function usePagedList<T>(fetchPage: (cursor?: string) => Promise<ApiResult<PageS
   return { load, more, moreFailure, refresh, loadMore };
 }
 
+/** The open tab's number comes from its own list `total`: no separate count read (D69). */
+function useReportTotal<T>(load: ListLoad<T>, onTotal: (n: number) => void) {
+  useEffect(() => {
+    if (load.state === "ready") onTotal(load.total ?? load.items.length);
+  }, [load, onTotal]);
+}
+
 interface Column<T> {
   id: string;
   header: string;
@@ -295,12 +302,12 @@ function AccessTab({
   api,
   lang,
   userId,
-  onChanged,
+  onTotal,
 }: {
   api: AdminApi;
   lang: Language;
   userId: string;
-  onChanged: () => void;
+  onTotal: (n: number) => void;
 }) {
   const fetchPage = useCallback(
     (cursor?: string) =>
@@ -316,6 +323,7 @@ function AccessTab({
     fetchPage as (cursor?: string) => Promise<ApiResult<PageShape<AccessItem>>>,
   );
   const [opened, setOpened] = useState<AccessItem | undefined>();
+  useReportTotal(list.load, onTotal);
 
   if (opened) {
     return (
@@ -328,7 +336,6 @@ function AccessTab({
         onBack={() => {
           setOpened(undefined);
           void list.refresh();
-          onChanged();
         }}
       />
     );
@@ -362,14 +369,47 @@ function AccessTab({
 
 // ---------------------------------------------------------------- pending changes
 
-type Areas = Map<string, string>;
+type Areas =
+  | { status: "loading" }
+  | { status: "failed"; result: FailureResult }
+  | { status: "ready"; districts: Map<string, string>; states: Map<string, string> };
 
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 
-function areaName(value: Record<string, unknown>, areas: Areas, lang: Language): string {
-  if (typeof value.district_id === "string") return areas.get(value.district_id) ?? NO_VALUE;
-  return value.coverage ? t("shell.noArea", lang) : NO_VALUE;
+/**
+ * The words for the area in `value` (a district or a coverage set), or undefined when a name cannot be
+ * found. The approver must see what the change hash binds, so an unknown name is never shown as a dash.
+ */
+function areaOf(value: Record<string, unknown>, areas: Areas, lang: Language): string | undefined {
+  if (areas.status !== "ready") return undefined;
+  if (typeof value.district_id === "string") return areas.districts.get(value.district_id);
+  const coverage = record(value.coverage);
+  if (value.coverage && typeof value.coverage === "object") {
+    if (coverage.all_states === true) return t("shell.noArea", lang);
+    const names = [
+      ...(Array.isArray(coverage.state_ids) ? coverage.state_ids : []).map((id) =>
+        areas.states.get(String(id)),
+      ),
+      ...(Array.isArray(coverage.district_ids) ? coverage.district_ids : []).map((id) =>
+        areas.districts.get(String(id)),
+      ),
+    ];
+    if (names.length === 0) return t("approvals.area.none", lang);
+    return names.some((n) => n === undefined) ? undefined : names.join(", ");
+  }
+  return t("approvals.area.none", lang);
+}
+
+const areaText = (value: Record<string, unknown>, areas: Areas, lang: Language) =>
+  areaOf(value, areas, lang) ?? t("approvals.area.unknown", lang);
+
+/** True when this change shows an area whose name we cannot give. Approve stays hidden until it loads. */
+function areaMissing(change: Change, areas: Areas, lang: Language): boolean {
+  if (change.kind !== "USER_JURISDICTION" && change.kind !== "USER_CREATE") return false;
+  const values =
+    change.kind === "USER_CREATE" ? [change.new_value] : [change.old_value, change.new_value];
+  return values.some((v) => v && areaOf(record(v), areas, lang) === undefined);
 }
 
 /** The change in plain words. */
@@ -398,8 +438,8 @@ function changeText(change: Change, areas: Areas, lang: Language): string {
     case "USER_JURISDICTION":
       return t("approvals.change.userArea", lang, {
         name,
-        from: areaName(from, areas, lang),
-        to: areaName(to, areas, lang),
+        from: areaText(from, areas, lang),
+        to: areaText(to, areas, lang),
       });
     case "ASSIGNMENT_ADD":
     case "ASSIGNMENT_REMOVE":
@@ -451,27 +491,24 @@ function valueRows(change: Change, areas: Areas, lang: Language): ValueRow[] {
       return [
         {
           label: t("users.field.area", lang),
-          from: areaName(from, areas, lang),
-          to: areaName(to, areas, lang),
+          from: areaText(from, areas, lang),
+          to: areaText(to, areas, lang),
         },
       ];
     case "USER_ENABLE":
     case "USER_DISABLE": {
       const status = (v: unknown) =>
-        t(v === true ? "users.status.active" : "users.status.off", lang);
+        typeof v === "boolean" ? t(v ? "users.status.active" : "users.status.off", lang) : NO_VALUE;
       return [
-        {
-          label: t("common.status", lang),
-          from: status(change.kind === "USER_DISABLE"),
-          to: status(change.kind === "USER_ENABLE"),
-        },
+        { label: t("common.status", lang), from: status(from.active), to: status(to.active) },
       ];
     }
     case "USER_CREATE":
       return [
         { label: t("users.field.name", lang), from: NO_VALUE, to: text(to.display_name) },
+        { label: t("approvals.signInName", lang), from: NO_VALUE, to: text(to.username) },
         { label: t("users.field.role", lang), from: NO_VALUE, to: roleName(to.role, lang) },
-        { label: t("users.field.area", lang), from: NO_VALUE, to: areaName(to, areas, lang) },
+        { label: t("users.field.area", lang), from: NO_VALUE, to: areaText(to, areas, lang) },
       ];
     case "ASSIGNMENT_ADD":
       return [
@@ -498,6 +535,7 @@ function ChangeDetail({
   item,
   userId,
   areas,
+  onRetryAreas,
   onBack,
 }: {
   api: AdminApi;
@@ -506,6 +544,7 @@ function ChangeDetail({
   item: Change;
   userId: string;
   areas: Areas;
+  onRetryAreas: () => void;
   onBack: () => void;
 }) {
   const [step, setStep] = useState<"view" | "confirm">("view");
@@ -522,6 +561,9 @@ function ChangeDetail({
     !subject &&
     !done &&
     !isFinal(failure);
+  // The approver must see every area name the change binds; until they load, Approve stays hidden.
+  const missing = areaMissing(item, areas, lang);
+  const canApprove = canDecide && !missing;
 
   const approve = async () => {
     setBusy(true);
@@ -587,22 +629,32 @@ function ChangeDetail({
       {role === "SENIOR" && item.state === "PENDING" && !proposer && subject ? (
         <Message kind="info">{t("approvals.noRight.subject", lang)}</Message>
       ) : null}
+      {canDecide && missing ? (
+        <>
+          <Message kind="info">{t("approvals.area.hidden", lang)}</Message>
+          {areas.status === "failed" ? (
+            <FailureView result={areas.result} lang={lang} onRetry={onRetryAreas} />
+          ) : null}
+        </>
+      ) : null}
       {canDecide && step === "view" ? (
         <div className="admin-actions">
-          <Button
-            variant="primary"
-            icon="confirm"
-            disabled={busy}
-            onClick={() => setStep("confirm")}
-          >
-            {t("approvals.approve", lang)}
-          </Button>
+          {canApprove ? (
+            <Button
+              variant="primary"
+              icon="confirm"
+              disabled={busy}
+              onClick={() => setStep("confirm")}
+            >
+              {t("approvals.approve", lang)}
+            </Button>
+          ) : null}
           <Button variant="secondary" disabled={busy} onClick={() => void refuse()}>
             {t("approvals.refuse", lang)}
           </Button>
         </div>
       ) : null}
-      {canDecide && step === "confirm" ? (
+      {canApprove && step === "confirm" ? (
         <div className="admin-form">
           <p>{t("approvals.approve.confirm", lang)}</p>
           <div className="admin-actions">
@@ -649,14 +701,16 @@ function ChangesTab({
   role,
   userId,
   areas,
-  onChanged,
+  onRetryAreas,
+  onTotal,
 }: {
   api: AdminApi;
   lang: Language;
   role: Role;
   userId: string;
   areas: Areas;
-  onChanged: () => void;
+  onRetryAreas: () => void;
+  onTotal: (n: number) => void;
 }) {
   // A senior officer decides pending changes; an administrator sees all the changes they proposed.
   const fetchPage = useCallback(
@@ -670,6 +724,7 @@ function ChangesTab({
   );
   const list = usePagedList<Change>(fetchPage);
   const [opened, setOpened] = useState<Change | undefined>();
+  useReportTotal(list.load, onTotal);
 
   if (opened) {
     return (
@@ -681,10 +736,10 @@ function ChangesTab({
         item={opened}
         userId={userId}
         areas={areas}
+        onRetryAreas={onRetryAreas}
         onBack={() => {
           setOpened(undefined);
           void list.refresh();
-          onChanged();
         }}
       />
     );
@@ -726,12 +781,6 @@ function ChangesTab({
 
 // ---------------------------------------------------------------- page
 
-type Counts = { access?: number; changes?: number };
-type CountLoad =
-  | { state: "loading" }
-  | { state: "failed"; result: FailureResult }
-  | { state: "ready"; counts: Counts };
-
 /** Who gets which tab. ADMIN gets 404 on requests to decide (D44), and a SUPERVISOR gets 403 on changes. */
 function tabsFor(role: Role): Tab[] {
   return role === "ADMIN" ? ["changes"] : role === "SENIOR" ? ["access", "changes"] : ["access"];
@@ -745,78 +794,57 @@ function tabsFor(role: Role): Tab[] {
 export function ApprovalsPage({ api, lang, role, userId }: ApprovalsPageProps) {
   const tabs = tabsFor(role);
   const [tab, setTab] = useState<Tab>(tabs[0] ?? "access");
-  const [count, setCount] = useState<CountLoad>({ state: "loading" });
-  const [areas, setAreas] = useState<Areas>(new Map());
-  const generation = useRef(0);
-
-  const refreshCounts = useCallback(async () => {
-    const mine = ++generation.current;
-    const wantsAccess = tabsFor(role).includes("access");
-    const wantsChanges = tabsFor(role).includes("changes");
-    const [access, changes] = await Promise.all([
-      wantsAccess
-        ? api.client.listAccessRequests({ scope: "to_decide", status: "PENDING", limit: 1 })
-        : undefined,
-      wantsChanges
-        ? api.client.listPendingChanges({
-            ...(role === "ADMIN" ? {} : { state: "PENDING" }),
-            limit: 1,
-          })
-        : undefined,
-    ]);
-    if (mine !== generation.current) return;
-    for (const result of [access, changes]) {
-      if (result && result.kind !== "ok") return setCount({ state: "failed", result });
-    }
-    setCount({
-      state: "ready",
-      counts: {
-        ...(access?.kind === "ok" ? { access: access.data.total ?? access.data.items.length } : {}),
-        ...(changes?.kind === "ok"
-          ? { changes: changes.data.total ?? changes.data.items.length }
-          : {}),
-      },
-    });
-  }, [api, role]);
+  // The number on the open tab is the `total` of its own list; the other tab shows none until opened.
+  const [total, setTotal] = useState<number | undefined>();
+  const [areas, setAreas] = useState<Areas>({ status: "loading" });
+  const [areasTry, setAreasTry] = useState(0);
+  const wantsAreas = tabs.includes("changes");
 
   useEffect(() => {
-    void refreshCounts();
-    const counter = generation;
-    return () => {
-      counter.current++;
-    };
-  }, [refreshCounts]);
-
-  useEffect(() => {
-    if (!tabsFor(role).includes("changes")) return;
+    if (!wantsAreas) return;
     let live = true;
-    // Only area names for the words of a change; if this fails the change still shows, with a dash.
+    setAreas({ status: "loading" });
+    // Names for the areas a change names; if they do not load, Approve stays hidden on those changes.
     void api.client.listJurisdictions().then((result) => {
-      if (!live || result.kind !== "ok") return;
-      setAreas(
-        new Map(
+      if (!live) return;
+      if (result.kind !== "ok") return setAreas({ status: "failed", result });
+      setAreas({
+        status: "ready",
+        districts: new Map(
           result.data.items.flatMap((state) =>
             state.districts.map((d) => [d.district_id, d.name] as const),
           ),
         ),
-      );
+        states: new Map(result.data.items.map((state) => [state.state_id, state.name] as const)),
+      });
     });
     return () => {
       live = false;
     };
-  }, [api, role]);
+  }, [api, wantsAreas, areasTry]);
 
   const choice = (which: Tab) => {
-    const n = count.state === "ready" ? (count.counts[which] ?? 0) : 0;
+    const open = tab === which;
+    const key =
+      which === "access"
+        ? open && total !== undefined
+          ? "approvals.show.access"
+          : "approvals.tab.access"
+        : open && total !== undefined
+          ? "approvals.show.changes"
+          : "approvals.tab.changes";
     return (
       <Button
         key={which}
         variant="secondary"
-        {...(tab === which ? { icon: "confirm" as const } : {})}
-        aria-pressed={tab === which}
-        onClick={() => setTab(which)}
+        {...(open ? { icon: "confirm" as const } : {})}
+        aria-pressed={open}
+        onClick={() => {
+          setTotal(undefined);
+          setTab(which);
+        }}
       >
-        {t(which === "access" ? "approvals.show.access" : "approvals.show.changes", lang, { n })}
+        {t(key, lang, { n: total ?? 0 })}
       </Button>
     );
   };
@@ -824,41 +852,22 @@ export function ApprovalsPage({ api, lang, role, userId }: ApprovalsPageProps) {
   return (
     <div className="admin-page">
       <h2 className="admin-panel-title">{t("approvals.title", lang)}</h2>
-      {count.state === "loading" ? <Loading label={t("loading.default", lang)} /> : null}
-      {count.state === "failed" ? (
-        <FailureView
-          result={count.result}
+      <div className="admin-switch" role="group" aria-label={t("approvals.title", lang)}>
+        {tabs.map(choice)}
+      </div>
+      {tab === "access" ? (
+        <AccessTab api={api} lang={lang} userId={userId} onTotal={setTotal} />
+      ) : (
+        <ChangesTab
+          api={api}
           lang={lang}
-          onRetry={() => {
-            setCount({ state: "loading" });
-            void refreshCounts();
-          }}
+          role={role}
+          userId={userId}
+          areas={areas}
+          onRetryAreas={() => setAreasTry((n) => n + 1)}
+          onTotal={setTotal}
         />
-      ) : null}
-      {count.state === "ready" ? (
-        <>
-          <div className="admin-switch" role="group" aria-label={t("approvals.title", lang)}>
-            {tabs.map(choice)}
-          </div>
-          {tab === "access" ? (
-            <AccessTab
-              api={api}
-              lang={lang}
-              userId={userId}
-              onChanged={() => void refreshCounts()}
-            />
-          ) : (
-            <ChangesTab
-              api={api}
-              lang={lang}
-              role={role}
-              userId={userId}
-              areas={areas}
-              onChanged={() => void refreshCounts()}
-            />
-          )}
-        </>
-      ) : null}
+      )}
     </div>
   );
 }
