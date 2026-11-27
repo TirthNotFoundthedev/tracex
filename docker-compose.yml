@@ -105,6 +105,38 @@ services:
       retries: 12
       start_period: 10s
 
+  # One-shot demo seed (D63): loads the synthetic data-kit cases through the API upload path,
+  # runs matching and assigns cases. Run it on demand: docker compose run --rm seed
+  # It is behind a profile so `docker compose up` does not start it. It never gets a database URL.
+  seed:
+    build:
+      context: ./backend
+      additional_contexts:
+        contracts: ./contracts
+    profiles: ["seed"]
+    command:
+      [
+        "python",
+        "-m",
+        "tracex_api.seed_demo",
+        "--api-url",
+        "http://api:8000",
+        "--data-kit",
+        "/data-kit",
+      ]
+    restart: "no"
+    environment:
+      TRACEX_ENV: ${TRACEX_ENV:?set TRACEX_ENV in .env (development, local, test or demo)}
+      TRACEX_ALLOW_DEV_SECRETS: ${TRACEX_ALLOW_DEV_SECRETS:-}
+      PYTHONPATH: /data-kit
+      TRACEX_SEED_PASSWORD_MEENA: ${TRACEX_SEED_PASSWORD_MEENA:?set the TRACEX_SEED_PASSWORD_* values in .env}
+      TRACEX_SEED_PASSWORD_HARI: ${TRACEX_SEED_PASSWORD_HARI:?set the TRACEX_SEED_PASSWORD_* values in .env}
+    volumes:
+      - ./data-kit:/data-kit:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pg-data:
   neo4j-data:
