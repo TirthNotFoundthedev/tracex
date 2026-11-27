@@ -1,8 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { en } from "../i18n/en";
-import { hi } from "../i18n/hi";
-import { failureKeys, messageKeyFor } from "./resultKeys";
+import { failureKeys, messageKeyFor, textForKey } from "./resultKeys";
 
 const kinds = [
   "sessionExpired",
@@ -24,8 +22,9 @@ describe("result kinds to i18n keys", () => {
 
   test.each(kinds)("%s has text in English and Hindi", (kind) => {
     const key = failureKeys[kind];
-    expect(en[key].length).toBeGreaterThan(0);
-    expect(hi[key].length).toBeGreaterThan(0);
+    expect(textForKey(key, "en").length).toBeGreaterThan(0);
+    expect(textForKey(key, "hi").length).toBeGreaterThan(0);
+    expect(textForKey(key, "en")).not.toBe(key);
   });
 
   test("notFound never uses a restricted string", () => {

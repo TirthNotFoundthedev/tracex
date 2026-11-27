@@ -11,7 +11,7 @@ test.each([
 ] as const)("not-found state in %s has text and a way back", (lang, text, back) => {
   const onBack = vi.fn();
   render(<NotFoundState lang={lang} onBack={onBack} />);
-  expect(screen.getByRole("status").textContent).toContain(text);
+  expect(screen.getByText(new RegExp(text))).toBeTruthy();
   expect(screen.queryByText(/police area|पुलिस/i)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: new RegExp(back) }));
   expect(onBack).toHaveBeenCalledOnce();

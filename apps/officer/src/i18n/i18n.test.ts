@@ -1,4 +1,4 @@
-import { findMissingTranslations } from "@tracex/ui";
+import { en as sharedEn, findMissingTranslations } from "@tracex/ui";
 import { describe, expect, test } from "vitest";
 
 import { en } from "./en";
@@ -33,7 +33,10 @@ describe("officer catalogs", () => {
   test("English text has none of the words the design rules ban (DESIGN_RULES section 7)", () => {
     const banned =
       /\b(entity|entities|same_as|confidence|score|threshold|tier|band|jurisdiction|forbidden|invalid|null|undefined|exception|query|ingest|403|404)\b/i;
-    const hits = Object.entries(en).filter(([, text]) => banned.test(text));
+    // "More detail" may use admin terms (DESIGN_RULES section 9), so its score line is the one exception.
+    const hits = Object.entries(en).filter(
+      ([key, text]) => key !== "why.moreScore" && banned.test(text),
+    );
     expect(hits).toEqual([]);
   });
 
@@ -55,7 +58,7 @@ describe("officer catalogs", () => {
     for (const prefix of prefixes) {
       expect(Object.keys(en).some((key) => key.startsWith(prefix))).toBe(true);
     }
-    expect(en["state.runInProgress"]).toMatch(/try again/i);
+    expect(sharedEn["error.runInProgress"]).toMatch(/try again/i);
   });
 });
 

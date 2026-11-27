@@ -36,8 +36,10 @@ export const en = {
   "cases.otherCases.other": "{n} items appear in other cases",
   "cases.showMore": "Show more",
   "cases.loading": "Loading your cases...",
-  "cases.empty": "No cases yet. Ask your supervisor to add your cases.",
+  "cases.empty": "No cases yet.",
+  "cases.emptyHint": "Ask your supervisor to add your cases.",
   "cases.noResults": "No case of yours has that number.",
+  "cases.noResultsHint": "Check the number and search again.",
   "cases.accessApproved": "Your request for access was approved.",
   "cases.seeCase": "See the case",
 
@@ -52,6 +54,8 @@ export const en = {
   "case.alsoIn.one": "Also in 1 case",
   "case.alsoIn.other": "Also in {n} cases",
   "case.onlyHere": "Only in this case",
+  "case.org": "Organisation",
+  "case.hiddenConnection": "Also in a case you cannot see",
   "case.pleaseCheck": "Please check",
 
   // O4 Item
@@ -65,10 +69,11 @@ export const en = {
   // O5 Also appears in
   "also.title": "Also appears in",
   "also.intro": "{value} also appears in these cases.",
-  "also.caseLine": "Case {number}, {place}",
+  "also.caseLine": "Case {number}, {title}",
   "also.whyLinked": "Why was this linked?",
   "also.checkThis": "Check this",
   "also.empty": "There are no other cases to show.",
+  "also.emptyHint": "It is only in this case so far. Go back to the case to see its other items.",
 
   // O6 Why linked
   "why.titleStrong": "Why these are linked",
@@ -76,6 +81,7 @@ export const en = {
   "why.confirm": "Confirm they are the same",
   "why.reject": "Reject this link",
   "why.undo": "Undo this link",
+  "why.reopen": "Open this link again",
   "why.autoNote": "This was linked automatically. You can undo it if it is wrong.",
   "why.saving": "Saving your decision...",
   "why.cannot.lookOnly":
@@ -97,11 +103,18 @@ export const en = {
   "undo.reasonMissing": "Please write your reason.",
   "undo.goBack": "No, go back",
   "undo.confirm": "Yes, undo",
+  "reopen.title": "Open this link again?",
+  "reopen.body":
+    "The two records will be shown as a possible match again. Someone can then check them.",
+  "reopen.reasonLabel": "Why are you opening it again?",
+  "reopen.goBack": "No, go back",
+  "reopen.confirm": "Yes, open it again",
 
   // O8 Link decided
   "decided.confirmed": "You confirmed this link. The two records are now shown as the same.",
   "decided.rejected": "You rejected this link. If this was a mistake, ask your supervisor.",
   "decided.undone": "Your decision was undone.",
+  "decided.reopened": "You opened this link again. It is waiting for a decision.",
   "decided.checkAgain": "Check this link again",
   "decided.undo": "Undo",
   "decided.backToCase": "Back to this case",
@@ -143,16 +156,21 @@ export const en = {
   "state.tryAgain": "Try again",
   "state.notAllowed": "You do not have access to this.",
   "state.notFound": "We could not find this. It may have been removed. Go back to your cases.",
-  // Temporary: replace with the shared packages/ui safety-pause string when it exists (see PR #44).
-  "state.safetyPause":
-    "The system is paused for safety. Nothing was changed. Please try again later.",
   "state.backToCases": "Back to my cases",
-  "state.runInProgress":
-    "The system is updating links between cases. Nothing was changed. Please try again in a minute.",
+  "state.notFoundTitle": "Not found",
+  "state.problemTitle": "Something went wrong",
   "state.changedMeanwhile":
     "This link changed while you were looking. Nothing was changed. Please check it again.",
   "state.somethingMissing": "Something is missing. Please check what you wrote.",
-  "state.sessionEnding": "You will be signed out in 2 minutes.",
-  "state.stay": "Stay signed in",
+  "state.sessionEnding":
+    "You will be signed out in 2 minutes. Your decisions are already saved. Sign in again after.",
   "state.sessionEnded": "Your session has ended. Please sign in again.",
+  // Added with the screens
+  "item.fact.age": "Age",
+  "item.fact.address": "Address",
+  "item.fact.dob": "Date of birth",
+  "item.fact.gender": "Gender",
+  "item.fact.relative": "Relative",
+  "why.moreScore": "Match score: {score} (out of 100). Strong match starts at {high}.",
+  "why.rawValue": "Case {number}, as written: {text}",
 } as const;
