@@ -178,3 +178,30 @@ def test_queue_total_leaves_out_hidden_links(world: World) -> None:
     assert _all_pages(world, "bharat") == (1, {1})
     assert _all_pages(world, "deepak") == (3, {3})
     assert _all_pages(world, "meena") == (3, {3})
+
+
+def test_a_grant_holder_gets_no_actor_no_actor_id_no_reason_and_no_queue_item(world: World) -> None:
+    api = world.api
+    l1 = world.links["L-1"]  # Rivergate to Hillcrest: only a SENIOR with both in coverage decides
+    assert api.post("deepak", f"/links/{l1}/undo", {"reason": REASON}).status_code == 200
+    assert api.post("deepak", f"/links/{l1}/reopen", {"reason": REASON}).status_code == 200
+    stub = api.get("bharat", f"/entities/{world.entities['E-1']}").json()["stubs"][0]
+    created = api.post(
+        "bharat", "/access-requests", {"stub_id": stub["stub_id"], "reason": "Same phone"}
+    )
+    assert created.status_code == 201, created.text
+    approve = api.post(
+        "farid", f"/access-requests/{created.json()['request_id']}/approve", {"duration_days": 30}
+    )
+    assert approve.status_code == 200, approve.text
+    response = api.get("bharat", f"/links/{l1}")
+    assert response.status_code == 200 and response.json()["via_grant"] is True
+    history = response.json()["history"]
+    assert len(history) >= 3
+    for entry in history:
+        assert not {"actor", "actor_user_id", "reason_text", "actor_kind"} & set(entry)
+    text = body_text(response)
+    assert REASON not in text and "Deepak" not in text
+    for state in ("SUGGESTED", "REJECTED", "UNDONE"):
+        queue = api.get("bharat", "/review-queue", state=state)
+        assert l1 not in body_text(queue)
