@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-11-27, session S4 (P4 apps), fifth checkpoint: #59-#62 merged; admin parts a-d done; stopped before P4.3e at the owner's request.
+Last updated: 2026-11-27, session S4 (P4 apps), sixth checkpoint: P4.3e merged (#65, #66), #64 and #67 merged; admin parts a-e done; stopped before P4.3f.
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
@@ -12,21 +12,20 @@ Last updated: 2026-11-27, session S4 (P4 apps), fifth checkpoint: #59-#62 merged
 - Later in S2, merged with the owner's OK by number (PRs #22, #24, #23, #20, #26, #25, #21), `main` green: Neo4j service in backend CI with Neo4j pinned to `5.26.12-community` and root devDependencies exact-pinned (Rao); extractor fix for role word + `M/s` and the raw_text rule (Naidu); reference scorer `python -m datakit score`, `engine-result/1` schema, G-09 isolation, ground-truth bare-name `raw_text` (Bose); noise persons in one case have distinct names, G-17 (Bose); spec errata 2/3 (Iyer); per-case graphs, order-independent within-case dedupe, Neo4j store and `docs/specs/engine-graph.md` (Bose, 2.3). The 9 Neo4j tests run in GitHub CI (822 backend tests, none skipped). Decisions D55-D56.
 - PR #28 merged with the owner's OK, tag `m2-slice`: Tier 1 matching, scoring skeleton (composite score, bands, gates), SAME_AS link stores (in-memory and Neo4j), runs with the D37 rerun rules, human decisions as engine calls, explanation payload builder, `engine-result/1` adapter and the end-to-end kit gate (Iyer, 2.4; Khan approved after one fix round). 1006 backend tests in CI, Neo4j path included. Decisions D57.
 
-## In progress (S4, D63-D72), checkpoint 2026-11-27 (fifth)
-- Stopped at the owner's request after the open PRs. No agent is running. P4.3e has NOT started.
-- Linear project TraceX tracks P4 in detail (D66): TIR-17 to TIR-20, TIR-27 to TIR-43, TIR-84 to TIR-88. Update it at each checkpoint (CLAUDE.md).
-- Merged into `main` in S4 (owner OKs D67, D68; clean reviews; CI green on current main): #41-#45, #47-#62. Officer app complete (#49). Admin parts a-d done: shell (#48), uploads/runs/thresholds (#53), review queue (#55) with "By"/"Reason" columns (#61, TIR-86), approvals (#59, TIR-33).
-- This checkpoint: #62 (state), #61 (Mehta APPROVE), #60 (TIR-87; Khan fix round 3 tests-first 3e2fee5 + a98e53e; Dutta re-gate APPROVE, comment 7223206403), #59 (Pillai showed `far_case_number` in fc2c4fe; Fable APPROVE of the delta). Main at 7329f01, CI green on all four jobs at each merge.
-- #60 root cause of the 500: `apply_change` changed only `role`; the `users` check forbids a SENIOR/ADMIN with a `district_id`, so SUPERVISOR to SENIOR raised a CheckViolation. Migration 0005 sets or clears `district_id` with the role and replaces coverage rows. The 2-hour hang did not reproduce; most likely a probe session left holding a lock. Lock waits now time out after 5 s (D72).
+## In progress (S4, D63-D73), checkpoint 2026-11-27 (sixth)
+- Stopped after P4.3e as the owner asked. No agent is running. No PR is open.
+- Linear project TraceX tracks P4 in detail (D66): TIR-17 to TIR-20, TIR-27 to TIR-43, TIR-84 to TIR-93. Update it at each checkpoint (CLAUDE.md).
+- Merged into `main` in S4 (owner OKs D67, D68; clean reviews; CI green on current main): #41-#45, #47-#67. Officer app complete (#49). Admin parts a-e done: shell (#48), uploads/runs/thresholds (#53), review queue (#55, #61), approvals (#59), users and roles A5 (#65), activity log A6 (#66).
+- This checkpoint: #63 (state), #64 (Sen: design-flows A4, Administrators see only the Changes tab; TIR-89), #67 (Pillai: flaky ApprovalsPage test, sync read of a count set from an effect; TIR-90), #66 and #65 (Pillai, P4.3e, TIR-34; split in two because A5 alone was about 1700 lines). Reviews: Mehta, Khan, Dutta CHANGES on the first round, all APPROVE after one fix round (tests first). Main at e925762, CI green on all four jobs at each merge; admin suite 771 tests.
 - The owner's standing OK (D68) covers every remaining P4 PR once its reviews are clean and CI is green on current main.
 
 ### Next
-- P4.3e users + audit log (TIR-34), Pillai: the users form must send exactly one of `district_id` or `coverage` (the TS type does not enforce the contract's oneOf); a role change across the SENIOR boundary must carry `coverage` (to SENIOR) or `district_id` (from SENIOR) (D72). P4.3f graph view (TIR-35). Then admin screenshots on the seeded stack and Sen's review (TIR-20), tag `m4-apps` (TIR-39).
-- Small doc fix for Sen: design-flows A4 says Administrators see both tabs; D44/D71 limit them to Changes.
-- Later items: TIR-88 (Dutta F1-F3 after #60: stale-district role approval, idle-in-transaction and statement timeouts, retryable lock code; Khan), TIR-41 (audit anchor reader), TIR-43 (upload failure reason codes), a `reopened` flag on queue items (Mehta's note on #57), empty "Seed data" heading in the runbook (Rao).
+- P4.3f graph view (TIR-35), Pillai. Then admin screenshots on the seeded stack and Sen's review (TIR-20), tag `m4-apps` (TIR-39).
+- Follow-ups from P4.3e: TIR-91 (Khan, Dutta gate: user changes checked at propose time: username 422, coverage old value recorded and approval refused if changed, one waiting change per user; until then a long-open user form can still send old coverage), TIR-92 (Khan: `event_group` filter on GET /audit and `case_number` on AuditCaseRef; then the Activity log uses them), TIR-93 (Pillai: "Change refused" tag on A5 rows).
+- Later items: TIR-88 (Dutta F1-F3 after #60; Khan), TIR-41 (audit anchor reader), TIR-43 (upload failure reason codes), a `reopened` flag on queue items (Mehta's note on #57), empty "Seed data" heading in the runbook (Rao). Activity log names come from at most 1000 users (non-blocking).
 
 ### Leftovers
-- Containers `khan60c-pg`, `khan-pg`, `khan-tracex-pg` removed. Merged branches of #59-#62 deleted on GitHub.
+- Merged branches of #59-#67 deleted on GitHub.
 - `gh pr merge --delete-branch` tries to remove the local worktree that holds the branch; for #62 it failed half-way on `.t3/worktrees/Fable Run/t3-46afbc2b-...` (Permission denied; directory left without git metadata). Merge without `--delete-branch` and delete the remote branch with `gh api -X DELETE repos/<repo>/git/refs/heads/<branch>`.
 - Agent worktrees under `.claude/worktrees/` hold branch names; do not reuse names. Branch `opus-5.5-phase-2-attempt-1` is kept as history.
 - S4 lesson: agents stalled often ("no progress for 600s") during long test or docker waits. Brief agents to push after each step and never wait on one command more than 5 minutes (worked in this round: no stalls).
