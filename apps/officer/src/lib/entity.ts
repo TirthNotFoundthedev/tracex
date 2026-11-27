@@ -29,3 +29,6 @@ export const typeInCaseKey: Record<EntityType, MessageKey> = {
   ACCOUNT: "item.typeIn.account",
   VEHICLE: "item.typeIn.vehicle",
 };
+
+/** People and organisations are words, so they use the body font; numbers and IDs use mono. */
+export const isName = (type: EntityType): boolean => type === "PERSON" || type === "ORG";

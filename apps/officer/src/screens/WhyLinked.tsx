@@ -17,7 +17,9 @@ import type { components } from "../api/schema";
 import { useApp } from "../app-context";
 import { FailureView } from "../components/FailureView";
 import { Await, Screen, titleFor } from "../components/Screen";
+import { isName } from "../lib/entity";
 import { panelContent } from "../lib/explain";
+import { displayValue } from "../lib/value";
 import { useLoad } from "../lib/useLoad";
 import type { MessageKey } from "../i18n";
 import { paths, useNav } from "../router";
@@ -240,7 +242,9 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
               <ul className="tx-plainlist">
                 {link.ends.map((end) => (
                   <li key={end.entity.entity_id}>
-                    <span className="tx-mono">{end.entity.display_value}</span>
+                    <span className={isName(end.entity.type) ? undefined : "tx-mono"}>
+                      {displayValue(end.entity.type, end.entity.display_value)}
+                    </span>
                     {", "}
                     {end.case.title
                       ? tt("also.caseLine", { number: end.case.case_number, title: end.case.title })

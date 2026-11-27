@@ -7,6 +7,7 @@ import { useApp } from "../app-context";
 import { FailureView } from "../components/FailureView";
 import { Await, Screen, titleFor } from "../components/Screen";
 import { entityIcon, type EntityType } from "../lib/entity";
+import { displayValue } from "../lib/value";
 import { useLoad } from "../lib/useLoad";
 import type { MessageKey } from "../i18n";
 import { paths, useNav } from "../router";
@@ -88,7 +89,7 @@ export function Case({ caseId }: { caseId: string }) {
                           <li key={item.entity_id}>
                             <ListRow
                               icon={entityIcon[item.type]}
-                              title={item.display_value}
+                              title={displayValue(item.type, item.display_value)}
                               secondary={rowSecondary(item)}
                               badge={
                                 item.needs_review ? (

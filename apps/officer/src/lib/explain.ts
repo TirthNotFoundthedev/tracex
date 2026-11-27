@@ -2,6 +2,8 @@ import { en as sharedEn, format, tShared, type Language, type SharedMessageKey }
 import type { Reason, Source } from "@tracex/ui";
 
 import type { components } from "../api/schema";
+import { formatDate } from "./format";
+import { groupPhone, titleCase } from "./value";
 
 type Explanation = components["schemas"]["Explanation"];
 type SourceRef = components["schemas"]["explanation.schema"]["$defs"]["source"];
@@ -9,10 +11,17 @@ type Template = { template_key: string; params: unknown; sources?: SourceRef[] }
 
 const isShared = (key: string): key is SharedMessageKey => key in sharedEn;
 
-/** Param values arrive as codes or lists; the sentence needs words. */
-function wordsFor(name: string, value: unknown, lang: Language): string {
+const NAME_PARAMS = new Set(["name", "name_a", "name_b", "rel_a", "rel_b", "place"]);
+const DATE_PARAMS = new Set(["dob", "dob_a", "dob_b", "date"]);
+const VALUE_PARAMS = new Set(["value", "value_a", "value_b"]);
+
+/** Param values arrive as codes, lists or stored (lower case, ISO date) values; the sentence needs words. */
+function wordsFor(name: string, value: unknown, lang: Language, isPhone: boolean): string {
   if (Array.isArray(value)) return value.map(String).join(", ");
   const text = String(value);
+  if (NAME_PARAMS.has(name)) return titleCase(text);
+  if (DATE_PARAMS.has(name)) return formatDate(text, lang);
+  if (VALUE_PARAMS.has(name) && isPhone) return groupPhone(text);
   const kind =
     name === "how_a" || name === "how_b" ? "attribution" : name === "id_label" ? "id_label" : "";
   if (kind) {
@@ -31,7 +40,10 @@ export function renderTemplate(
   if (!isShared(templateKey)) return undefined;
   const values: Record<string, string> = {};
   if (typeof params === "object" && params !== null) {
-    for (const [name, value] of Object.entries(params)) values[name] = wordsFor(name, value, lang);
+    const idLabel = (params as Record<string, unknown>)["id_label"];
+    const isPhone = String(idLabel).toLowerCase() === "phone" || templateKey.includes("phone");
+    for (const [name, value] of Object.entries(params))
+      values[name] = wordsFor(name, value, lang, isPhone);
   }
   return format(tShared(templateKey, lang), values);
 }

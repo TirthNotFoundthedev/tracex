@@ -7,6 +7,7 @@ import { Await, Screen } from "../components/Screen";
 import { restrictedType } from "../lib/entity";
 import { formatDate } from "../lib/format";
 import { renderTemplate } from "../lib/explain";
+import { displayValue } from "../lib/value";
 import { useLoad } from "../lib/useLoad";
 import { paths, useNav } from "../router";
 
@@ -127,7 +128,10 @@ export function AlsoAppears({ entityId }: { entityId: string }) {
                 label: tt("case.title", { number: detail.case.case_number }),
                 onClick: () => nav.go(paths.case(detail.case.case_id)),
               },
-              { label: detail.display_value, onClick: () => nav.go(paths.item(detail.entity_id)) },
+              {
+                label: displayValue(detail.type, detail.display_value),
+                onClick: () => nav.go(paths.item(detail.entity_id)),
+              },
             ]
           : []
       }
@@ -139,7 +143,9 @@ export function AlsoAppears({ entityId }: { entityId: string }) {
           const firstAsk = entity.stubs.find((stub) => stub.access_request.status !== "PENDING");
           return (
             <>
-              <p className="tx-body">{tt("also.intro", { value: entity.display_value })}</p>
+              <p className="tx-body">
+                {tt("also.intro", { value: displayValue(entity.type, entity.display_value) })}
+              </p>
               {links.length === 0 && entity.stubs.length === 0 ? (
                 <EmptyState title={tt("also.empty")} hint={tt("also.emptyHint")} />
               ) : null}
@@ -160,7 +166,11 @@ export function AlsoAppears({ entityId }: { entityId: string }) {
                       ? "primary"
                       : "secondary"
                   }
-                  entity={{ type: entity.type, value: entity.display_value, id: entity.entity_id }}
+                  entity={{
+                    type: entity.type,
+                    value: displayValue(entity.type, entity.display_value),
+                    id: entity.entity_id,
+                  }}
                   note={notes[stub.stub_id]}
                 />
               ))}

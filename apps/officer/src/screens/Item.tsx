@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useApp } from "../app-context";
 import { Await, Screen, titleFor } from "../components/Screen";
 import { typeInCaseKey } from "../lib/entity";
+import { displayValue } from "../lib/value";
 import { useLoad } from "../lib/useLoad";
 import { isMessageKey } from "../i18n";
 import { paths, useNav } from "../router";
@@ -18,7 +19,7 @@ export function Item({ entityId }: { entityId: string }) {
 
   return (
     <Screen
-      title={titleFor(loaded, tt, (entity) => entity.display_value)}
+      title={titleFor(loaded, tt, (entity) => displayValue(entity.type, entity.display_value))}
       trail={
         detail
           ? [

@@ -92,3 +92,9 @@ body {
   margin: 0;
   font-weight: var(--weight-semibold);
 }
+
+/* Buttons side by side are the same width (DESIGN_RULES section 5); on a phone they stack at full width. */
+.officer-page .tx-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 18rem));
+}
