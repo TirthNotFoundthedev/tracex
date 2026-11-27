@@ -103,11 +103,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
         "503":
-          description: Not ready. Body is the fixed `NOT_READY` error.
+          description: Not ready. Body is the fixed `NOT_READY` error (the same body as the safety pause).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/SafetyPauseError"
   /auth/login:
     post:
       tags:
@@ -144,6 +144,8 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /auth/refresh:
     post:
       tags:
@@ -176,6 +178,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /auth/logout:
     post:
       tags:
@@ -193,6 +197,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /me:
     get:
       tags:
@@ -214,6 +220,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /cases:
     get:
       tags:
@@ -254,6 +262,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /cases/{case_id}/entities:
     get:
       tags:
@@ -290,6 +300,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /entities/{entity_id}:
     get:
       tags:
@@ -316,6 +328,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /search/entities:
     get:
       tags:
@@ -357,6 +371,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /documents/{document_id}/lines:
     get:
       tags:
@@ -409,6 +425,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /links:
     get:
       tags:
@@ -451,6 +469,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /links/{link_id}:
     get:
       tags:
@@ -479,6 +499,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /links/{link_id}/explanation:
     get:
       tags:
@@ -507,6 +529,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /links/{link_id}/confirm:
     post:
       tags:
@@ -549,6 +573,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /links/{link_id}/reject:
     post:
       tags:
@@ -590,6 +616,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /links/{link_id}/undo:
     post:
       tags:
@@ -630,6 +658,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /links/{link_id}/reopen:
     post:
       tags:
@@ -669,6 +699,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /review-queue:
     get:
       tags:
@@ -739,6 +771,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /entities/{entity_id}/graph:
     get:
       tags:
@@ -785,6 +819,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /entities/{entity_id}/cluster:
     get:
       tags:
@@ -817,6 +853,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /entities/{entity_id}/paths:
     get:
       tags:
@@ -862,6 +900,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /stubs/{stub_id}:
     get:
       tags:
@@ -889,6 +929,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /access-requests:
     post:
       tags:
@@ -928,6 +970,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
     get:
       tags:
         - access
@@ -974,6 +1018,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /access-requests/{request_id}:
     get:
       tags:
@@ -999,6 +1045,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
       x-audit-note: Writes `request_ids`, `stub_ids`, `near_entity_ids`; replaces STUB_VIEWED on these routes.
   /access-requests/{request_id}/withdraw:
     post:
@@ -1026,6 +1074,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /access-requests/{request_id}/approve:
     post:
       tags:
@@ -1067,6 +1117,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /access-requests/{request_id}/deny:
     post:
       tags:
@@ -1104,6 +1156,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /grants:
     get:
       tags:
@@ -1149,6 +1203,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /grants/{grant_id}:
     get:
       tags:
@@ -1175,6 +1231,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /grants/{grant_id}/revoke:
     post:
       tags:
@@ -1203,6 +1261,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /uploads:
     post:
       tags:
@@ -1235,6 +1295,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
     get:
       tags:
         - ingest
@@ -1262,6 +1324,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /uploads/{batch_id}:
     get:
       tags:
@@ -1289,6 +1353,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /matching/runs:
     post:
       tags:
@@ -1315,6 +1381,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
         "422":
           $ref: "#/components/responses/Unprocessable"
       requestBody:
@@ -1350,6 +1418,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /matching/runs/{run_id}:
     get:
       tags:
@@ -1377,6 +1447,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /jurisdictions:
     get:
       tags:
@@ -1398,6 +1470,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /roles:
     get:
       tags:
@@ -1419,6 +1493,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /users:
     get:
       tags:
@@ -1458,6 +1534,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /users/{user_id}:
     get:
       tags:
@@ -1485,6 +1563,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /thresholds:
     get:
       tags:
@@ -1509,6 +1589,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /pending-changes:
     post:
       tags:
@@ -1546,6 +1628,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
     get:
       tags:
         - admin
@@ -1582,6 +1666,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /pending-changes/{change_id}:
     get:
       tags:
@@ -1609,6 +1695,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /pending-changes/{change_id}/approve:
     post:
       tags:
@@ -1652,6 +1740,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /pending-changes/{change_id}/deny:
     post:
       tags:
@@ -1680,6 +1770,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /audit:
     get:
       tags:
@@ -1782,6 +1874,8 @@ paths:
           $ref: "#/components/responses/Unprocessable"
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
   /audit/verify:
     post:
       tags:
@@ -1832,6 +1926,8 @@ paths:
           description: Any non-ADMIN caller.
         "500":
           $ref: "#/components/responses/ServerError"
+        "503":
+          $ref: "#/components/responses/SafetyPause"
 components:
   securitySchemes:
     bearerAuth:
@@ -1963,6 +2059,15 @@ components:
             field_errors:
               - field: reason
                 code: too_short
+    SafetyPause:
+      description: The audit chain does not verify, or has not been verified yet, so the API is paused for safety. Every route except `GET /health`, `GET /ready` and `POST /audit/verify` answers this until a verify passes. The body is fixed, carries no data, and the client shows the safety-pause message.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SafetyPauseError"
+          example:
+            code: NOT_READY
+            message_key: error.not_ready
     TooManyRequests:
       description: Login throttled (5 failures per username string and IP in 15 minutes), applied whether or not the username exists.
       headers:
@@ -2049,6 +2154,22 @@ components:
         - TOO_MANY_REQUESTS
         - NOT_READY
         - INTERNAL
+    SafetyPauseError:
+      type: object
+      description: Body of the safety-pause 503. Both values are fixed.
+      additionalProperties: false
+      required:
+        - code
+        - message_key
+      properties:
+        code:
+          type: string
+          enum:
+            - NOT_READY
+        message_key:
+          type: string
+          enum:
+            - error.not_ready
     Error:
       type: object
       additionalProperties: false

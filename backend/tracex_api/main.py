@@ -2,12 +2,13 @@
 
 import logging
 import threading
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
+from time import monotonic
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from tracex_api import audit, context
@@ -16,6 +17,7 @@ from tracex_api.context import AppState, Ctx, RouteSpec, utc_now
 from tracex_api.db import connect
 from tracex_api.engine_bridge import EngineGateway, reconcile
 from tracex_api.errors import ApiError
+from tracex_api.explanation_check import load_schema
 from tracex_api.routers import (
     access,
     admin,
@@ -30,6 +32,8 @@ from tracex_api.routers import (
 
 logger = logging.getLogger(__name__)
 ANCHOR_INTERVAL_SECONDS = 60
+CHAIN_RECHECK_SECONDS = 60
+GATE_EXEMPT = {("GET", "/health"), ("GET", "/ready"), ("POST", "/audit/verify")}
 RECONCILE_RETRY_SECONDS = 5
 
 
@@ -41,11 +45,53 @@ def _engine_for(settings: Settings) -> EngineGateway:
     return EngineGateway.in_memory()
 
 
-def chain_ready(state: AppState) -> bool:
-    """Startup and /ready: the last 1000 rows plus the anchor must verify."""
+def record_chain(state: AppState, ok: bool) -> None:
+    """Keep the latest verify result. The API serves only while the latest result is OK; the first
+    result that is not OK raises the alert once, and a later OK clears it."""
+    was = state.chain_ok
+    state.chain_ok = ok
+    state.chain_checked_at = monotonic()
+    if not ok and was is not False:
+        state.alert("audit chain verify is BROKEN; the API answers 503 until a verify passes")
+
+
+def check_chain(state: AppState, *, anchor: bool = False) -> bool:
+    """A fresh check now: the last 1000 rows plus the anchor must verify. Any exception counts as
+    not OK. With `anchor`, a passing check also anchors the row it checked, under the same lock;
+    a failing or raising check never writes an anchor."""
+    with state.chain_lock:
+        try:
+            with connect(state.settings.database_url) as conn:
+                result = audit.verify_checked(conn, state.settings.audit_anchor_path, tail=1000)
+            record_chain(state, result.ok)
+        except Exception:
+            logger.exception("audit verify failed; treating the chain as BROKEN")
+            record_chain(state, False)
+            return False
+        if result.ok and anchor:
+            try:
+                audit.anchor_checked(state.settings.audit_anchor_path, result)
+            except OSError:
+                logger.exception("anchor write failed")
+    return result.ok
+
+
+def chain_status(state: AppState) -> bool:
+    """The cached verify result; a new check runs at most once every CHAIN_RECHECK_SECONDS, so an
+    unauthenticated caller of /ready cannot trigger more work."""
+    if state.chain_ok is not None and monotonic() - state.chain_checked_at < CHAIN_RECHECK_SECONDS:
+        return state.chain_ok
+    return check_chain(state)
+
+
+def startup_anchor(state: AppState) -> None:
+    """A log that holds only its first row gets its first anchor now; later rows need one."""
     with connect(state.settings.database_url) as conn:
-        ok, _ = audit.verify(conn, state.settings.audit_anchor_path, tail=1000)
-    return ok
+        head = conn.execute("SELECT max(seq) AS m FROM audit_log").fetchone()
+        if (head is None or (head["m"] or 0) <= 1) and audit.read_anchor(
+            state.settings.audit_anchor_path
+        ) is None:
+            audit.write_anchor(conn, state.settings.audit_anchor_path)
 
 
 def reconcile_once(state: AppState) -> None:
@@ -58,31 +104,30 @@ def reconcile_once(state: AppState) -> None:
             raise ConfigError("DATABASE_URL must be the tracex_api login, never a superuser")
         counts = reconcile(Ctx.for_system(state, conn))
     logger.info("reconcile finished", extra={"counts": counts})
-    state.reconciled.set()
+    if not state.store_lost and not state.withdrawals_deferred:
+        state.reconciled.set()
 
 
 def _reconcile_loop(state: AppState, stop: threading.Event) -> None:
     """Run the sweep until it succeeds once, so a database or engine that is still starting
-    delays readiness instead of leaving the API half-ready for good."""
+    delays readiness instead of leaving the API half-ready for good. A lost engine store ends the
+    loop: the alert stays and /ready stays 503 until an operator restores the store and restarts
+    the API (the runbook recovery); nothing resumes withdrawals on its own."""
     while not state.reconciled.is_set() and not stop.is_set():
         try:
             reconcile_once(state)
         except Exception:
             logger.exception("reconcile failed; trying again")
+        if state.store_lost:
+            logger.error("engine store is lost; restore it and restart the API")
+            return
+        if not state.reconciled.is_set():
             stop.wait(RECONCILE_RETRY_SECONDS)
 
 
 def _anchor_loop(state: AppState, stop: threading.Event) -> None:
     while not stop.wait(ANCHOR_INTERVAL_SECONDS):
-        _write_anchor(state)
-
-
-def _write_anchor(state: AppState) -> None:
-    try:
-        with connect(state.settings.database_url) as conn:
-            audit.write_anchor(conn, state.settings.audit_anchor_path)
-    except Exception:
-        logger.exception("anchor write failed")
+        check_chain(state, anchor=True)
 
 
 def create_app(
@@ -90,6 +135,7 @@ def create_app(
     engine: EngineGateway | None = None,
     clock: Callable[[], datetime] = utc_now,
 ) -> FastAPI:
+    load_schema()  # a missing contract file stops the API from starting
     stop = threading.Event()
 
     @asynccontextmanager
@@ -105,6 +151,11 @@ def create_app(
                 return
             app.state.tracex = AppState(loaded, clock, engine or _engine_for(loaded))
         state: AppState = app.state.tracex
+        try:
+            startup_anchor(state)
+        except Exception:
+            logger.exception("startup anchor failed")
+        check_chain(state)  # records BROKEN on any failure; the gate stays shut until it passes
         thread = threading.Thread(target=_anchor_loop, args=(state, stop), daemon=True)
         thread.start()
         sweeper = threading.Thread(target=_reconcile_loop, args=(state, stop), daemon=True)
@@ -113,7 +164,7 @@ def create_app(
             yield
         finally:
             stop.set()
-            _write_anchor(state)
+            check_chain(state, anchor=True)  # fresh check; anchors only when it passes
 
     app = FastAPI(title="TraceX API", lifespan=lifespan)
     context.install(app)
@@ -131,13 +182,26 @@ def create_app(
     def ready() -> Any:
         state: AppState | None = getattr(app.state, "tracex", None)
         try:
-            ok = state is not None and state.reconciled.is_set() and chain_ready(state)
+            ok = state is not None and state.reconciled.is_set() and chain_status(state)
         except Exception:
             logger.exception("readiness check failed")
             ok = False
         if not ok:
             return JSONResponse(ApiError("NOT_READY").body(), status_code=503)
         return {"status": "ok"}
+
+    @app.middleware("http")
+    async def audit_gate(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        state: AppState | None = getattr(app.state, "tracex", None)
+        if (
+            state is not None
+            and state.chain_ok is not True
+            and (request.method, request.url.path) not in GATE_EXEMPT
+        ):
+            return JSONResponse(ApiError("NOT_READY").body(), status_code=503)
+        return await call_next(request)
 
     for module in (auth, cases, links, queue, graph, access, admin, changes, audit_routes):
         app.include_router(module.router)
