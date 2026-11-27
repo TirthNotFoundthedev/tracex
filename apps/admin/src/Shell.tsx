@@ -19,13 +19,15 @@ interface ShellProps {
   api: AdminApi;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
+  /** Called before the session ends because the person chose Sign out. */
+  onSignOutChosen?: () => void;
 }
 
 /**
  * Signed-in frame: header, role-based left navigation and the page area. The role comes from GET /me, not
  * from the sign-in answer. Hiding a menu item is a convenience only; each page still handles the API saying no.
  */
-export function Shell({ api, lang, onLanguageChange }: ShellProps) {
+export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellProps) {
   const { path, navigate, replace } = usePath();
   const [me, setMe] = useState<Me>({ state: "loading" });
 
@@ -64,7 +66,10 @@ export function Shell({ api, lang, onLanguageChange }: ShellProps) {
     if (first && !current) replace(first.path);
   }, [first, current, replace]);
 
-  const signOut = () => void api.session.signOut();
+  const signOut = () => {
+    onSignOutChosen?.();
+    void api.session.signOut();
+  };
 
   if (me.state !== "ready") {
     return (

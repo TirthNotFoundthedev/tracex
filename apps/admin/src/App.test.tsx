@@ -204,4 +204,5 @@ test("sign out returns to the sign-in page", async () => {
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Sign in"),
   );
   expect(api.session.accessToken()).toBeUndefined();
+  expect(screen.queryByText("Your session has ended. Please sign in again.")).toBeNull();
 });

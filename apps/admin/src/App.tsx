@@ -20,13 +20,18 @@ export function App({ api: given, lang: initialLang = "en" }: AppProps) {
   const [state, setState] = useState<SessionState | undefined>(() => api.session.state());
   const everSignedIn = useRef(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const choseSignOut = useRef(false);
 
   useEffect(() => api.session.subscribe(setState), [api]);
 
   useEffect(() => {
-    if (state) everSignedIn.current = true;
+    if (state) {
+      everSignedIn.current = true;
+      choseSignOut.current = false;
+      setSessionEnded(false);
+    }
     // Signed out after being signed in, and not by the sign-out button: say the session ended.
-    else if (everSignedIn.current) setSessionEnded(true);
+    else if (everSignedIn.current && !choseSignOut.current) setSessionEnded(true);
   }, [state]);
 
   useEffect(() => {
@@ -36,7 +41,14 @@ export function App({ api: given, lang: initialLang = "en" }: AppProps) {
   return (
     <UiProvider app="admin" lang={lang}>
       {state ? (
-        <Shell api={api} lang={lang} onLanguageChange={setLang} />
+        <Shell
+          api={api}
+          lang={lang}
+          onLanguageChange={setLang}
+          onSignOutChosen={() => {
+            choseSignOut.current = true;
+          }}
+        />
       ) : (
         <>
           <TopBar title={t("title", lang)} onLanguageChange={setLang} />
