@@ -150,6 +150,7 @@ const rejectedHistory = [
     at: "2026-03-12T10:00:00Z",
     actor_kind: "USER",
     actor_user_id: MEENA,
+    actor: { user_id: MEENA, display_name: "Meena Rao", role: "INVESTIGATOR" },
     reason_code: "REJECTED",
     reason_text: "Different people. Ages differ by 12 years.",
   },
@@ -263,7 +264,6 @@ test("the Rejected table shows By, Reason and the decision date from last_decisi
     {
       ...queue({ SUGGESTED: [], REJECTED: [rejectedRow({ last_decision: decision() })] }),
       [`GET /links/${LINK}`]: json(200, detail({ state: "REJECTED", history: rejectedHistory })),
-      [`GET /users/${MEENA}`]: user(MEENA, "Meena Rao", "INVESTIGATOR"),
     },
     "en",
     "/review?show=rejected",
@@ -395,7 +395,6 @@ test("opening a rejected link makes one link call and shows who, when and why in
         detail({ state: "REJECTED", allowed_actions: ["REOPEN"], history: rejectedHistory }),
       ),
       [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
-      [`GET /users/${MEENA}`]: user(MEENA, "Meena Rao", "INVESTIGATOR"),
     },
     "en",
     "/review?show=rejected",
@@ -620,7 +619,6 @@ test("a rejected link opens with its history above the panel and one primary but
         detail({ state: "REJECTED", allowed_actions: ["REOPEN"], history: rejectedHistory }),
       ),
       [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
-      [`GET /users/${MEENA}`]: user(MEENA, "Meena Rao", "INVESTIGATOR"),
     },
     "en",
     `/review/${LINK}?show=rejected`,
@@ -643,7 +641,6 @@ test("Reopen: the second step needs a reason, then sends it with expected_state"
         detail({ state: "REJECTED", allowed_actions: ["REOPEN"], history: rejectedHistory }),
       ),
       [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
-      [`GET /users/${MEENA}`]: user(MEENA, "Meena Rao", "INVESTIGATOR"),
       [`POST /links/${LINK}/reopen`]: json(200, detail({ state: "SUGGESTED" })),
     },
     "en",
@@ -689,6 +686,7 @@ test("a reopened link carries the Reopened tag, its history and the rerun line",
               at: "2026-03-14T10:00:00Z",
               actor_kind: "USER",
               actor_user_id: CHARU,
+              actor: { user_id: CHARU, display_name: "Charu Singh", role: "SUPERVISOR" },
               reason_code: "REOPENED",
               reason_text: "New call record found",
             },
@@ -696,8 +694,6 @@ test("a reopened link carries the Reopened tag, its history and the rerun line",
         }),
       ),
       [`GET /links/${LINK}/explanation`]: json(200, explanation()),
-      [`GET /users/${MEENA}`]: user(MEENA, "Meena Rao", "INVESTIGATOR"),
-      [`GET /users/${CHARU}`]: user(CHARU, "Charu Singh", "SUPERVISOR"),
     },
     "en",
     `/review/${LINK}`,
@@ -751,7 +747,6 @@ test("a rejected link the viewer cannot reopen shows the role line, never a grey
         }),
       ),
       [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
-      [`GET /users/${MEENA}`]: json(403),
     },
     "en",
     `/review/${LINK}`,
@@ -922,150 +917,36 @@ test("the page and the panel read in Hindi", async () => {
   ).toBeTruthy();
 });
 
-function Gate({ api }: { api: AdminApi }) {
-  const [signedIn, setSignedIn] = useState(Boolean(api.session.state()));
-  useEffect(() => api.session.subscribe((state) => setSignedIn(Boolean(state))), [api]);
-  return signedIn ? <Harness api={api} /> : null;
-}
+const panelCalls = (calls: { path: string }[]) => calls.filter((c) => c.path.startsWith("/users/"));
 
-type Who = { role: "SENIOR" | "SUPERVISOR" };
-
-/** Sign-in answers with a token named by role; `GET /users/{id}` answers by the token, as the API does. */
-function sessionRoutes(who: Who, users: Answer): Routes {
-  return {
-    ...queue({ REJECTED: [rejectedRow()] }),
-    "POST /auth/login": () =>
-      json(200, {
-        access_token: `tok-${who.role}`,
-        refresh_token: "r",
-        token_type: "Bearer",
-        expires_in: 900,
-        refresh_expires_in: 28800,
-        user: { user_id: CHARU, username: "u", display_name: "U", role: who.role, active: true },
-      }),
-    "POST /auth/logout": json(204),
-    [`GET /links/${LINK}`]: json(
-      200,
-      detail({ state: "REJECTED", allowed_actions: ["REOPEN"], history: rejectedHistory }),
-    ),
-    [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
-    [`GET /users/${MEENA}`]: users,
-  };
-}
-
-const bearer = (init: RequestInit) => (init.headers as Record<string, string>).Authorization;
-const NAMED = "Rejected by Meena Rao (Investigating officer) on 12 Mar 2026";
-const UNNAMED = "Rejected on 12 Mar 2026";
-const bySeniorOnly: Answer = ({ init }) =>
-  bearer(init) === "Bearer tok-SENIOR"
-    ? user(MEENA, "Meena Rao", "INVESTIGATOR")
-    : json(403, { code: "FORBIDDEN" });
-
-async function signIn(api: AdminApi, name: string) {
-  await act(async () => {
-    await api.session.signIn(name, "pw");
-  });
-}
-
-function mount(routes: Routes) {
-  const made = fakeApi(routes);
-  window.history.replaceState(null, "", `/review/${LINK}?show=rejected`);
-  renderPage(<Gate api={made.api} />);
-  return made;
-}
-
-const userCalls = (calls: { path: string }[]) =>
-  calls.filter((c) => c.path === `/users/${MEENA}`).length;
-
-test("names looked up by a SENIOR are not shown to a SUPERVISOR who signs in next in the same app", async () => {
-  const who: Who = { role: "SENIOR" };
-  const { api, calls } = mount(sessionRoutes(who, bySeniorOnly));
-  await signIn(api, "senior");
-  expect(await screen.findByText(NAMED)).toBeTruthy();
-
-  await act(async () => {
-    await api.session.signOut();
-  });
-  expect(screen.queryByText(NAMED)).toBeNull();
-
-  who.role = "SUPERVISOR";
-  await signIn(api, "supervisor");
-  expect(await screen.findByText(UNNAMED)).toBeTruthy();
-  expect(screen.queryByText(/Meena Rao/)).toBeNull();
-  expect(userCalls(calls)).toBe(2);
-});
-
-test("a refusal seen by a SUPERVISOR does not hide the name from the SENIOR who signs in next", async () => {
-  const who: Who = { role: "SUPERVISOR" };
-  const { api } = mount(sessionRoutes(who, bySeniorOnly));
-  await signIn(api, "supervisor");
-  expect(await screen.findByText(UNNAMED)).toBeTruthy();
-  await act(async () => {
-    await api.session.signOut();
-  });
-  who.role = "SENIOR";
-  await signIn(api, "senior");
-  expect(await screen.findByText(NAMED)).toBeTruthy();
-});
-
-test("a session that ends on its own also clears the names", async () => {
-  const who: Who = { role: "SENIOR" };
-  const { api } = mount(sessionRoutes(who, bySeniorOnly));
-  await signIn(api, "senior");
-  expect(await screen.findByText(NAMED)).toBeTruthy();
-  act(() => api.session.endLocally());
-  who.role = "SUPERVISOR";
-  await signIn(api, "supervisor");
-  expect(await screen.findByText(UNNAMED)).toBeTruthy();
-});
-
-test("inside one session a refused look-up is not repeated", async () => {
-  const who: Who = { role: "SUPERVISOR" };
-  const { api, calls } = mount(sessionRoutes(who, json(403, { code: "FORBIDDEN" })));
-  await signIn(api, "supervisor");
-  expect(await screen.findByText(UNNAMED)).toBeTruthy();
-  fireEvent.click(button("Back to the list"));
-  await screen.findAllByText("24/118");
-  fireEvent.click(button("Open"));
-  expect(await screen.findByText(UNNAMED)).toBeTruthy();
-  expect(userCalls(calls)).toBe(1);
-});
-
-test.each([429, 503, 500])(
-  "a %s on the name look-up is not kept: the next opening asks again",
-  async (status) => {
-    let n = 0;
-    const who: Who = { role: "SENIOR" };
-    const { api, calls } = mount(
-      sessionRoutes(who, () =>
-        n++ === 0 ? json(status) : user(MEENA, "Meena Rao", "INVESTIGATOR"),
+const openRejected = (history: unknown[]) =>
+  open(
+    {
+      ...queue({ REJECTED: [rejectedRow()] }),
+      [`GET /links/${LINK}`]: json(
+        200,
+        detail({ state: "REJECTED", allowed_actions: ["REOPEN"], history }),
       ),
-    );
-    await signIn(api, "senior");
-    expect(await screen.findByText(UNNAMED)).toBeTruthy();
-    fireEvent.click(button("Back to the list"));
-    await screen.findAllByText("24/118");
-    fireEvent.click(button("Open"));
-    expect(await screen.findByText(NAMED)).toBeTruthy();
-    expect(userCalls(calls)).toBe(2);
-  },
-);
-
-test("a network error on the name look-up is not kept either", async () => {
-  let n = 0;
-  const who: Who = { role: "SENIOR" };
-  const { api } = mount(
-    sessionRoutes(who, () => {
-      if (n++ === 0) throw new TypeError("offline");
-      return user(MEENA, "Meena Rao", "INVESTIGATOR");
-    }),
+      [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
+    },
+    "en",
+    `/review/${LINK}?show=rejected`,
   );
-  await signIn(api, "senior");
-  expect(await screen.findByText(UNNAMED)).toBeTruthy();
-  fireEvent.click(button("Back to the list"));
-  await screen.findAllByText("24/118");
-  fireEvent.click(button("Open"));
-  expect(await screen.findByText(NAMED)).toBeTruthy();
+
+test("the panel names the deciding person from the link and makes no user call", async () => {
+  const { calls } = openRejected(rejectedHistory);
+  expect(
+    await screen.findByText("Rejected by Meena Rao (Investigating officer) on 12 Mar 2026"),
+  ).toBeTruthy();
+  expect(panelCalls(calls)).toEqual([]);
+});
+
+test("when the link's actor is null the panel words the line without a name and makes no user call", async () => {
+  const history = rejectedHistory.map((e) => ("actor" in e ? { ...e, actor: null } : e));
+  const { calls } = openRejected(history);
+  expect(await screen.findByText("Rejected on 12 Mar 2026")).toBeTruthy();
+  expect(document.body.textContent).not.toContain(MEENA);
+  expect(panelCalls(calls)).toEqual([]);
 });
 
 /** A fake `fetch` whose queue answers can be held back by the test and released later. */
