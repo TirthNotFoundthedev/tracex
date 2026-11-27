@@ -32,7 +32,7 @@ from tracex_api.engine_bridge import (
     validate_thresholds,
 )
 from tracex_api.errors import ApiError, invalid
-from tracex_api.policy import ROLES
+from tracex_api.policy import ROLES, can_read_user
 from tracex_api.routers.auth import user_out
 from tracex_api.views import as_uuid, page_slice
 from tracex_engine.matching import ThresholdsError
@@ -473,12 +473,8 @@ def list_roles(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
 
 
 def user_visible(ctx: Ctx, u: Row) -> bool:
-    me = ctx.me
-    if me.role == "ADMIN":
-        return True
-    if u["role"] in ("SENIOR", "ADMIN"):
-        return me.coverage_all
-    return me.covers_district(str(u["district_id"]))
+    district = str(u["district_id"]) if u["district_id"] else None
+    return can_read_user(ctx.me, u["role"], district)
 
 
 @endpoint(router, "GET", "/users", policy=SENIOR_OR_ADMIN, audit_event="NONE")
