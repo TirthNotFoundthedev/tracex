@@ -101,7 +101,9 @@ export function createClient(options: ClientOptions) {
           fieldErrors: [{ field: "reason", code }],
         });
       }
-      return call<Success<K>>("POST", `/links/${id(linkId)}/${action}`, { body: { reason } });
+      return call<Success<K>>("POST", `/links/${id(linkId)}/${action}`, {
+        body: { ...(body as object), reason },
+      });
     };
   }
 

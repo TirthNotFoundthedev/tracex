@@ -163,6 +163,18 @@ describe("tokens and refresh", () => {
     expect(session.accessToken()).toBeUndefined();
   });
 
+  test.each([
+    [503, "safetyPause"],
+    [429, "tooManyAttempts"],
+  ] as const)("a refresh answered %s keeps the session and reports %s", async (status, kind) => {
+    const { client, session } = await signedIn((url) =>
+      url.endsWith("/auth/refresh") ? json(status, {}) : json(401, { code: "UNAUTHENTICATED" }),
+    );
+    expect(await client.getMe()).toEqual({ kind });
+    expect(session.state()).toBeDefined();
+    expect(session.accessToken()).toBeDefined();
+  });
+
   test("tokens are never written to browser storage", async () => {
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     await signedIn(() => json(200, {}));
@@ -495,6 +507,18 @@ describe("reasons", () => {
         fieldErrors: [{ field: "reason", code: "too_long" }],
       });
       expect(fetchImpl.mock.calls.length).toBe(before);
+    },
+  );
+
+  test.each(["rejectLink", "undoLink", "reopenLink"] as const)(
+    "%s sends expected_state with the trimmed reason",
+    async (name) => {
+      const { client, fetchImpl } = await signedIn(() => json(200, {}));
+      await client[name](ID, { reason: "  Because  ", expected_state: "SUGGESTED" });
+      expect(JSON.parse(lastCall(fetchImpl).init.body as string)).toEqual({
+        reason: "Because",
+        expected_state: "SUGGESTED",
+      });
     },
   );
 
