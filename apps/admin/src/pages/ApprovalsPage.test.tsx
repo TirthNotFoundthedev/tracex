@@ -635,3 +635,18 @@ test("clicking the tab that is already open keeps its count", async () => {
   fireEvent.click(tab);
   expect(screen.getByRole("button", { name: "Access requests (7)" })).toBeTruthy();
 });
+
+test("refusing with a note of only spaces sends a body without note", async () => {
+  const { calls } = setup("SUPERVISOR", {
+    [`POST /access-requests/${REQ}/deny`]: json(200, request({ status: "DENIED" })),
+  });
+  await openRow("Meena Rao");
+  fireEvent.change(await screen.findByLabelText("Reason for refusing (optional)"), {
+    target: { value: "     " },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Refuse" }));
+  await screen.findByText("You refused this request. Nothing was changed.");
+  const sent = body(calls, `/access-requests/${REQ}/deny`);
+  expect(sent).toEqual({});
+  expect("note" in sent).toBe(false);
+});

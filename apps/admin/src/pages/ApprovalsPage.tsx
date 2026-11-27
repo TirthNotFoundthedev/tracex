@@ -213,7 +213,11 @@ function AccessDetail({
   const refuse = async () => {
     setBusy(true);
     setFailure(undefined);
-    const result = await api.client.denyAccessRequest(item.request_id, { note: note.trim() });
+    const result = await api.client.denyAccessRequest(
+      item.request_id,
+      // An empty note is a 422 at the API, so a blank one is left out.
+      note.trim() ? { note: note.trim() } : {},
+    );
     setBusy(false);
     if (result.kind !== "ok") return setFailure(result);
     setDone(t("approvals.access.refused", lang));
