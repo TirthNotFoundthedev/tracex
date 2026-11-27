@@ -6,7 +6,8 @@ import { hi } from "./i18n/hi";
 
 type Role = "JUNIOR" | "INVESTIGATOR" | "SUPERVISOR" | "SENIOR";
 type Reply = { status: number; body?: unknown };
-type Handler = Reply | ((request: { body: Record<string, unknown> | undefined }) => Reply);
+type Handler =
+  Reply | ((request: { body: Record<string, unknown> | undefined; query: string }) => Reply);
 
 interface Call {
   method: string;
@@ -31,7 +32,7 @@ function mockApi(table: Record<string, Handler>) {
       handler === undefined
         ? { status: 500 }
         : typeof handler === "function"
-          ? handler({ body })
+          ? handler({ body, query: url.search })
           : handler;
     return Promise.resolve(
       new Response(reply.body === undefined ? null : JSON.stringify(reply.body), {
@@ -515,6 +516,140 @@ describe("refusals from the API", () => {
       expect(screen.queryByText(/You confirmed this link/)).toBeNull();
     },
   );
+});
+
+describe("a failed Show more", () => {
+  const caseCall = {
+    items: [entity("E-1", "C-1", "98xxxx1234")],
+    case: summary,
+    counts_by_type: { PHONE: 1 },
+  };
+
+  const failing = (status: number) => ({
+    "GET /cases": ({ query }: { query: string }): Reply =>
+      query.includes("cursor")
+        ? { status, body: { code: "X", message_key: "x" } }
+        : ok({ items: [summary], next_cursor: "c2", total: 100 }),
+    "GET /cases/C-1/entities": ({ query }: { query: string }): Reply =>
+      query.includes("cursor")
+        ? { status, body: { code: "X", message_key: "x" } }
+        : ok({ ...caseCall, next_cursor: "c2" }),
+  });
+
+  const kinds: [number, RegExp][] = [
+    [503, /paused for a safety check/],
+    [403, /do not have access to this/],
+    [404, /We could not find this/],
+  ];
+
+  test.each(kinds)("on My cases, %i has its own words, not no connection", async (status, text) => {
+    const api = mockApi({ ...baseTable("INVESTIGATOR", entityDetail([])), ...failing(status) });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    click("Show more");
+    await screen.findByText(text);
+    expect(screen.queryByText(/No connection/)).toBeNull();
+  });
+
+  test.each(kinds)("on a case, %i has its own words, not no connection", async (status, text) => {
+    const api = mockApi({ ...baseTable("INVESTIGATOR", entityDetail([])), ...failing(status) });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    await screen.findByText("Phone numbers (1)");
+    click("Show more");
+    await screen.findByText(text);
+    expect(screen.queryByText(/No connection/)).toBeNull();
+  });
+
+  test("a lost connection still says no connection", async () => {
+    const api = mockApi({ ...baseTable("INVESTIGATOR", entityDetail([])), ...failing(500) });
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes("cursor=")
+        ? Promise.reject(new TypeError("offline"))
+        : api.fetch(input, init)) as typeof fetch;
+    render(<App fetchImpl={fetchImpl} />);
+    await signIn();
+    click("Show more");
+    await screen.findByText(/No connection/);
+  });
+});
+
+describe("reopen, allowed actions, wording and the access form", () => {
+  test("a rejected link offers Open this link again when the API allows REOPEN, and sends a reason", async () => {
+    const api = await openLink({
+      ...baseTable("SUPERVISOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("REJECTED", ["REOPEN"])),
+      "GET /links/L-1/explanation": ok(explanation),
+      "POST /links/L-1/reopen": ok(linkDetail("SUGGESTED", ["CONFIRM", "REJECT"])),
+    });
+    expect(screen.queryByRole("button", { name: /Confirm|Reject/ })).toBeNull();
+    click("Open this link again");
+    fireEvent.change(screen.getByLabelText(/Why are you opening it again?/), {
+      target: { value: "New call record" },
+    });
+    click("Yes, open it again");
+    await screen.findByText(/You opened this link again/);
+    const post = api.calls.find((call) => call.path === "/links/L-1/reopen");
+    expect(post?.body).toEqual({ reason: "New call record", expected_state: "REJECTED" });
+  });
+
+  test("no REOPEN in allowed_actions means no reopen button", async () => {
+    await openLink({
+      ...baseTable("SUPERVISOR", entityDetail([linkSummary("SUGGESTED")])),
+      "GET /links/L-1": ok(linkDetail("REJECTED", [], "STATE_FINAL")),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    expect(screen.queryByRole("button", { name: /again/ })).toBeNull();
+  });
+
+  test("buttons follow allowed_actions even when the link state would hide them", async () => {
+    await openLink({
+      ...baseTable("SUPERVISOR", entityDetail([linkSummary("CONFIRMED")])),
+      "GET /links/L-1": ok(linkDetail("CONFIRMED", ["CONFIRM", "REJECT"])),
+      "GET /links/L-1/explanation": ok(explanation),
+    });
+    expect(screen.getByRole("button", { name: "Confirm they are the same" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reject this link" })).toBeTruthy();
+  });
+
+  test("a hidden connection does not use the restricted card wording", async () => {
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([])),
+      "GET /cases/C-1/entities": ok({
+        items: [entity("E-1", "C-1", "98xxxx1234", { has_hidden_connection: true })],
+        next_cursor: null,
+        case: summary,
+        counts_by_type: { PHONE: 1 },
+      }),
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    await screen.findByText("Phone numbers (1)");
+    expect(screen.queryByText("Another police area")).toBeNull();
+    expect(screen.getByText("Also in a case you cannot see")).toBeTruthy();
+  });
+
+  test("a 404 on the access request disables the form", async () => {
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([], [stub()])),
+      "POST /access-requests": { status: 404, body: { code: "NOT_FOUND", message_key: "x" } },
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show other cases" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Ask for access" }));
+    fireEvent.change(await screen.findByLabelText("Your reason"), {
+      target: { value: "I need this for my case review." },
+    });
+    click("Send request");
+    await screen.findByText(/We could not find this/);
+    expect(screen.queryByRole("button", { name: "Send request" })).toBeNull();
+    expect(screen.queryByLabelText("Your reason")).toBeNull();
+  });
 });
 
 describe("navigation and language", () => {

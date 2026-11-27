@@ -100,6 +100,9 @@ export function createClient(options: ClientOptions) {
     undoLink: (linkId: string, body: BodyOf<"undoLink">) =>
       call<Success<"undoLink">>("POST", `/links/${id(linkId)}/undo`, { body }),
 
+    reopenLink: (linkId: string, body: BodyOf<"reopenLink">) =>
+      call<Success<"reopenLink">>("POST", `/links/${id(linkId)}/reopen`, { body }),
+
     getStub: (stubId: string) => call<Success<"getStub">>("GET", `/stubs/${id(stubId)}`),
     createAccessRequest: (body: BodyOf<"createAccessRequest">) => {
       const reason = body.reason.trim();

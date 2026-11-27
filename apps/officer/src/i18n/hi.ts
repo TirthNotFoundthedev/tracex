@@ -47,6 +47,7 @@ export const hi: Record<keyof typeof en, string> = {
   "case.alsoIn.one": "1 और मामले में भी है",
   "case.alsoIn.other": "{n} और मामलों में भी है",
   "case.onlyHere": "सिर्फ़ इस मामले में",
+  "case.hiddenConnection": "ऐसे मामले में भी है जो आप नहीं देख सकते",
   "case.pleaseCheck": "कृपया जाँचें",
 
   // O4 Item
@@ -71,6 +72,7 @@ export const hi: Record<keyof typeof en, string> = {
   "why.confirm": "पुष्टि करें कि यह वही है",
   "why.reject": "यह जुड़ाव अस्वीकार करें",
   "why.undo": "यह जुड़ाव वापस लें",
+  "why.reopen": "इस लिंक को फिर से खोलें",
   "why.autoNote": "यह अपने आप जुड़ा था। गलत हो तो आप इसे वापस ले सकते हैं।",
   "why.saving": "आपका फ़ैसला सेव हो रहा है...",
   "why.cannot.lookOnly":
@@ -93,11 +95,18 @@ export const hi: Record<keyof typeof en, string> = {
   "undo.reasonMissing": "कृपया अपना कारण लिखें।",
   "undo.goBack": "नहीं, वापस जाएँ",
   "undo.confirm": "हाँ, वापस लें",
+  "reopen.title": "इस लिंक को फिर से खोलें?",
+  "reopen.body":
+    "दोनों रिकॉर्ड फिर से संभावित मेल के रूप में दिखेंगे। फिर कोई उन्हें जाँच सकता है।",
+  "reopen.reasonLabel": "आप इसे फिर से क्यों खोल रहे हैं?",
+  "reopen.goBack": "नहीं, वापस जाएँ",
+  "reopen.confirm": "हाँ, फिर से खोलें",
 
   // O8 Link decided
   "decided.confirmed": "आपने इस जुड़ाव की पुष्टि की। दोनों रिकॉर्ड अब एक जैसे दिखाए जाते हैं।",
   "decided.rejected": "आपने इस जुड़ाव को अस्वीकार किया। गलती हुई हो तो अपने पर्यवेक्षक से कहें।",
   "decided.undone": "आपका फ़ैसला वापस ले लिया गया।",
+  "decided.reopened": "आपने इस लिंक को फिर से खोला। यह फ़ैसले का इंतज़ार कर रहा है।",
   "decided.checkAgain": "यह जुड़ाव फिर से जाँचें",
   "decided.undo": "वापस लें",
   "decided.backToCase": "इस मामले पर वापस जाएँ",

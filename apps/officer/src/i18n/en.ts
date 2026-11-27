@@ -52,6 +52,7 @@ export const en = {
   "case.alsoIn.one": "Also in 1 case",
   "case.alsoIn.other": "Also in {n} cases",
   "case.onlyHere": "Only in this case",
+  "case.hiddenConnection": "Also in a case you cannot see",
   "case.pleaseCheck": "Please check",
 
   // O4 Item
@@ -76,6 +77,7 @@ export const en = {
   "why.confirm": "Confirm they are the same",
   "why.reject": "Reject this link",
   "why.undo": "Undo this link",
+  "why.reopen": "Open this link again",
   "why.autoNote": "This was linked automatically. You can undo it if it is wrong.",
   "why.saving": "Saving your decision...",
   "why.cannot.lookOnly":
@@ -97,11 +99,18 @@ export const en = {
   "undo.reasonMissing": "Please write your reason.",
   "undo.goBack": "No, go back",
   "undo.confirm": "Yes, undo",
+  "reopen.title": "Open this link again?",
+  "reopen.body":
+    "The two records will be shown as a possible match again. Someone can then check them.",
+  "reopen.reasonLabel": "Why are you opening it again?",
+  "reopen.goBack": "No, go back",
+  "reopen.confirm": "Yes, open it again",
 
   // O8 Link decided
   "decided.confirmed": "You confirmed this link. The two records are now shown as the same.",
   "decided.rejected": "You rejected this link. If this was a mistake, ask your supervisor.",
   "decided.undone": "Your decision was undone.",
+  "decided.reopened": "You opened this link again. It is waiting for a decision.",
   "decided.checkAgain": "Check this link again",
   "decided.undo": "Undo",
   "decided.backToCase": "Back to this case",

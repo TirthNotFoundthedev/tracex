@@ -1,8 +1,10 @@
 import { Badge, Button, ListRow } from "@tracex/ui";
 import { useState } from "react";
 
+import type { FailureResult } from "../api/resultKeys";
 import type { components } from "../api/schema";
 import { useApp } from "../app-context";
+import { FailureView } from "../components/FailureView";
 import { Await, Screen } from "../components/Screen";
 import { entityIcon, type EntityType } from "../lib/entity";
 import { useLoad } from "../lib/useLoad";
@@ -30,7 +32,7 @@ export function Case({ caseId }: { caseId: string }) {
     items: EntitySummary[];
     cursor: string | null;
   }>();
-  const [moreFailed, setMoreFailed] = useState(false);
+  const [moreFailure, setMoreFailure] = useState<FailureResult>();
 
   const number = loaded.status === "ok" ? loaded.data.case.case_number : "";
   const title = loaded.status === "ok" ? tt("case.title", { number }) : tt("state.loading");
@@ -38,10 +40,10 @@ export function Case({ caseId }: { caseId: string }) {
   async function showMore(cursor: string, shown: EntitySummary[]) {
     const result = await client.listCaseEntities(caseId, { cursor });
     if (result.kind !== "ok") {
-      setMoreFailed(true);
+      setMoreFailure(result);
       return;
     }
-    setMoreFailed(false);
+    setMoreFailure(undefined);
     setTail({ key, items: [...shown, ...result.data.items], cursor: result.data.next_cursor });
   }
 
@@ -86,7 +88,7 @@ export function Case({ caseId }: { caseId: string }) {
                                       },
                                     )
                                   : item.has_hidden_connection
-                                    ? tt("restricted.title")
+                                    ? tt("case.hiddenConnection")
                                     : tt("case.onlyHere")
                               }
                               badge={
@@ -103,7 +105,7 @@ export function Case({ caseId }: { caseId: string }) {
                   </section>
                 );
               })}
-              {moreFailed ? <p className="tx-body">{tt("state.noConnection")}</p> : null}
+              {moreFailure ? <FailureView result={moreFailure} /> : null}
               {cursor ? (
                 <Button variant="secondary" onClick={() => void showMore(cursor, items)}>
                   {tt("cases.showMore")}

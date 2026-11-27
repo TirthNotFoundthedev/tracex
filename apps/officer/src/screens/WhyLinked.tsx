@@ -29,11 +29,12 @@ type Explanation = components["schemas"]["Explanation"];
 const REASON_MIN = 3;
 const REASON_MAX = 1000;
 
-type Outcome = "confirmed" | "rejected" | "undone";
+type Outcome = "confirmed" | "rejected" | "undone" | "reopened";
 type View =
   | { name: "panel" }
   | { name: "reject" }
   | { name: "undo" }
+  | { name: "reopen" }
   | { name: "decided"; outcome: Outcome; detail: LinkDetail };
 
 interface Loaded {
@@ -127,7 +128,7 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
           if (failure?.kind === "notFound") return <FailureView result={failure} />;
           const problem = failure ? <FailureView result={failure} onRetry={refresh} /> : null;
 
-          if (view.name === "reject" || view.name === "undo") {
+          if (view.name === "reject" || view.name === "undo" || view.name === "reopen") {
             const rejecting = view.name === "reject";
             return (
               <>
@@ -145,6 +146,21 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
                     onConfirm={(reason) =>
                       void decide("rejected", () =>
                         client.rejectLink(linkId, { reason: reason ?? "", expected_state: state }),
+                      )
+                    }
+                    onCancel={() => setView({ name: "panel" })}
+                  />
+                ) : view.name === "reopen" ? (
+                  <ConfirmStep
+                    title={tt("reopen.title")}
+                    body={tt("reopen.body")}
+                    confirmLabel={tt("reopen.confirm")}
+                    confirmVariant="primary"
+                    cancelVariant="secondary"
+                    reason={{ label: tt("reopen.reasonLabel"), min: REASON_MIN, max: REASON_MAX }}
+                    onConfirm={(reason) =>
+                      void decide("reopened", () =>
+                        client.reopenLink(linkId, { reason: reason ?? "", expected_state: state }),
                       )
                     }
                     onCancel={() => setView({ name: "panel" })}
@@ -178,7 +194,7 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
                   {tt(`decided.${view.outcome}`)}
                 </Message>
                 <div className="tx-actions">
-                  {view.outcome === "undone" ? (
+                  {view.outcome === "undone" || view.outcome === "reopened" ? (
                     <>
                       <Button variant="primary" onClick={refresh}>
                         {tt("decided.checkAgain")}
@@ -207,12 +223,15 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
           const content = panelContent(explanation, lang, caseNumbers, shared("item.case"));
           const allowed = new Set(link.allowed_actions);
           const suggested = link.state === "SUGGESTED";
-          const canConfirm = suggested && allowed.has("CONFIRM");
-          const canReject = suggested && allowed.has("REJECT");
-          const canUndo =
-            (link.state === "AUTO" || link.state === "CONFIRMED") && allowed.has("UNDO");
+          // The API list already encodes role, state and area. The screen follows it and adds no state check.
+          const canConfirm = allowed.has("CONFIRM");
+          const canReject = allowed.has("REJECT");
+          const canUndo = allowed.has("UNDO");
+          const canReopen = allowed.has("REOPEN");
           const blocked =
-            !canConfirm && !canReject && !canUndo ? blockedKey(link, user.role) : undefined;
+            !canConfirm && !canReject && !canUndo && !canReopen
+              ? blockedKey(link, user.role)
+              : undefined;
           const caseNumberOf = (caseId: string, own?: string) => own ?? caseNumbers[caseId] ?? "";
 
           return (
@@ -265,7 +284,7 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
               ) : null}
               {blocked ? <Message kind="info">{tt(blocked)}</Message> : null}
               {busy ? <Loading label={tt("why.saving")} /> : null}
-              {canConfirm || canReject || canUndo ? (
+              {canConfirm || canReject || canUndo || canReopen ? (
                 <div className="tx-actions">
                   {canConfirm ? (
                     <Button
@@ -298,6 +317,15 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
                       onClick={() => setView({ name: "undo" })}
                     >
                       {tt("why.undo")}
+                    </Button>
+                  ) : null}
+                  {canReopen ? (
+                    <Button
+                      variant={canConfirm || canReject || canUndo ? "secondary" : "primary"}
+                      disabled={busy}
+                      onClick={() => setView({ name: "reopen" })}
+                    >
+                      {tt("why.reopen")}
                     </Button>
                   ) : null}
                 </div>

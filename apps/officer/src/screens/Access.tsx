@@ -45,6 +45,15 @@ export function AskForAccess({ stubId, from }: { stubId: string; from: string | 
         ? "restricted.tooManyWaiting"
         : undefined;
 
+  // The stub is gone or was never theirs (404): there is nothing to ask for, so no form.
+  if (failure?.kind === "notFound") {
+    return (
+      <Screen title={tt("access.title")}>
+        <FailureView result={failure} />
+      </Screen>
+    );
+  }
+
   return (
     <Screen title={tt("access.title")}>
       <p className="tx-body">{tt("access.intro")}</p>

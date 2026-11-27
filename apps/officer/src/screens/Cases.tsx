@@ -1,6 +1,7 @@
 import { Badge, Button, EmptyState, ListRow, Message, Pager, SearchField } from "@tracex/ui";
 import { useEffect, useState } from "react";
 
+import type { FailureResult } from "../api/resultKeys";
 import type { components } from "../api/schema";
 import { useApp } from "../app-context";
 import { Await, Screen } from "../components/Screen";
@@ -26,7 +27,8 @@ export function Cases() {
     key,
   );
   const [tail, setTail] = useState<{ key: string; items: CaseSummary[]; cursor: string | null }>();
-  const [tailState, setTailState] = useState<"idle" | "loading" | "failed">("idle");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreFailure, setMoreFailure] = useState<FailureResult>();
   const [approved, setApproved] = useState<AccessRequestMine[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
@@ -49,17 +51,18 @@ export function Cases() {
   const retry = () => setEpoch((n) => n + 1);
 
   async function showMore(cursor: string, shownItems: CaseSummary[]) {
-    setTailState("loading");
+    setLoadingMore(true);
+    setMoreFailure(undefined);
     const result = await client.listCases({
       limit: PAGE,
       cursor,
       ...(query ? { case_number: query } : {}),
     });
+    setLoadingMore(false);
     if (result.kind !== "ok") {
-      setTailState("failed");
+      setMoreFailure(result);
       return;
     }
-    setTailState("idle");
     setTail({
       key,
       items: [...shownItems, ...result.data.items],
@@ -136,7 +139,7 @@ export function Cases() {
                   </li>
                 ))}
               </ul>
-              {tailState === "failed" ? <FailureView result={{ kind: "networkError" }} /> : null}
+              {moreFailure ? <FailureView result={moreFailure} /> : null}
               {cursor ? (
                 page.total !== undefined ? (
                   <Pager
@@ -147,7 +150,7 @@ export function Cases() {
                 ) : (
                   <Button
                     variant="secondary"
-                    disabled={tailState === "loading"}
+                    disabled={loadingMore}
                     onClick={() => void showMore(cursor, items)}
                   >
                     {tt("cases.showMore")}
