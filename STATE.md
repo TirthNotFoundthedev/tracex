@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-11-27, session S4 (P4 apps), sixth checkpoint: P4.3e merged (#65, #66), #64 and #67 merged; admin parts a-e done; stopped before P4.3f.
+Last updated: 2026-11-28, session S4 (P4 apps), seventh checkpoint: P4.3f merged (#70); all six admin parts done; stopped before the admin screenshot review (TIR-20).
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
@@ -12,20 +12,21 @@ Last updated: 2026-11-27, session S4 (P4 apps), sixth checkpoint: P4.3e merged (
 - Later in S2, merged with the owner's OK by number (PRs #22, #24, #23, #20, #26, #25, #21), `main` green: Neo4j service in backend CI with Neo4j pinned to `5.26.12-community` and root devDependencies exact-pinned (Rao); extractor fix for role word + `M/s` and the raw_text rule (Naidu); reference scorer `python -m datakit score`, `engine-result/1` schema, G-09 isolation, ground-truth bare-name `raw_text` (Bose); noise persons in one case have distinct names, G-17 (Bose); spec errata 2/3 (Iyer); per-case graphs, order-independent within-case dedupe, Neo4j store and `docs/specs/engine-graph.md` (Bose, 2.3). The 9 Neo4j tests run in GitHub CI (822 backend tests, none skipped). Decisions D55-D56.
 - PR #28 merged with the owner's OK, tag `m2-slice`: Tier 1 matching, scoring skeleton (composite score, bands, gates), SAME_AS link stores (in-memory and Neo4j), runs with the D37 rerun rules, human decisions as engine calls, explanation payload builder, `engine-result/1` adapter and the end-to-end kit gate (Iyer, 2.4; Khan approved after one fix round). 1006 backend tests in CI, Neo4j path included. Decisions D57.
 
-## In progress (S4, D63-D73), checkpoint 2026-11-27 (sixth)
-- Stopped after P4.3e as the owner asked. No agent is running. No PR is open.
-- Linear project TraceX tracks P4 in detail (D66): TIR-17 to TIR-20, TIR-27 to TIR-43, TIR-84 to TIR-93. Update it at each checkpoint (CLAUDE.md).
-- Merged into `main` in S4 (owner OKs D67, D68; clean reviews; CI green on current main): #41-#45, #47-#67. Officer app complete (#49). Admin parts a-e done: shell (#48), uploads/runs/thresholds (#53), review queue (#55, #61), approvals (#59), users and roles A5 (#65), activity log A6 (#66).
-- This checkpoint: #63 (state), #64 (Sen: design-flows A4, Administrators see only the Changes tab; TIR-89), #67 (Pillai: flaky ApprovalsPage test, sync read of a count set from an effect; TIR-90), #66 and #65 (Pillai, P4.3e, TIR-34; split in two because A5 alone was about 1700 lines). Reviews: Mehta, Khan, Dutta CHANGES on the first round, all APPROVE after one fix round (tests first). Main at e925762, CI green on all four jobs at each merge; admin suite 771 tests.
+## In progress (S4, D63-D74), checkpoint 2026-11-28 (seventh)
+- Stopped after P4.3f as the owner asked. No agent is running. Open PR: #69 (OPUS_HANDOVER.md, not from an agent; not merged, the owner decides).
+- Linear project TraceX tracks P4 in detail (D66): TIR-17 to TIR-20, TIR-27 to TIR-43, TIR-84 to TIR-94. Update it at each checkpoint (CLAUDE.md).
+- Merged into `main` in S4 (owner OKs D67, D68; clean reviews; CI green on current main): #41-#45, #47-#68, #70. Officer app complete (#49). Admin panel complete: shell (#48), uploads/runs/thresholds (#53), review queue (#55, #61), approvals (#59), users and roles A5 (#65), activity log A6 (#66), network graph A8 (#70).
+- This checkpoint: #70 (Pillai, P4.3f, TIR-35): "Network of links" page on GraphCanvas/GraphLegend and GET /entities/{id}/graph; no call and a plain message for ADMIN; hidden cases as lock stubs only; keyboard Tab/Enter; list view of every node, edge and stub. Reviews: Khan and Dutta APPROVE first round; Mehta and Sen CHANGES, APPROVE after one fix round (tests commit first). Sen rendered with the Vite dev server against mocked answers, not the seeded stack. Main at e3488dc, CI green on all four jobs; admin suite 802 tests. Rulings in D74.
 - The owner's standing OK (D68) covers every remaining P4 PR once its reviews are clean and CI is green on current main.
 
 ### Next
-- P4.3f graph view (TIR-35), Pillai. Then admin screenshots on the seeded stack and Sen's review (TIR-20), tag `m4-apps` (TIR-39).
+- Admin screenshots on the seeded stack and Sen's review (TIR-20), including the network page on real data; then tag `m4-apps` (TIR-39).
+- TIR-94 (Sen, packages/ui): graph label clip at 375, edge words over labels, density at 150 nodes, RestrictedCard organisation line; then Pillai drops the admin's hand-built org stub section.
 - Follow-ups from P4.3e: TIR-91 (Khan, Dutta gate: user changes checked at propose time: username 422, coverage old value recorded and approval refused if changed, one waiting change per user; until then a long-open user form can still send old coverage), TIR-92 (Khan: `event_group` filter on GET /audit and `case_number` on AuditCaseRef; then the Activity log uses them), TIR-93 (Pillai: "Change refused" tag on A5 rows).
 - Later items: TIR-88 (Dutta F1-F3 after #60; Khan), TIR-41 (audit anchor reader), TIR-43 (upload failure reason codes), a `reopened` flag on queue items (Mehta's note on #57), empty "Seed data" heading in the runbook (Rao). Activity log names come from at most 1000 users (non-blocking).
 
 ### Leftovers
-- Merged branches of #59-#67 deleted on GitHub.
+- Merged branches of #59-#67 and #70 deleted on GitHub. Agent worktrees of S4 reviewers (Mehta, Sen) and Pillai remain under `.claude/worktrees/`; Sen's screenshots for #70 are there, not committed.
 - `gh pr merge --delete-branch` tries to remove the local worktree that holds the branch; for #62 it failed half-way on `.t3/worktrees/Fable Run/t3-46afbc2b-...` (Permission denied; directory left without git metadata). Merge without `--delete-branch` and delete the remote branch with `gh api -X DELETE repos/<repo>/git/refs/heads/<branch>`.
 - Agent worktrees under `.claude/worktrees/` hold branch names; do not reuse names. Branch `opus-5.5-phase-2-attempt-1` is kept as history.
 - S4 lesson: agents stalled often ("no progress for 600s") during long test or docker waits. Brief agents to push after each step and never wait on one command more than 5 minutes (worked in this round: no stalls).
