@@ -468,13 +468,9 @@ test.each([
 });
 
 test("a network failure when the list loads shows the no-connection message", async () => {
-  const fake = fakeApi({});
   const failing = (() => Promise.reject(new TypeError("offline"))) as unknown as typeof fetch;
-  void fake;
-  const { createApi } = await import("../api");
-  renderPage(
-    <UsersPage api={createApi({ baseUrl: "http://api.test", fetch: failing })} lang="en" role="ADMIN" />,
-  );
+  const api = createApi({ baseUrl: "http://api.test", fetch: failing });
+  renderPage(<UsersPage api={api} lang="en" role="ADMIN" />);
   expect(await screen.findByText(t("state.noConnection", "en"))).toBeTruthy();
 });
 
