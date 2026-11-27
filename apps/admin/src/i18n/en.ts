@@ -243,6 +243,15 @@ export const en = {
     "Match settings: strong match starts at {high}, possible at {medium}",
   "approvals.state.on": "on",
   "approvals.state.off": "off",
+  "approvals.change.assignmentAdd": "Give {name} case {case}",
+  "approvals.change.assignmentRemove": "Take case {case} away from {name}",
+  "approvals.access.ownRequest":
+    "You asked for this access yourself. Another person must decide it.",
+  "approvals.access.status.PENDING": "Waiting",
+  "approvals.access.status.APPROVED": "Approved",
+  "approvals.access.status.DENIED": "Refused",
+  "approvals.access.status.WITHDRAWN": "Withdrawn",
+  "approvals.access.status.EXPIRED": "Expired",
 
   // A5 Users and roles
   "users.title": "Users and roles",

@@ -45,7 +45,11 @@ function change(over: Record<string, unknown> = {}) {
     subject: { user_id: OTHER, display_name: "Ravi Kumar", role: "SUPERVISOR" },
     old_value: { role: "SUPERVISOR" },
     new_value: { role: "SENIOR" },
-    proposer: { user_id: "60000000-0000-4000-8000-000000000006", display_name: "Hari", role: "ADMIN" },
+    proposer: {
+      user_id: "60000000-0000-4000-8000-000000000006",
+      display_name: "Hari",
+      role: "ADMIN",
+    },
     change_hash: HASH,
     proposed_at: "2026-03-12T14:05:00Z",
     ...over,
@@ -65,6 +69,12 @@ function setup(role: Role, over: Routes = {}) {
   });
   renderPage(<ApprovalsPage api={fake.api} lang="en" role={role} userId={ME} />);
   return fake;
+}
+
+async function openRow(text: string) {
+  const cell = (await screen.findAllByText(text))[0] as HTMLElement;
+  const row = cell.closest("tr") as HTMLElement;
+  fireEvent.click(within(row).getByRole("button", { name: "Open" }));
 }
 
 const body = (calls: { method: string; path: string; init: RequestInit }[], path: string) =>
@@ -91,16 +101,23 @@ test("a senior officer sees both tabs with the API totals", async () => {
   expect(screen.getByRole("button", { name: "Changes (1)" })).toBeTruthy();
 });
 
-test("the access list asks for requests to decide that are pending", async () => {
-  const { calls } = setup("SUPERVISOR");
+test("the access list asks for pending requests to decide, 50 at a time", async () => {
+  const urls: URL[] = [];
+  setup("SUPERVISOR", {
+    "GET /access-requests": ({ url }) => {
+      urls.push(new URL(url));
+      return page([request()]);
+    },
+  });
   await screen.findByText("Meena Rao");
-  const get = calls.find((c) => c.path === "/access-requests" && c.init.method === undefined);
-  expect(get).toBeTruthy();
+  const list = urls.find((u) => u.searchParams.get("limit") === "50");
+  expect(list?.searchParams.get("scope")).toBe("to_decide");
+  expect(list?.searchParams.get("status")).toBe("PENDING");
 });
 
 test("opening a request shows the whole reason and reads no detail from the API", async () => {
   const { calls } = setup("SUPERVISOR");
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   expect(
     await screen.findByText("Phone number 9000014471 shows up in both inquiries"),
   ).toBeTruthy();
@@ -126,7 +143,7 @@ test("approving needs a second step and sends the chosen days", async () => {
       }),
     ),
   });
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
   expect(calls.some((c) => c.method === "POST")).toBe(false);
   expect(screen.getByText("Give Meena Rao access to case C-207 for 30 days?")).toBeTruthy();
@@ -139,17 +156,19 @@ test("choosing 90 days is what is sent and what the question says", async () => 
   const { calls } = setup("SUPERVISOR", {
     [`POST /access-requests/${REQ}/approve`]: json(200, request({ status: "APPROVED" })),
   });
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   fireEvent.change(await screen.findByLabelText("Access ends"), { target: { value: "90" } });
   fireEvent.click(screen.getByRole("button", { name: "Approve" }));
   expect(screen.getByText("Give Meena Rao access to case C-207 for 90 days?")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Yes, approve" }));
-  await waitFor(() => expect(body(calls, `/access-requests/${REQ}/approve`)).toEqual({ duration_days: 90 }));
+  await waitFor(() =>
+    expect(body(calls, `/access-requests/${REQ}/approve`)).toEqual({ duration_days: 90 }),
+  );
 });
 
 test("No, go back leaves the request untouched", async () => {
   const { calls } = setup("SUPERVISOR");
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
   fireEvent.click(screen.getByRole("button", { name: "No, go back" }));
   expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
@@ -160,23 +179,27 @@ test("refusing sends the trimmed note, and the Refuse button is never the primar
   const { calls } = setup("SUPERVISOR", {
     [`POST /access-requests/${REQ}/deny`]: json(200, request({ status: "DENIED" })),
   });
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   const refuse = await screen.findByRole("button", { name: "Refuse" });
-  expect(refuse.className).not.toMatch(/primary/);
-  expect(screen.getByRole("button", { name: "Approve" }).className).toMatch(/primary/);
+  expect(refuse.getAttribute("data-variant")).not.toBe("primary");
+  expect(screen.getByRole("button", { name: "Approve" }).getAttribute("data-variant")).toBe(
+    "primary",
+  );
   fireEvent.change(screen.getByLabelText("Reason for refusing (optional)"), {
     target: { value: "  Ask your supervisor first  " },
   });
   fireEvent.click(refuse);
   expect(await screen.findByText("You refused this request. Nothing was changed.")).toBeTruthy();
-  expect(body(calls, `/access-requests/${REQ}/deny`)).toEqual({ note: "Ask your supervisor first" });
+  expect(body(calls, `/access-requests/${REQ}/deny`)).toEqual({
+    note: "Ask your supervisor first",
+  });
 });
 
 test("refusing without a note sends an empty body", async () => {
   const { calls } = setup("SUPERVISOR", {
     [`POST /access-requests/${REQ}/deny`]: json(200, request({ status: "DENIED" })),
   });
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   fireEvent.click(await screen.findByRole("button", { name: "Refuse" }));
   await screen.findByText("You refused this request. Nothing was changed.");
   expect(body(calls, `/access-requests/${REQ}/deny`)).toEqual({});
@@ -184,7 +207,7 @@ test("refusing without a note sends an empty body", async () => {
 
 test("the note field stops at 200 characters", async () => {
   setup("SUPERVISOR");
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   const note = await screen.findByLabelText("Reason for refusing (optional)");
   expect(note.getAttribute("maxlength")).toBe("200");
   expect(
@@ -198,7 +221,7 @@ test("a request made by the viewer has no decision buttons", async () => {
       request({ requester: { user_id: ME, display_name: "Me Myself", role: "SUPERVISOR" } }),
     ]),
   });
-  fireEvent.click(await screen.findByText("Me Myself"));
+  await openRow("Me Myself");
   expect(await screen.findByText(/You asked for this access/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Refuse" })).toBeNull();
@@ -214,7 +237,7 @@ test.each([
   const { calls } = setup("SUPERVISOR", {
     [`POST /access-requests/${REQ}/approve`]: json(status, errBody),
   });
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
   fireEvent.click(screen.getByRole("button", { name: "Yes, approve" }));
   expect(await screen.findByText(text)).toBeTruthy();
@@ -240,13 +263,18 @@ test("an empty list says so", async () => {
 
 test("Show more adds rows, keeps them when the next page fails, and uses the API total", async () => {
   let call = 0;
-  const answer: Answer = () => {
+  const answer: Answer = ({ url }) => {
+    if (new URL(url).searchParams.get("limit") === "1") return page([request()], 3);
     call += 1;
-    if (call === 1)
-      return json(200, { items: [request()], next_cursor: "c".repeat(20), total: 3 });
+    if (call === 1) return json(200, { items: [request()], next_cursor: "c".repeat(20), total: 3 });
     if (call === 2) return json(500);
     return json(200, {
-      items: [request({ request_id: REQ2, requester: { user_id: OTHER, display_name: "Charu Das", role: "JUNIOR" } })],
+      items: [
+        request({
+          request_id: REQ2,
+          requester: { user_id: OTHER, display_name: "Charu Das", role: "JUNIOR" },
+        }),
+      ],
       next_cursor: null,
       total: 3,
     });
@@ -270,7 +298,7 @@ test("a senior officer decides a change from another administrator with a second
     [`POST /pending-changes/${CHG}/approve`]: json(200, change({ state: "APPROVED" })),
   });
   fireEvent.click(await screen.findByRole("button", { name: /Changes/ }));
-  fireEvent.click(await screen.findByText("Ravi Kumar: Supervisor to Senior officer"));
+  await openRow("Ravi Kumar: Supervisor to Senior officer");
   expect(await screen.findByText("Now")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Approve this change" }));
   expect(screen.getByText("Apply this change? It takes effect now.")).toBeTruthy();
@@ -286,9 +314,9 @@ test("refusing a change sends no body and Refuse is not primary", async () => {
     [`POST /pending-changes/${CHG}/deny`]: json(200, change({ state: "DENIED" })),
   });
   fireEvent.click(await screen.findByRole("button", { name: /Changes/ }));
-  fireEvent.click(await screen.findByText("Ravi Kumar: Supervisor to Senior officer"));
+  await openRow("Ravi Kumar: Supervisor to Senior officer");
   const refuse = await screen.findByRole("button", { name: "Refuse this change" });
-  expect(refuse.className).not.toMatch(/primary/);
+  expect(refuse.getAttribute("data-variant")).not.toBe("primary");
   fireEvent.click(refuse);
   expect(await screen.findByText("You refused this change. Nothing was changed.")).toBeTruthy();
   const post = calls.find((c) => c.method === "POST");
@@ -303,7 +331,7 @@ test("the proposer sees no buttons and the reason", async () => {
     ]),
   });
   fireEvent.click(await screen.findByRole("button", { name: /Changes/ }));
-  fireEvent.click(await screen.findByText("Ravi Kumar: Supervisor to Senior officer"));
+  await openRow("Ravi Kumar: Supervisor to Senior officer");
   expect(
     await screen.findByText("You proposed this change. Another senior officer must decide it."),
   ).toBeTruthy();
@@ -317,7 +345,7 @@ test("the subject sees no buttons and the reason", async () => {
     ]),
   });
   fireEvent.click(await screen.findByRole("button", { name: /Changes/ }));
-  fireEvent.click(await screen.findByText("Me: Senior officer to Senior officer"));
+  await openRow("Me: Supervisor to Senior officer");
   expect(
     await screen.findByText("This change is about you. Another senior officer must decide it."),
   ).toBeTruthy();
@@ -330,7 +358,7 @@ test("an administrator sees the status of their changes and no Approve button", 
   });
   await screen.findAllByText("Waiting for a senior officer");
   expect(screen.getByText("Refused")).toBeTruthy();
-  fireEvent.click(screen.getAllByText("Ravi Kumar: Supervisor to Senior officer")[0] as HTMLElement);
+  await openRow("Ravi Kumar: Supervisor to Senior officer");
   await screen.findByText("Now");
   expect(screen.queryByRole("button", { name: "Approve this change" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Refuse this change" })).toBeNull();
@@ -353,9 +381,11 @@ test.each([
   ["LAST_APPROVER", "This would leave no senior officer to approve for that area."],
   ["CONFLICT", "Someone changed this while you were looking. Please open it again."],
 ])("a 409 %s is shown in words and not retried", async (code, text) => {
-  const { calls } = setup("SENIOR", { [`POST /pending-changes/${CHG}/approve`]: json(409, { code }) });
+  const { calls } = setup("SENIOR", {
+    [`POST /pending-changes/${CHG}/approve`]: json(409, { code }),
+  });
   fireEvent.click(await screen.findByRole("button", { name: /Changes/ }));
-  fireEvent.click(await screen.findByText("Ravi Kumar: Supervisor to Senior officer"));
+  await openRow("Ravi Kumar: Supervisor to Senior officer");
   fireEvent.click(await screen.findByRole("button", { name: "Approve this change" }));
   fireEvent.click(screen.getByRole("button", { name: "Yes, approve" }));
   expect(await screen.findByText(text)).toBeTruthy();
@@ -365,7 +395,7 @@ test.each([
 test("a 404 on a decision shows the plain change-not-found text", async () => {
   setup("SENIOR", { [`POST /pending-changes/${CHG}/deny`]: json(404) });
   fireEvent.click(await screen.findByRole("button", { name: /Changes/ }));
-  fireEvent.click(await screen.findByText("Ravi Kumar: Supervisor to Senior officer"));
+  await openRow("Ravi Kumar: Supervisor to Senior officer");
   fireEvent.click(await screen.findByRole("button", { name: "Refuse this change" }));
   expect(await screen.findByText("We could not find this change.")).toBeTruthy();
 });
@@ -383,10 +413,32 @@ test.each([
 test("changes read in plain words for every kind", async () => {
   setup("ADMIN", {
     "GET /pending-changes": page([
-      change({ change_id: "a1", kind: "THRESHOLDS", subject: null, old_value: { high_min: 80, medium_min: 45 }, new_value: { high_min: 85, medium_min: 50 } }),
-      change({ change_id: "a2", kind: "USER_DISABLE", old_value: { active: true }, new_value: { active: false } }),
-      change({ change_id: "a3", kind: "USER_CREATE", subject: null, old_value: null, new_value: { username: "new.one", display_name: "Asha Nair", role: "JUNIOR" } }),
-      change({ change_id: "a4", kind: "ASSIGNMENT_ADD", old_value: null, new_value: { case_number: "31/207" } }),
+      change({
+        change_id: "a1",
+        kind: "THRESHOLDS",
+        subject: null,
+        old_value: { high_min: 80, medium_min: 45 },
+        new_value: { high_min: 85, medium_min: 50 },
+      }),
+      change({
+        change_id: "a2",
+        kind: "USER_DISABLE",
+        old_value: { active: true },
+        new_value: { active: false },
+      }),
+      change({
+        change_id: "a3",
+        kind: "USER_CREATE",
+        subject: null,
+        old_value: null,
+        new_value: { username: "new.one", display_name: "Asha Nair", role: "JUNIOR" },
+      }),
+      change({
+        change_id: "a4",
+        kind: "ASSIGNMENT_ADD",
+        old_value: null,
+        new_value: { case_number: "31/207" },
+      }),
     ]),
   });
   expect(
@@ -411,10 +463,11 @@ test("Hindi shows the same page in Hindi", async () => {
 test("the table is inside a labelled region and a decision returns to a refreshed list", async () => {
   let n = 0;
   setup("SUPERVISOR", {
-    "GET /access-requests": () => (++n === 1 ? page([request()]) : none),
+    "GET /access-requests": ({ url }) =>
+      new URL(url).searchParams.get("limit") === "1" || ++n === 1 ? page([request()]) : none,
     [`POST /access-requests/${REQ}/deny`]: json(200, request({ status: "DENIED" })),
   });
-  fireEvent.click(await screen.findByText("Meena Rao"));
+  await openRow("Meena Rao");
   fireEvent.click(await screen.findByRole("button", { name: "Refuse" }));
   await screen.findByText("You refused this request. Nothing was changed.");
   fireEvent.click(screen.getByRole("button", { name: "Back to the list" }));
