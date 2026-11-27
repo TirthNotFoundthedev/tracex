@@ -106,7 +106,15 @@ test("an administrator gets a plain not-available state and no graph or search c
 });
 
 test("searching then showing the network draws nodes, a legend and calls only search and graph", async () => {
-  const { calls } = open(routes());
+  let graphUrl = "";
+  const { calls } = open(
+    routes({
+      [`GET /entities/${E1}/graph`]: ({ url }) => {
+        graphUrl = url;
+        return json(200, graph());
+      },
+    }),
+  );
   await showNetwork();
   expect(nodeEl(E1)).not.toBeNull();
   expect(nodeEl(E2)).not.toBeNull();
@@ -114,9 +122,7 @@ test("searching then showing the network draws nodes, a legend and calls only se
   expect(screen.getByRole("region", { name: "How to read the picture" })).toBeTruthy();
   const paths = apiCalls(calls).map((c) => c.path);
   expect(paths).toEqual(["/search/entities", `/entities/${E1}/graph`]);
-  const graphCall = new URL(
-    (calls.find((c) => c.path === `/entities/${E1}/graph`) as { url: string }).url,
-  );
+  const graphCall = new URL(graphUrl);
   expect(graphCall.searchParams.get("depth")).toBe("1");
   expect(graphCall.searchParams.get("limit")).toBe("150");
 });
@@ -175,6 +181,7 @@ test("the list lists every node label, both ends of every edge, and each stub as
   const cells = (row: HTMLElement) =>
     within(row)
       .getAllByRole("cell")
+      .slice(0, 2)
       .map((c) => c.textContent);
   const itemCells = itemRows.map(cells);
   expect(itemCells).toContainEqual(["Phone number", "9000014471"]);
@@ -182,7 +189,7 @@ test("the list lists every node label, both ends of every edge, and each stub as
   expect(itemCells).toContainEqual(["Person", "Meena Rao"]);
   expect(itemCells).toContainEqual(["Another police area", "Another police area"]);
   const stubRow = itemRows.find((r) => cells(r)[0] === "Another police area") as HTMLElement;
-  expect(stubRow.textContent).toBe("Another police areaAnother police area");
+  expect(stubRow.textContent).toBe("Another police areaAnother police areaOpen");
   expect(items.innerHTML).not.toContain(STUB);
 
   const links = screen.getByRole("table", { name: "Links in the network" });

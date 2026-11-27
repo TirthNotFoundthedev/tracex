@@ -125,7 +125,11 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
 
   return (
     <>
-      <TopBar title={t(current.labelKey, lang)} onLanguageChange={onLanguageChange} {...header} />
+      <TopBar
+        title={t(current.id === "graph" ? "graphPage.title" : current.labelKey, lang)}
+        onLanguageChange={onLanguageChange}
+        {...header}
+      />
       <div className="admin-frame">
         <SideNav
           items={entries.map((entry) => ({

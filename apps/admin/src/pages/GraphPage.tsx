@@ -5,11 +5,12 @@ import {
   Loading,
   Message,
   RestrictedCard,
-  SearchField,
+  Icon,
+  TextField,
   type GraphEdge,
   type GraphNode,
 } from "@tracex/ui";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 
 import type { AdminApi } from "../api";
 import type { FailureResult } from "../api/resultKeys";
@@ -36,12 +37,16 @@ const SHAPE_OF: Record<EntityType, "person" | "phone" | "bank" | "vehicle" | "or
 /** The most the API may send, and the most the picture holds (DESIGN_RULES section 12). */
 const CAP = 150;
 
+/** GET /search/entities: `q` is 2 to 100 characters. */
+const QUERY_MIN = 2;
+const QUERY_MAX = 100;
+
 type Search =
   | { state: "idle" }
   | { state: "loading" }
   | { state: "failed"; result: FailureResult }
   | { state: "empty" }
-  | { state: "results"; items: EntitySummary[] };
+  | { state: "results"; items: EntitySummary[]; more: boolean };
 
 type Network =
   | { state: "none" }
@@ -108,6 +113,8 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
   const [search, setSearch] = useState<Search>({ state: "idle" });
   const [network, setNetwork] = useState<Network>({ state: "none" });
   const [selected, setSelected] = useState<string | undefined>();
+  const [query, setQuery] = useState("");
+  const [queryError, setQueryError] = useState<string | undefined>();
   const [linkId, setLinkId] = useState<string | undefined>();
   /** Only the newest request may change the screen. */
   const latest = useRef(0);
@@ -116,7 +123,7 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
     const turn = ++latest.current;
     setSelected(undefined);
     setNetwork({ state: "loading" });
-    const result = await api.client.getEntityGraph(entityId, { limit: CAP });
+    const result = await api.client.getEntityGraph(entityId, { depth: 1, limit: CAP });
     if (turn !== latest.current) return;
     setNetwork(
       result.kind === "ok"
@@ -126,16 +133,29 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
   };
 
   const runSearch = async (text: string) => {
+    const words = text.trim();
+    if (words.length < QUERY_MIN) {
+      latest.current++;
+      setNetwork({ state: "none" });
+      setSearch({ state: "idle" });
+      setQueryError(
+        words.length === 0
+          ? t("common.fillIn", lang, { field: t("graphPage.search", lang) })
+          : t("graphPage.tooShort", lang),
+      );
+      return;
+    }
+    setQueryError(undefined);
     const turn = ++latest.current;
     setNetwork({ state: "none" });
     setSelected(undefined);
     setSearch({ state: "loading" });
-    const result = await api.client.searchEntities({ q: text.trim() });
+    const result = await api.client.searchEntities({ q: words });
     if (turn !== latest.current) return;
     if (result.kind !== "ok") return setSearch({ state: "failed", result });
     const items = result.data.items;
     if (items.length === 0) return setSearch({ state: "empty" });
-    setSearch({ state: "results", items });
+    setSearch({ state: "results", items, more: result.data.next_cursor !== null });
     const only = items.length === 1 ? items[0] : undefined;
     if (only) void showNetwork(only.entity_id);
   };
@@ -173,10 +193,13 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
       const near = network.data.nodes.find((n) => n.entity.entity_id === stub.near_entity_id);
       if (!near) return null;
       const shape = SHAPE_OF[near.entity.type];
-      // RestrictedCard has no organisation item type yet (NEEDS: Sen). Same words, no item line.
+      // RestrictedCard has no organisation item type yet. Same words and the same lock, no item line.
       return shape === "org" ? (
         <section className="tx-restricted" aria-label={t("restricted.title", lang)}>
-          <p className="tx-restricted__title">{t("restricted.title", lang)}</p>
+          <p className="tx-restricted__title">
+            <Icon name="restricted" />
+            <span>{t("restricted.title", lang)}</span>
+          </p>
           <p className="tx-body">{t("access.stub.connection_exists", lang)}</p>
           <p className="tx-body">{t("restricted.cannotSee", lang)}</p>
         </section>
@@ -229,7 +252,28 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
 
   return (
     <div className="admin-page">
-      <SearchField label={t("graphPage.search", lang)} onSearch={(q) => void runSearch(q)} />
+      <form
+        className="admin-form"
+        role="search"
+        noValidate
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          void runSearch(query);
+        }}
+      >
+        <TextField
+          label={t("graphPage.search", lang)}
+          value={query}
+          maxLength={QUERY_MAX}
+          onChange={setQuery}
+          {...(queryError ? { error: queryError } : {})}
+        />
+        <div className="admin-actions">
+          <Button type="submit" variant="primary" icon="search">
+            {t("graphPage.show", lang)}
+          </Button>
+        </div>
+      </form>
       {search.state === "loading" ? <Loading label={t("loading.default", lang)} /> : null}
       {search.state === "failed" ? <FailureView result={search.result} lang={lang} /> : null}
       {search.state === "empty" ? (
@@ -238,6 +282,11 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
       {search.state === "results" && search.items.length > 1 ? (
         <section aria-label={t("graphPage.results", lang)}>
           <h2 className="admin-panel-title">{t("graphPage.results", lang)}</h2>
+          {search.more ? (
+            <Message kind="info">
+              {t("graphPage.firstOnly", lang, { n: search.items.length })}
+            </Message>
+          ) : null}
           <ul className="admin-plain">
             {search.items.map((item) => (
               <li key={item.entity_id}>
@@ -246,7 +295,7 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
                   <span className="admin-mono">{item.display_value}</span>
                 </span>
                 <Button variant="secondary" onClick={() => void showNetwork(item.entity_id)}>
-                  {t("graphPage.show", lang)}
+                  {t("graphPage.showRow", lang)}
                 </Button>
               </li>
             ))}

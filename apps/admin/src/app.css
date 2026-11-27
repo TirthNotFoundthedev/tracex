@@ -232,22 +232,66 @@
   white-space: nowrap;
 }
 
-/* A8: legend left, drawing in the middle, panel right; stacked on a phone. */
+/*
+ * A8: legend in a row above the drawing, the drawing at full width, the selected-item panel below it.
+ * Nothing sits beside or over the drawing or the list tables.
+ */
 .admin-graph {
-  display: grid;
-  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr) minmax(14rem, 20rem);
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
-  align-items: start;
+  min-inline-size: 0;
+}
+
+.admin-graph .tx-legend {
+  flex-direction: row;
+  flex-wrap: wrap;
+  column-gap: var(--space-6);
+  align-items: flex-start;
+}
+
+.admin-graph .tx-legend__title,
+.admin-graph .tx-legend__head {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.admin-graph .tx-legend__list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  column-gap: var(--space-5);
+}
+
+/*
+ * The drawing sits in a box of bounded height that scrolls inside itself, so 150 nodes never stretch the
+ * page. The side padding leaves room for long labels at the edge, so no label is cut off.
+ */
+.admin-graph .tx-graph__frame {
+  max-block-size: min(75vh, 44rem);
+  overflow: auto;
+  padding-inline: 3rem;
+}
+
+/* On a phone the padding would shrink the drawing below readable size, so it stays small. */
+@media (max-width: 48rem) {
+  .admin-graph .tx-graph__frame {
+    padding-inline: var(--space-1);
+  }
+}
+
+.admin-graph .tx-graph__svg {
+  overflow: visible;
+}
+
+.admin-graph .tx-graph__lists {
+  min-inline-size: 0;
+  overflow-x: auto;
 }
 
 .admin-graph__panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-@media (max-width: 64rem) {
-  .admin-graph {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  min-inline-size: 0;
+  max-inline-size: 40rem;
 }
