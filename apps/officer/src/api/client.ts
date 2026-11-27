@@ -68,7 +68,7 @@ export function createClient(options: ClientOptions) {
       if (attempt === 1) break;
       const outcome = await session.refreshAfter(token);
       if (outcome.kind === "signedOut") return { kind: "sessionExpired" };
-      if (outcome.kind === "unavailable") return { kind: outcome.reason };
+      if (outcome.kind === "unavailable") return outcome.result;
       token = outcome.token;
     }
     return { kind: "sessionExpired" };
@@ -99,6 +99,9 @@ export function createClient(options: ClientOptions) {
       call<Success<"rejectLink">>("POST", `/links/${id(linkId)}/reject`, { body }),
     undoLink: (linkId: string, body: BodyOf<"undoLink">) =>
       call<Success<"undoLink">>("POST", `/links/${id(linkId)}/undo`, { body }),
+
+    reopenLink: (linkId: string, body: BodyOf<"reopenLink">) =>
+      call<Success<"reopenLink">>("POST", `/links/${id(linkId)}/reopen`, { body }),
 
     getStub: (stubId: string) => call<Success<"getStub">>("GET", `/stubs/${id(stubId)}`),
     createAccessRequest: (body: BodyOf<"createAccessRequest">) => {

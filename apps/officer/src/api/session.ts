@@ -1,4 +1,4 @@
-import { type ApiResult, buildUrl, type FetchLike, send } from "./http";
+import { type ApiResult, buildUrl, type FetchLike, type HttpResult, send } from "./http";
 import type { components } from "./schema";
 
 export type User = components["schemas"]["User"];
@@ -9,7 +9,7 @@ export type SignInResult = ApiResult<User> | { kind: "badCredentials" };
 export type RefreshOutcome =
   | { kind: "refreshed"; token: string }
   | { kind: "signedOut" }
-  | { kind: "unavailable"; reason: "networkError" | "serverError" };
+  | { kind: "unavailable"; result: Exclude<HttpResult<never>, { kind: "ok" | "unauthorized" }> };
 
 export interface SessionState {
   user: User;
@@ -77,9 +77,9 @@ export function createSession(options: SessionOptions): Session {
       adopt(result.data);
       return { kind: "refreshed", token: result.data.access_token };
     }
-    if (result.kind === "networkError") return { kind: "unavailable", reason: "networkError" };
-    if (result.kind === "serverError") return { kind: "unavailable", reason: "serverError" };
-    // Any other answer means the server refused this refresh token: the session is over.
+    // Only a 401 (the server refused this refresh token) ends the session. Every other answer says nothing
+    // about the token, so the session stays and the screen shows the matching message.
+    if (result.kind !== "unauthorized") return { kind: "unavailable", result };
     clear();
     return { kind: "signedOut" };
   }
