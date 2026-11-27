@@ -24,7 +24,8 @@ function request(over: Record<string, unknown> = {}) {
     expires_at: "2026-03-19T14:05:00Z",
     reason: "Phone number 9000014471 shows up in both inquiries",
     requester: { user_id: OTHER, display_name: "Meena Rao", role: "JUNIOR" },
-    far_case_id: "C-207",
+    far_case_id: "60000000-0000-4000-8000-0000000002c7",
+    far_case_number: "FAR-2026-0207",
     stub: {
       redacted: true,
       stub_id: "50000000-0000-4000-8000-000000000005",
@@ -138,7 +139,7 @@ test("approving needs a second step and sends the chosen days", async () => {
           starts_at: "2026-03-12T15:00:00Z",
           expires_at: "2026-04-11T15:00:00Z",
           holder: { user_id: OTHER, display_name: "Meena Rao", role: "JUNIOR" },
-          far_case_id: "C-207",
+          far_case_id: "60000000-0000-4000-8000-0000000002c7",
         },
       }),
     ),
@@ -146,7 +147,7 @@ test("approving needs a second step and sends the chosen days", async () => {
   await openRow("Meena Rao");
   fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
   expect(calls.some((c) => c.method === "POST")).toBe(false);
-  expect(screen.getByText("Give Meena Rao access to case C-207 for 30 days?")).toBeTruthy();
+  expect(screen.getByText("Give Meena Rao access to case FAR-2026-0207 for 30 days?")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Yes, approve" }));
   expect(await screen.findByText("You gave access. It ends on 11 Apr 2026.")).toBeTruthy();
   expect(body(calls, `/access-requests/${REQ}/approve`)).toEqual({ duration_days: 30 });
@@ -159,7 +160,7 @@ test("choosing 90 days is what is sent and what the question says", async () => 
   await openRow("Meena Rao");
   fireEvent.change(await screen.findByLabelText("Access ends"), { target: { value: "90" } });
   fireEvent.click(screen.getByRole("button", { name: "Approve" }));
-  expect(screen.getByText("Give Meena Rao access to case C-207 for 90 days?")).toBeTruthy();
+  expect(screen.getByText("Give Meena Rao access to case FAR-2026-0207 for 90 days?")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Yes, approve" }));
   await waitFor(() =>
     expect(body(calls, `/access-requests/${REQ}/approve`)).toEqual({ duration_days: 90 }),
@@ -649,4 +650,11 @@ test("refusing with a note of only spaces sends a body without note", async () =
   const sent = body(calls, `/access-requests/${REQ}/deny`);
   expect(sent).toEqual({});
   expect("note" in sent).toBe(false);
+});
+
+test("the far case is shown by its number and never by its id", async () => {
+  const { container } = setup("SUPERVISOR");
+  await openRow("Meena Rao");
+  expect(await screen.findAllByText("FAR-2026-0207")).not.toHaveLength(0);
+  expect(container.textContent).not.toContain("60000000-0000-4000-8000-0000000002c7");
 });
