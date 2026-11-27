@@ -52,6 +52,7 @@ export const en = {
   "case.alsoIn.one": "Also in 1 case",
   "case.alsoIn.other": "Also in {n} cases",
   "case.onlyHere": "Only in this case",
+  "case.org": "Organisation",
   "case.hiddenConnection": "Also in a case you cannot see",
   "case.pleaseCheck": "Please check",
 
@@ -66,7 +67,7 @@ export const en = {
   // O5 Also appears in
   "also.title": "Also appears in",
   "also.intro": "{value} also appears in these cases.",
-  "also.caseLine": "Case {number}, {place}",
+  "also.caseLine": "Case {number}, {title}",
   "also.whyLinked": "Why was this linked?",
   "also.checkThis": "Check this",
   "also.empty": "There are no other cases to show.",
@@ -156,7 +157,8 @@ export const en = {
   "state.changedMeanwhile":
     "This link changed while you were looking. Nothing was changed. Please check it again.",
   "state.somethingMissing": "Something is missing. Please check what you wrote.",
-  "state.sessionEnding": "You will be signed out in 2 minutes.",
+  "state.sessionEnding":
+    "You will be signed out in 2 minutes. Your decisions are already saved. Sign in again after.",
   "state.stay": "Stay signed in",
   "state.sessionEnded": "Your session has ended. Please sign in again.",
   // Added with the screens

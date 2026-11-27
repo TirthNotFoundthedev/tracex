@@ -34,6 +34,19 @@ export function Case({ caseId }: { caseId: string }) {
   }>();
   const [moreFailure, setMoreFailure] = useState<FailureResult>();
 
+  /** Second line of a row. An organisation says so, so the row is not taken for a person. */
+  function rowSecondary(item: EntitySummary): string {
+    const note =
+      item.link_count > 0
+        ? tt(item.link_count === 1 ? "case.alsoIn.one" : "case.alsoIn.other", {
+            n: item.link_count,
+          })
+        : item.has_hidden_connection
+          ? tt("case.hiddenConnection")
+          : tt("case.onlyHere");
+    return item.type === "ORG" ? `${tt("case.org")}. ${note}` : note;
+  }
+
   const number = loaded.status === "ok" ? loaded.data.case.case_number : "";
   const title = loaded.status === "ok" ? tt("case.title", { number }) : tt("state.loading");
 
@@ -77,20 +90,7 @@ export function Case({ caseId }: { caseId: string }) {
                             <ListRow
                               icon={entityIcon[item.type]}
                               title={item.display_value}
-                              secondary={
-                                item.link_count > 0
-                                  ? tt(
-                                      item.link_count === 1
-                                        ? "case.alsoIn.one"
-                                        : "case.alsoIn.other",
-                                      {
-                                        n: item.link_count,
-                                      },
-                                    )
-                                  : item.has_hidden_connection
-                                    ? tt("case.hiddenConnection")
-                                    : tt("case.onlyHere")
-                              }
+                              secondary={rowSecondary(item)}
                               badge={
                                 item.needs_review ? (
                                   <Badge icon="possible">{tt("case.pleaseCheck")}</Badge>

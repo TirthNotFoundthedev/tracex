@@ -47,6 +47,7 @@ export const hi: Record<keyof typeof en, string> = {
   "case.alsoIn.one": "1 और मामले में भी है",
   "case.alsoIn.other": "{n} और मामलों में भी है",
   "case.onlyHere": "सिर्फ़ इस मामले में",
+  "case.org": "संस्था",
   "case.hiddenConnection": "ऐसे मामले में भी है जो आप नहीं देख सकते",
   "case.pleaseCheck": "कृपया जाँचें",
 
@@ -61,7 +62,7 @@ export const hi: Record<keyof typeof en, string> = {
   // O5 Also appears in
   "also.title": "यह यहाँ भी है",
   "also.intro": "{value} इन मामलों में भी है।",
-  "also.caseLine": "मामला {number}, {place}",
+  "also.caseLine": "मामला {number}, {title}",
   "also.whyLinked": "यह क्यों जोड़ा गया?",
   "also.checkThis": "इसे जाँचें",
   "also.empty": "दिखाने के लिए कोई और मामला नहीं है।",
@@ -152,7 +153,8 @@ export const hi: Record<keyof typeof en, string> = {
   "state.changedMeanwhile":
     "आपके देखते-देखते यह जुड़ाव बदल गया। कुछ भी नहीं बदला। कृपया इसे फिर से जाँचें।",
   "state.somethingMissing": "कुछ कमी है। कृपया जो लिखा है उसे जाँचें।",
-  "state.sessionEnding": "2 मिनट में आप साइन आउट हो जाएँगे।",
+  "state.sessionEnding":
+    "2 मिनट में आप साइन आउट हो जाएँगे। आपके फ़ैसले पहले ही सहेजे जा चुके हैं। बाद में फिर साइन इन करें।",
   "state.stay": "साइन इन रहें",
   "state.sessionEnded": "आपका सत्र खत्म हो गया। कृपया फिर साइन इन करें।",
   // Added with the screens

@@ -244,7 +244,7 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
                     <span className="tx-mono">{end.entity.display_value}</span>
                     {", "}
                     {end.case.title
-                      ? tt("also.caseLine", { number: end.case.case_number, place: end.case.title })
+                      ? tt("also.caseLine", { number: end.case.case_number, title: end.case.title })
                       : shared("evidence.case", { case: end.case.case_number })}
                   </li>
                 ))}

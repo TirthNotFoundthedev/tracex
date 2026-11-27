@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { App } from "./App";
+import { en } from "./i18n/en";
 import { hi } from "./i18n/hi";
 
 type Role = "JUNIOR" | "INVESTIGATOR" | "SUPERVISOR" | "SENIOR";
@@ -631,6 +632,23 @@ describe("reopen, allowed actions, wording and the access form", () => {
     expect(screen.getByText("Also in a case you cannot see")).toBeTruthy();
   });
 
+  test("an organisation row says Organisation on its second line", async () => {
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([])),
+      "GET /cases/C-1/entities": ok({
+        items: [entity("E-9", "C-1", "Acme Traders", { type: "ORG" })],
+        next_cursor: null,
+        case: summary,
+        counts_by_type: { ORG: 1 },
+      }),
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    const row = await screen.findByRole("button", { name: /Acme Traders/ });
+    expect(row.textContent).toMatch(/Organisation/);
+  });
+
   test("a 404 on the access request disables the form", async () => {
     const api = mockApi({
       ...baseTable("INVESTIGATOR", entityDetail([], [stub()])),
@@ -649,6 +667,22 @@ describe("reopen, allowed actions, wording and the access form", () => {
     await screen.findByText(/We could not find this/);
     expect(screen.queryByRole("button", { name: "Send request" })).toBeNull();
     expect(screen.queryByLabelText("Your reason")).toBeNull();
+  });
+});
+
+describe("case line", () => {
+  test("the string names a title, not a place, in both languages", () => {
+    expect(en["also.caseLine"]).toContain("{title}");
+    expect(hi["also.caseLine"]).toContain("{title}");
+    expect(en["also.caseLine"]).not.toContain("{place}");
+  });
+});
+
+describe("session notice", () => {
+  test("says decisions are saved and offers no button", () => {
+    expect(en["state.sessionEnding"]).toBe(
+      "You will be signed out in 2 minutes. Your decisions are already saved. Sign in again after.",
+    );
   });
 });
 

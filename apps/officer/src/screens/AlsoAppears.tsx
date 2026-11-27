@@ -33,7 +33,7 @@ function CaseCard({ link, entityId }: { link: LinkSummary; entityId: string }) {
   const reason = renderTemplate(link.main_reason.template_key, link.main_reason.params, lang);
   const caseNumber = other?.case.case_number ?? "";
   const line = other?.case.title
-    ? tt("also.caseLine", { number: caseNumber, place: other.case.title })
+    ? tt("also.caseLine", { number: caseNumber, title: other.case.title })
     : shared("evidence.case", { case: caseNumber });
   return (
     <section className="officer-card" data-kind={possible ? "possible" : "strong"}>
