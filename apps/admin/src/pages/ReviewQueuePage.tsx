@@ -284,16 +284,33 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
         },
       ];
     }
-    // The queue does not say who decided or why; that is in the opened link. `updated_at` is the last change
-    // of any kind, so the column says so and is never called a decision date.
+    // `last_decision` comes with each row (D69), so no row needs a call of its own. The actor is null when the
+    // viewer may not know that person (D70): plain wording, never a blank cell and never an id.
     return [
       item,
       ...caseColumns,
       {
-        id: "changed",
-        header: t("queue.col.lastChange", lang),
+        id: "by",
+        header: t("queue.col.by", lang),
+        cell: (r: Item) => r.last_decision?.actor?.display_name ?? t("queue.aPerson", lang),
+      },
+      {
+        id: "decisionReason",
+        header: t("queue.col.reason", lang),
+        cell: (r: Item) => {
+          const text = r.last_decision?.reason_text || t("queue.noReason", lang);
+          return (
+            <span className="admin-cell-clip" title={text}>
+              {text}
+            </span>
+          );
+        },
+      },
+      {
+        id: "decidedOn",
+        header: t(state === "REJECTED" ? "queue.col.rejectedOn" : "queue.col.undoneOn", lang),
         numeric: true,
-        cell: (r: Item) => dateOnly(r.updated_at, lang),
+        cell: (r: Item) => dateOnly(r.last_decision?.at ?? r.updated_at, lang),
       },
     ];
   };

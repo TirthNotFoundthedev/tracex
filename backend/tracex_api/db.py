@@ -23,8 +23,20 @@ type Row = dict[str, Any]
 type Conn = psycopg.Connection[Row]
 
 
-def connect(url: str, autocommit: bool = False) -> Conn:
-    return psycopg.connect(url, row_factory=dict_row, autocommit=autocommit)
+# A request never waits longer than this for a row lock another transaction holds: it fails
+# (500) instead of blocking its worker, and with it every request queued behind that lock.
+REQUEST_LOCK_TIMEOUT_MS = 5000
+
+
+def connect(url: str, autocommit: bool = False, lock_timeout_ms: int | None = None) -> Conn:
+    if lock_timeout_ms is None:
+        return psycopg.connect(url, row_factory=dict_row, autocommit=autocommit)
+    return psycopg.connect(
+        url,
+        row_factory=dict_row,
+        autocommit=autocommit,
+        options=f"-c lock_timeout={int(lock_timeout_ms)}",
+    )
 
 
 def dyn(text: str) -> sql.SQL:

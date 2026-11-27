@@ -1064,7 +1064,7 @@ export interface components {
       refresh_expires_in: number;
       user: components["schemas"]["User"];
     };
-    /** @description SENIOR coverage set. Seeded; one SENIOR covers all states. */
+    /** @description SENIOR coverage set. Seeded; one SENIOR covers all states. `all_states` must be a JSON boolean; `state_ids` and `district_ids` are lists of ids without duplicates; anything else is refused with 422. */
     Coverage: {
       /** @description True for the central desk. */
       all_states?: boolean;
@@ -1477,6 +1477,7 @@ export interface components {
     ProposeUserCreate: {
       /** @constant */
       kind: "USER_CREATE";
+      /** @description `district_id` for district roles, `coverage` for SENIOR; never both (422). */
       new_value: {
         username: string;
         display_name: string;
@@ -1494,18 +1495,22 @@ export interface components {
       /** @constant */
       kind: "USER_ROLE";
       subject_user_id: components["schemas"]["Uuid"];
+      /** @description A change to SENIOR must carry `coverage`. A change from SENIOR or ADMIN to a district role must carry `district_id`. No other role change carries either; a missing or extra one is refused with 422. The approver sees the coverage or district that will be applied. */
       new_value: {
         role: components["schemas"]["Role"];
+        district_id?: components["schemas"]["Uuid"];
+        coverage?: components["schemas"]["Coverage"];
       };
     };
     ProposeUserJurisdiction: {
       /** @constant */
       kind: "USER_JURISDICTION";
       subject_user_id: components["schemas"]["Uuid"];
+      /** @description One of `district_id` (district roles) or `coverage` (SENIOR), never both. A value that carries both is refused with 422. */
       new_value: {
         district_id?: components["schemas"]["Uuid"];
         coverage?: components["schemas"]["Coverage"];
-      };
+      } & (unknown | unknown);
     };
     ProposeAssignment: {
       /** @enum {string} */
@@ -1523,6 +1528,7 @@ export interface components {
         medium_min: number;
       };
     };
+    /** @description Closed per change type. A key that the type does not list, at the top level or in `new_value` or in `coverage`, is refused with 422 `unknown_field`; the stored, shown and applied value is built from the listed keys only. */
     ProposeChangeRequest:
       | components["schemas"]["ProposeUserCreate"]
       | components["schemas"]["ProposeUserActive"]
@@ -1760,6 +1766,8 @@ export interface components {
       reason: string;
       requester: components["schemas"]["UserRef"];
       far_case_id: components["schemas"]["Id"];
+      /** @description Case number of the far case, which lies in the decider's own district (SUPERVISOR) or coverage (SENIOR). No other far-case field is carried. AccessRequestMine never carries it. */
+      far_case_number: string;
       stub: components["schemas"]["Stub"];
       grant?: components["schemas"]["GrantAuthority"] | null;
     };

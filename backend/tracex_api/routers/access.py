@@ -140,6 +140,13 @@ def approver_stub(ctx: Ctx, r: Row) -> dict[str, Any]:
     return stub_out(mine, "NONE", None)
 
 
+def _case_number(ctx: Ctx, case_id: Any) -> str:
+    row = one(ctx.conn, "SELECT case_number FROM cases WHERE id = %s", (case_id,))
+    if row is None:  # the far case row exists as long as the request does
+        raise LookupError("far case missing")
+    return str(row["case_number"])
+
+
 def request_to_decide(ctx: Ctx, r: Row) -> dict[str, Any]:
     grant = _grant_for_request(ctx, r["id"])
     return {
@@ -152,6 +159,7 @@ def request_to_decide(ctx: Ctx, r: Row) -> dict[str, Any]:
         "reason": r["reason"],
         "requester": _user_ref(ctx, r["requester_id"]),
         "far_case_id": str(r["far_case_id"]),
+        "far_case_number": _case_number(ctx, r["far_case_id"]),
         "stub": approver_stub(ctx, r),
         "grant": grant_authority(ctx, grant) if grant else None,
     }
