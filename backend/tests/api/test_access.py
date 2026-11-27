@@ -653,3 +653,38 @@ def test_a33_admin_uploads_and_runs_without_seeing_case_data(world: World) -> No
     assert api.get("bharat", "/uploads").status_code == 403
     rows = api.audit_rows("DATA_UPLOADED")
     assert {r["detail"]["document_count"] for r in rows} == {1}
+
+
+def test_far_case_number_is_on_the_deciders_view_only(world: World) -> None:
+    api = world.api
+    created = request_access(api, world)
+    rid = created["request_id"]
+    far_number = "C-201"
+    # The decider's detail and list carry the far case number.
+    detail = api.get("farid", f"/access-requests/{rid}").json()
+    assert detail["view"] == "TO_DECIDE"
+    assert detail["far_case_id"] == world.cases[far_number]
+    assert detail["far_case_number"] == far_number
+    listed = api.get("farid", "/access-requests?scope=to_decide").json()["items"]
+    assert [i["far_case_number"] for i in listed if i["request_id"] == rid] == [far_number]
+    # The requester's own detail and list never carry it: the field is absent, not null.
+    for view in (
+        api.get("bharat", f"/access-requests/{rid}").json(),
+        *api.get("bharat", "/access-requests?scope=mine").json()["items"],
+    ):
+        assert view["view"] == "MINE"
+        assert not {"far_case_id", "far_case_number"} & set(view)
+        assert far_number not in json.dumps(view)
+    # The decider's view never carries the requester's side.
+    assert not {"near_case_id", "near_case_number", "district_id", "area"} & set(detail)
+    # The decision answer is the decider's view too.
+    denied = api.post("farid", f"/access-requests/{rid}/deny", {"note": "No"}).json()
+    assert denied["far_case_number"] == far_number
+
+
+def test_a_denial_note_over_200_characters_is_a_422(world: World) -> None:
+    api = world.api
+    created = request_access(api, world)
+    url = f"/access-requests/{created['request_id']}/deny"
+    assert api.post("farid", url, {"note": "x" * 201}).status_code == 422
+    assert api.post("farid", url, {"note": "x" * 200}).status_code == 200
