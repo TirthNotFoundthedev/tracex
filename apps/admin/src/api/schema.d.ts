@@ -383,7 +383,7 @@ export interface paths {
     };
     /**
      * Links awaiting or open to a human decision
-     * @description ALLOW items only; a stub never appears here and queue sizes count ALLOW items only. `state` defaults to SUGGESTED (Waiting). `REJECTED` and `UNDONE` list decided links so a SUPERVISOR or SENIOR can reopen them (D34). Filters (`district_id`, `entity_type`, `waiting_days_min`) only narrow. Each item carries the main reason (highest-contribution support item) as a template key plus params. ADMIN answers 404.
+     * @description ALLOW items only; a stub never appears here and queue sizes count ALLOW items only. `state` defaults to SUGGESTED (Waiting). `REJECTED` and `UNDONE` list decided links so a SUPERVISOR or SENIOR can reopen them (D34). Filters (`district_id`, `entity_type`, `waiting_days_min`) only narrow. Each item carries the main reason (highest-contribution support item) as a template key plus params. REJECTED and UNDONE items carry `last_decision` (time, reason, and the deciding person when the caller may know them, access spec 4.2). `total` counts the ALLOW items that match the filters. ADMIN answers 404.
      */
     get: operations["listReviewQueue"];
     put?: never;
@@ -1112,8 +1112,8 @@ export interface components {
     PageBase: {
       /** @description Null on the last page and on every empty page. */
       next_cursor: components["schemas"]["Cursor"] | null;
-      /** @description Counts items the caller may see (ALLOW) only. */
-      total?: number;
+      /** @description Counts only the items the caller may see (ALLOW), with the page's filters applied; never stubs, grant-only links or hidden items. */
+      total: number;
     };
     CaseRefBase: {
       case_id: components["schemas"]["Id"];
@@ -1239,6 +1239,8 @@ export interface components {
       /** @enum {string} */
       actor_kind: "ENGINE" | "USER";
       actor_user_id?: components["schemas"]["Uuid"] | null;
+      /** @description The deciding person, only when the caller may already know them (access spec 4.2 - the caller is the actor, a SUPERVISOR in the chain of command, or a SENIOR who could read them through `GET /users/{user_id}`). Null otherwise, with no role, district or partial name; always null for an engine entry. */
+      actor?: components["schemas"]["UserRef"] | null;
       reason_code: string | null;
       /** @description Free text from the deciding officer. Shown only to callers with ALLOW on both ends by their own scope; never under a grant. */
       reason_text?: string | null;
@@ -1265,6 +1267,17 @@ export interface components {
       /** Format: date-time */
       waiting_since: string;
       allowed_actions: components["schemas"]["AllowedAction"][];
+      /** @description The last human decision on a REJECTED or UNDONE item. Null for a SUGGESTED item. */
+      last_decision?: components["schemas"]["LastDecision"] | null;
+    };
+    /** @description The last human decision on a queue item. `reason_text` follows the link history rule (access spec 4.2); queue items are ALLOW by own scope only, so every caller who gets the item gets the reason. */
+    LastDecision: {
+      to: components["schemas"]["LinkState"];
+      /** Format: date-time */
+      at: string;
+      /** @description Same rule as `HistoryEntry.actor`. */
+      actor: components["schemas"]["UserRef"] | null;
+      reason_text: string | null;
     };
     ReviewQueuePage: components["schemas"]["PageBase"] & {
       items: components["schemas"]["ReviewQueueItem"][];

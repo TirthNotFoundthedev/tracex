@@ -707,7 +707,7 @@ paths:
         - links
       operationId: listReviewQueue
       summary: Links awaiting or open to a human decision
-      description: ALLOW items only; a stub never appears here and queue sizes count ALLOW items only. `state` defaults to SUGGESTED (Waiting). `REJECTED` and `UNDONE` list decided links so a SUPERVISOR or SENIOR can reopen them (D34). Filters (`district_id`, `entity_type`, `waiting_days_min`) only narrow. Each item carries the main reason (highest-contribution support item) as a template key plus params. ADMIN answers 404.
+      description: ALLOW items only; a stub never appears here and queue sizes count ALLOW items only. `state` defaults to SUGGESTED (Waiting). `REJECTED` and `UNDONE` list decided links so a SUPERVISOR or SENIOR can reopen them (D34). Filters (`district_id`, `entity_type`, `waiting_days_min`) only narrow. Each item carries the main reason (highest-contribution support item) as a template key plus params. REJECTED and UNDONE items carry `last_decision` (time, reason, and the deciding person when the caller may know them, access spec 4.2). `total` counts the ALLOW items that match the filters. ADMIN answers 404.
       x-required-role: JUNIOR (all roles except ADMIN); decisions need INVESTIGATOR or SUPERVISOR as stated on each action
       x-jurisdiction: both ends own case or own jurisdiction A; any hidden end excluded; ADMIN 404
       x-audit-event: REVIEW_QUEUE_VIEWED
@@ -2401,6 +2401,7 @@ components:
       type: object
       required:
         - next_cursor
+        - total
       properties:
         next_cursor:
           oneOf:
@@ -2410,7 +2411,7 @@ components:
         total:
           type: integer
           minimum: 0
-          description: Counts items the caller may see (ALLOW) only.
+          description: Counts only the items the caller may see (ALLOW), with the page's filters applied; never stubs, grant-only links or hidden items.
     CaseRefBase:
       # open on purpose: allOf composites close the whole object with unevaluatedProperties
       type: object
@@ -2776,6 +2777,11 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Uuid"
             - type: "null"
+        actor:
+          oneOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: The deciding person, only when the caller may already know them (access spec 4.2 - the caller is the actor, a SUPERVISOR in the chain of command, or a SENIOR who could read them through `GET /users/{user_id}`). Null otherwise, with no role, district or partial name; always null for an engine entry.
         reason_code:
           type:
             - string
@@ -2868,7 +2874,37 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/AllowedAction"
+            last_decision:
+              oneOf:
+                - $ref: "#/components/schemas/LastDecision"
+                - type: "null"
+              description: The last human decision on a REJECTED or UNDONE item. Null for a SUGGESTED item.
       unevaluatedProperties: false
+    LastDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - to
+        - at
+        - actor
+        - reason_text
+      description: The last human decision on a queue item. `reason_text` follows the link history rule (access spec 4.2); queue items are ALLOW by own scope only, so every caller who gets the item gets the reason.
+      properties:
+        to:
+          $ref: "#/components/schemas/LinkState"
+        at:
+          type: string
+          format: date-time
+        actor:
+          oneOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Same rule as `HistoryEntry.actor`.
+        reason_text:
+          type:
+            - string
+            - "null"
+          maxLength: 1000
     ReviewQueuePage:
       allOf:
         - $ref: "#/components/schemas/PageBase"

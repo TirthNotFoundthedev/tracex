@@ -65,6 +65,8 @@ The row commits in the same transaction as the action unless noted. Detail keys 
 | AUDIT_VIEWED | An audit page is about to be returned | AUDIT | `filter_keys`, `seq_from^`, `seq_to^`, `result_count`, `redacted` (bool) |
 | AUDIT_VERIFY_RUN | Verification run | AUDIT | `range_from^`, `range_to^`, `result`, `first_bad_seq^`, `head_seq^`, `anchor_seq^` |
 
+**Actor names and reasons (TIR-85).** REVIEW_QUEUE_VIEWED covers `last_decision`, including `actor` and `reason_text`, on queue items. LINK_VIEWED covers `actor` on history entries of `GET /links/{id}`. No new event and no new detail key: the log keeps ids only, never names or reason text.
+
 Write rules:
 | # | Rule |
 |---|---|
