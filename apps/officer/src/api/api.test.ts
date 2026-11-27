@@ -220,6 +220,18 @@ describe("refresh rotation", () => {
     );
   });
 
+  test.each([
+    [503, { kind: "safetyPause" }],
+    [429, { kind: "tooManyAttempts" }],
+  ])("a refresh answered %i keeps the session and reports %j", async (status, expected) => {
+    const { client, session } = await signedIn((url) =>
+      url.endsWith("/auth/refresh") ? json(status) : json(401),
+    );
+    expect(await client.listCases()).toEqual(expected);
+    expect(session.state()).toBeDefined();
+    expect(session.accessToken()).toBe("access-1");
+  });
+
   test("a network error during refresh keeps the session", async () => {
     const { client, session, fetchImpl } = await signedIn(() => json(401));
     fetchImpl.mockImplementation(((input: RequestInfo | URL) =>
