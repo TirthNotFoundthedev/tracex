@@ -305,7 +305,7 @@ export const en = {
   "audit.filter.to": "To date",
   "audit.filter.person": "Person",
   "audit.filter.action": "What they did",
-  "audit.action.viewed": "Looked at",
+  "audit.action.viewed": "Opened a link",
   "audit.action.confirmed": "Confirmed",
   "audit.action.rejected": "Rejected",
   "audit.action.requested": "Asked for access",
