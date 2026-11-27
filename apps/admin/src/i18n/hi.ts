@@ -45,12 +45,10 @@ export const hi: Record<keyof typeof en, string> = {
   // Shared states
   "common.saved": "सहेज लिया गया।",
   "common.nothingFound": "कुछ नहीं मिला। वर्तनी जाँचें या कम शब्द लिखें।",
-  "common.fillIn": "कृपया भरें: {field}।",
   "common.fillInCount": "कृपया {n} खाने भरें।",
   "common.unsaved": "आपने बदलाव सहेजे नहीं हैं।",
   "common.save": "सहेजें",
   "common.leave": "बिना सहेजे छोड़ें",
-  "common.open": "खोलें",
   "common.date": "तारीख",
   "common.status": "स्थिति",
 
@@ -126,7 +124,6 @@ export const hi: Record<keyof typeof en, string> = {
     'यह "जाँचने वाले लिंक" में वापस जाएगा। फिर किसी व्यक्ति को इसे पक्का या अस्वीकार करना होगा। मिलान चलाने से यह नहीं बदलेगा।',
   "queue.reopen.reasonLabel": "इसे फिर से क्यों खोल रहे हैं?",
   "queue.reopen.yes": "हाँ, फिर से खोलें",
-  "queue.reopen.no": "नहीं, वापस जाएँ",
   "queue.reopen.done": 'आपने यह लिंक फिर से खोल दिया। यह अब "जाँचने वाले लिंक" में है।',
   "queue.reopen.openIt": "इसे खोलें",
   "queue.backToList": "सूची पर वापस जाएँ",

@@ -50,12 +50,10 @@ export const en = {
   // Shared states (design-flows section 4)
   "common.saved": "Saved.",
   "common.nothingFound": "Nothing found. Check the spelling or try fewer words.",
-  "common.fillIn": "Please fill in: {field}.",
   "common.fillInCount": "Please fill in {n} fields.",
   "common.unsaved": "You have not saved your changes.",
   "common.save": "Save",
   "common.leave": "Leave without saving",
-  "common.open": "Open",
   "common.date": "Date",
   "common.status": "Status",
 
@@ -131,7 +129,6 @@ export const en = {
     'It goes back to "Links to check". A person must then confirm or reject it. Matching runs will not change it.',
   "queue.reopen.reasonLabel": "Why are you reopening it?",
   "queue.reopen.yes": "Yes, reopen",
-  "queue.reopen.no": "No, go back",
   "queue.reopen.done": 'You reopened this link. It is back in "Links to check".',
   "queue.reopen.openIt": "Open it",
   "queue.backToList": "Back to the list",
