@@ -394,6 +394,29 @@ def test_authenticated_operations_answer_401_and_every_operation_but_probes_answ
             assert "500" in op["responses"], where
 
 
+GATE_EXEMPT_OPERATIONS = {"getHealth", "getReady", "verifyAuditChain"}
+
+
+def test_every_gated_operation_declares_the_safety_pause_503() -> None:
+    """The audit gate answers 503 NOT_READY on every route except the three exempt ones."""
+    seen_exempt = set()
+    for method, path, op in _operations():
+        where = f"{method.upper()} {path}"
+        if op["operationId"] in GATE_EXEMPT_OPERATIONS:
+            seen_exempt.add(op["operationId"])
+            assert "503" not in op["responses"] or op["operationId"] == "getReady", where
+            continue
+        assert op["responses"].get("503") == {"$ref": "#/components/responses/SafetyPause"}, where
+    assert seen_exempt == GATE_EXEMPT_OPERATIONS
+
+
+def test_the_safety_pause_body_is_fixed() -> None:
+    schema = _load_openapi()["components"]["schemas"]["SafetyPauseError"]
+    assert schema["properties"]["code"]["enum"] == ["NOT_READY"]
+    assert schema["properties"]["message_key"]["enum"] == ["error.not_ready"]
+    assert schema["additionalProperties"] is False
+
+
 def test_every_operation_with_an_id_in_the_path_answers_the_shared_404() -> None:
     for method, path, op in _operations():
         where = f"{method.upper()} {path}"
