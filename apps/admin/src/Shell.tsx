@@ -1,4 +1,4 @@
-﻿import { Button, Loading, Message, SideNav, TopBar } from "@tracex/ui";
+import { Button, Loading, Message, SideNav, TopBar } from "@tracex/ui";
 import { useCallback, useEffect, useState } from "react";
 
 import type { AdminApi } from "./api";
