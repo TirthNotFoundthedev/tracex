@@ -462,7 +462,7 @@ describe("other police area", () => {
   test("a waiting request shows its date and no button", async () => {
     await openAlso(entityDetail([], [stub("PENDING")]));
     const card = await screen.findByLabelText("Another police area");
-    expect(within(card).getByText(/Request sent on 12 Mar 2026/)).toBeTruthy();
+    expect(within(card).getByText(/Request sent on 12 March 2026/)).toBeTruthy();
     expect(within(card).queryByRole("button")).toBeNull();
   });
 
@@ -800,5 +800,67 @@ describe("navigation and language", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await screen.findByText(/We could not sign you in/);
     expect(JSON.stringify({ ...window.sessionStorage })).not.toMatch(/secret|token/i);
+  });
+});
+
+describe("not found title and rate limit actions", () => {
+  test("a 404 on a case names the page Not found, not Loading", async () => {
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([])),
+      "GET /cases/C-1/entities": { status: 404, body: { code: "NOT_FOUND", message_key: "x" } },
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    await screen.findByText(/We could not find this/);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Not found");
+    expect(document.body.textContent).not.toContain("Loading...");
+  });
+
+  test("the not-found title exists in both languages", () => {
+    expect(en["state.notFoundTitle"]).toBe("Not found");
+    expect(hi["state.notFoundTitle"]).toBeTruthy();
+  });
+
+  test("a 429 from the API shows a Try again button that asks again", async () => {
+    let calls = 0;
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([])),
+      "GET /cases/C-1/entities": () => {
+        calls += 1;
+        return calls === 1
+          ? { status: 429, body: { code: "RATE_LIMITED", message_key: "x" } }
+          : ok({ items: [], next_cursor: null, case: summary, counts_by_type: {} });
+      },
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    await screen.findByText(/Too many tries/);
+    click("Try again");
+    await screen.findAllByText("None in this case.");
+    expect(calls).toBe(2);
+  });
+
+  test("the waiting-requests limit offers Back to this case", async () => {
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([], [stub()])),
+      "POST /access-requests": {
+        status: 409,
+        body: { code: "REQUEST_LIMIT", message_key: "x" },
+      },
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show other cases" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Ask for access" }));
+    fireEvent.change(await screen.findByLabelText(/Your reason/), {
+      target: { value: "I need to see the other case." },
+    });
+    click("Send request");
+    await screen.findByText(/10 requests waiting/);
+    expect(screen.getByRole("button", { name: "Back to this case" })).toBeTruthy();
   });
 });

@@ -2,7 +2,7 @@ import { Button, Message } from "@tracex/ui";
 import { useState } from "react";
 
 import { useApp } from "../app-context";
-import { Await, Screen } from "../components/Screen";
+import { Await, Screen, titleFor } from "../components/Screen";
 import { typeInCaseKey } from "../lib/entity";
 import { useLoad } from "../lib/useLoad";
 import { isMessageKey } from "../i18n";
@@ -18,7 +18,7 @@ export function Item({ entityId }: { entityId: string }) {
 
   return (
     <Screen
-      title={detail ? detail.display_value : tt("state.loading")}
+      title={titleFor(loaded, tt, (entity) => entity.display_value)}
       trail={
         detail
           ? [

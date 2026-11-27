@@ -5,7 +5,7 @@ import type { FailureResult } from "../api/resultKeys";
 import type { components } from "../api/schema";
 import { useApp } from "../app-context";
 import { FailureView } from "../components/FailureView";
-import { Await, Screen } from "../components/Screen";
+import { Await, Screen, titleFor } from "../components/Screen";
 import { entityIcon, type EntityType } from "../lib/entity";
 import { useLoad } from "../lib/useLoad";
 import type { MessageKey } from "../i18n";
@@ -47,8 +47,7 @@ export function Case({ caseId }: { caseId: string }) {
     return item.type === "ORG" ? `${tt("case.org")}. ${note}` : note;
   }
 
-  const number = loaded.status === "ok" ? loaded.data.case.case_number : "";
-  const title = loaded.status === "ok" ? tt("case.title", { number }) : tt("state.loading");
+  const title = titleFor(loaded, tt, (page) => tt("case.title", { number: page.case.case_number }));
 
   async function showMore(cursor: string, shown: EntitySummary[]) {
     const result = await client.listCaseEntities(caseId, { cursor });

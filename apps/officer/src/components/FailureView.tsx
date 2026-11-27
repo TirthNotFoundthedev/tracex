@@ -19,6 +19,7 @@ export function FailureView({ result, onRetry }: { result: FailureResult; onRetr
     result.kind === "networkError" ||
     result.kind === "serverError" ||
     result.kind === "tryAgainShortly" ||
+    result.kind === "tooManyAttempts" ||
     result.kind === "safetyPause" ||
     result.kind === "conflict";
 

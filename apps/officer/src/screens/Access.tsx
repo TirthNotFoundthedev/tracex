@@ -1,19 +1,35 @@
 import { Button, Loading, Message, TextField } from "@tracex/ui";
 import { useState } from "react";
 
-import { isValidReason, REASON_MAX, REASON_MIN } from "../api/client";
+import { isValidReason, REASON_MAX, REASON_MIN, type OfficerClient } from "../api/client";
 import type { FailureResult } from "../api/resultKeys";
 import { useApp } from "../app-context";
 import { FailureView } from "../components/FailureView";
 import { Screen } from "../components/Screen";
 import type { MessageKey } from "../i18n";
-import { paths, useNav } from "../router";
+import { paths, useNav, type Nav } from "../router";
 
 function reasonProblem(trimmed: string): MessageKey | undefined {
   if (trimmed.length === 0) return "access.errorEmpty";
   if (trimmed.length < REASON_MIN) return "access.errorShort";
   if (trimmed.length > REASON_MAX) return "access.errorLong";
   return undefined;
+}
+
+/** Back to the case the officer came from, or to My cases when that is unknown or gone. */
+async function backToCase(
+  client: OfficerClient,
+  from: string | undefined,
+  nav: Nav,
+): Promise<void> {
+  if (from) {
+    const result = await client.getEntity(from);
+    if (result.kind === "ok") {
+      nav.go(paths.case(result.data.case.case_id));
+      return;
+    }
+  }
+  nav.home();
 }
 
 /** O10: the reason is 10 to 500 characters. The API checks it again; this only saves a round trip. */
@@ -58,7 +74,16 @@ export function AskForAccess({ stubId, from }: { stubId: string; from: string | 
     <Screen title={tt("access.title")}>
       <p className="tx-body">{tt("access.intro")}</p>
       {cooldown ? (
-        <Message kind="error">{tt(cooldown)}</Message>
+        <Message
+          kind="error"
+          action={
+            <Button variant="primary" onClick={() => void backToCase(client, from, nav)}>
+              {tt("sent.back")}
+            </Button>
+          }
+        >
+          {tt(cooldown)}
+        </Message>
       ) : failure ? (
         <FailureView result={failure} />
       ) : null}
@@ -91,22 +116,11 @@ export function RequestSent({ from }: { from: string | undefined }) {
   const { client, tt } = useApp();
   const nav = useNav();
 
-  async function backToCase() {
-    if (from) {
-      const result = await client.getEntity(from);
-      if (result.kind === "ok") {
-        nav.go(paths.case(result.data.case.case_id));
-        return;
-      }
-    }
-    nav.home();
-  }
-
   return (
     <Screen title={tt("access.title")}>
       <Message kind="success">{tt("sent.message")}</Message>
       <div className="tx-actions">
-        <Button variant="primary" onClick={() => void backToCase()}>
+        <Button variant="primary" onClick={() => void backToCase(client, from, nav)}>
           {tt("sent.back")}
         </Button>
       </div>

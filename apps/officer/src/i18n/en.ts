@@ -157,12 +157,13 @@ export const en = {
   "state.notAllowed": "You do not have access to this.",
   "state.notFound": "We could not find this. It may have been removed. Go back to your cases.",
   "state.backToCases": "Back to my cases",
+  "state.notFoundTitle": "Not found",
+  "state.problemTitle": "Something went wrong",
   "state.changedMeanwhile":
     "This link changed while you were looking. Nothing was changed. Please check it again.",
   "state.somethingMissing": "Something is missing. Please check what you wrote.",
   "state.sessionEnding":
     "You will be signed out in 2 minutes. Your decisions are already saved. Sign in again after.",
-  "state.stay": "Stay signed in",
   "state.sessionEnded": "Your session has ended. Please sign in again.",
   // Added with the screens
   "item.fact.age": "Age",

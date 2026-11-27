@@ -16,7 +16,7 @@ import type { FailureResult } from "../api/resultKeys";
 import type { components } from "../api/schema";
 import { useApp } from "../app-context";
 import { FailureView } from "../components/FailureView";
-import { Await, Screen } from "../components/Screen";
+import { Await, Screen, titleFor } from "../components/Screen";
 import { panelContent } from "../lib/explain";
 import { useLoad } from "../lib/useLoad";
 import type { MessageKey } from "../i18n";
@@ -109,10 +109,9 @@ export function WhyLinked({ linkId, from }: { linkId: string; from: string | und
     } else setFailure(result);
   }
 
-  const detail = loaded.status === "ok" ? loaded.data.detail : undefined;
-  const title = detail
-    ? tt(detail.state === "SUGGESTED" ? "why.titlePossible" : "why.titleStrong")
-    : tt("state.loading");
+  const title = titleFor(loaded, tt, (both) =>
+    tt(both.detail.state === "SUGGESTED" ? "why.titlePossible" : "why.titleStrong"),
+  );
 
   return (
     <Screen title={title}>

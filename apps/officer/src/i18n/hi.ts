@@ -154,12 +154,13 @@ export const hi: Record<keyof typeof en, string> = {
   "state.notAllowed": "आपको इसकी पहुँच नहीं है।",
   "state.notFound": "हमें यह नहीं मिला। हो सकता है इसे हटा दिया गया हो। अपने मामलों पर वापस जाएँ।",
   "state.backToCases": "मेरे मामलों पर वापस जाएँ",
+  "state.notFoundTitle": "नहीं मिला",
+  "state.problemTitle": "कुछ गड़बड़ हो गई",
   "state.changedMeanwhile":
     "आपके देखते-देखते यह जुड़ाव बदल गया। कुछ भी नहीं बदला। कृपया इसे फिर से जाँचें।",
   "state.somethingMissing": "कुछ कमी है। कृपया जो लिखा है उसे जाँचें।",
   "state.sessionEnding":
     "2 मिनट में आप साइन आउट हो जाएँगे। आपके फ़ैसले पहले ही सहेजे जा चुके हैं। बाद में फिर साइन इन करें।",
-  "state.stay": "साइन इन रहें",
   "state.sessionEnded": "आपका सत्र खत्म हो गया। कृपया फिर साइन इन करें।",
   // Added with the screens
   "item.fact.age": "उम्र",

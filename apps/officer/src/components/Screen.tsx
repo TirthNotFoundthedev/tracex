@@ -5,6 +5,7 @@ import { useApp } from "../app-context";
 import { useNav } from "../router";
 import { FailureView } from "./FailureView";
 import type { Loaded } from "../lib/useLoad";
+import type { MessageKey } from "../i18n";
 
 const WARN_BEFORE_MS = 2 * 60 * 1000;
 
@@ -54,6 +55,22 @@ export function Screen({
       </main>
     </>
   );
+}
+
+/**
+ * The header title while a page loads or fails. "Loading..." only while the answer is pending; a 404 names
+ * itself "Not found"; any other failure says there was a problem.
+ */
+export function titleFor<T>(
+  loaded: Loaded<T>,
+  tt: (key: MessageKey) => string,
+  whenOk: (data: T) => string,
+): string {
+  if (loaded.status === "ok") return whenOk(loaded.data);
+  if (loaded.status === "failed") {
+    return tt(loaded.result.kind === "notFound" ? "state.notFoundTitle" : "state.problemTitle");
+  }
+  return tt("state.loading");
 }
 
 /** Loading, failure, or the screen body once the data is here. */
