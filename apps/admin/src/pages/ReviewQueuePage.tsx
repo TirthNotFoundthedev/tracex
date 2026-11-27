@@ -189,7 +189,9 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
   }
 
   const counts = load.state === "ready" ? load.counts : undefined;
-  const choice = (which: State, key: AnyMessageKey) => (
+  // A count shows only once the lists have arrived; while loading or after a failure the button has just
+  // its word, so a missing answer never reads as "nothing waiting".
+  const choice = (which: State, key: AnyMessageKey, plainKey: AnyMessageKey) => (
     <Button
       key={which}
       variant="secondary"
@@ -197,7 +199,7 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
       aria-pressed={state === which}
       onClick={() => go({ show: which })}
     >
-      {t(key, lang, { n: counts?.[which] ?? 0 })}
+      {counts ? t(key, lang, { n: counts[which] }) : t(plainKey, lang)}
     </Button>
   );
 
@@ -320,9 +322,9 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
       <h2 className="admin-panel-title">{t("queue.title", lang)}</h2>
       <div className="admin-switch" role="group" aria-label={t("queue.show", lang)}>
         <span className="admin-switch__label">{t("queue.show", lang)}</span>
-        {choice("SUGGESTED", "queue.filter.waiting")}
-        {choice("REJECTED", "queue.filter.rejected")}
-        {choice("UNDONE", "queue.filter.undone")}
+        {choice("SUGGESTED", "queue.filter.waiting", "queue.filter.waiting.plain")}
+        {choice("REJECTED", "queue.filter.rejected", "queue.filter.rejected.plain")}
+        {choice("UNDONE", "queue.filter.undone", "queue.filter.undone.plain")}
       </div>
       <div className="admin-filters">
         <Select

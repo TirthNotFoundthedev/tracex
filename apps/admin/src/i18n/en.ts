@@ -20,6 +20,7 @@ export const en = {
   "nav.graph": "Network graph",
   "shell.notForRole": "This panel is for supervisors, senior officers and administrators.",
   "shell.loadingUser": "Loading your details...",
+  "shell.menu": "Menu",
   "shell.noArea": "All areas",
 
   // Sign in
@@ -101,6 +102,9 @@ export const en = {
   "queue.filter.waiting": "Waiting ({n})",
   "queue.filter.rejected": "Rejected ({n})",
   "queue.filter.undone": "Undone ({n})",
+  "queue.filter.waiting.plain": "Waiting",
+  "queue.filter.rejected.plain": "Rejected",
+  "queue.filter.undone.plain": "Undone",
   "queue.filter.type": "Type",
   "queue.filter.area": "Area",
   "queue.filter.waitingLong": "Waiting more than 7 days",
@@ -160,6 +164,8 @@ export const en = {
   "queue.detail.open": "Admin detail",
   "queue.panel.strong": "Why these are linked",
   "queue.panel.possible": "Please check this link",
+  "queue.panel.rejected": "Rejected link",
+  "queue.panel.undone": "Undone link",
   "queue.autoNote": "This was linked automatically. You can undo it if it is wrong.",
   "queue.more.score": "Match score: {score} (out of 100)",
   "queue.more.levels": "Strong match starts at {high}. Possible match starts at {medium}.",

@@ -253,7 +253,16 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
         </p>
       ) : null}
       <h2 className="admin-panel-title">
-        {t(strength === "strong" && !decided ? "queue.panel.strong" : "queue.panel.possible", lang)}
+        {t(
+          decided
+            ? detail.state === "REJECTED"
+              ? "queue.panel.rejected"
+              : "queue.panel.undone"
+            : strength === "strong"
+              ? "queue.panel.strong"
+              : "queue.panel.possible",
+          lang,
+        )}
       </h2>
       {decided && decision ? (
         <Message kind="info">

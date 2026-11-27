@@ -358,9 +358,17 @@ function AccessTab({
           header: t("approvals.col.requestedBy", lang),
           cell: (r) => r.requester.display_name,
         },
-        { id: "case", header: t("approvals.col.forCase", lang), cell: (r) => r.far_case_number },
+        {
+          id: "case",
+          header: t("approvals.col.forCase", lang),
+          cell: (r) => <span className="admin-nowrap">{r.far_case_number}</span>,
+        },
         { id: "reason", header: t("approvals.col.reason", lang), cell: (r) => r.reason },
-        { id: "date", header: t("common.date", lang), cell: (r) => dateOnly(r.requested_at, lang) },
+        {
+          id: "date",
+          header: t("common.date", lang),
+          cell: (r) => <span className="admin-nowrap">{dateOnly(r.requested_at, lang)}</span>,
+        },
         {
           id: "status",
           header: t("common.status", lang),
@@ -772,7 +780,11 @@ function ChangesTab({
           header: t("approvals.col.about", lang),
           cell: (r) => r.subject?.display_name ?? NO_VALUE,
         },
-        { id: "date", header: t("common.date", lang), cell: (r) => dateOnly(r.proposed_at, lang) },
+        {
+          id: "date",
+          header: t("common.date", lang),
+          cell: (r) => <span className="admin-nowrap">{dateOnly(r.proposed_at, lang)}</span>,
+        },
         {
           id: "status",
           header: t("common.status", lang),

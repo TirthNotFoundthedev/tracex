@@ -1178,3 +1178,56 @@ test("the link panel loads with the shared Loading text and saves with its own l
   expect(screen.queryByText("Loading your details...")).toBeNull();
   await act(async () => finish());
 });
+
+test("the filter buttons show no count while the list loads, and none after a failure", async () => {
+  open({ "GET /review-queue": () => json(503), "GET /jurisdictions": places });
+  // First render: nothing has arrived yet.
+  expect(button("Waiting")).toBeTruthy();
+  expect(button("Rejected")).toBeTruthy();
+  expect(button("Undone")).toBeTruthy();
+  await screen.findByText("The system is paused for a safety check. Try again later.");
+  expect(button("Waiting")).toBeTruthy();
+  expect(screen.queryByText(/\(\d+\)/)).toBeNull();
+});
+
+test("the filter buttons show no count in Hindi while the list loads or has failed", async () => {
+  open({ "GET /review-queue": () => json(503), "GET /jurisdictions": places }, "hi");
+  expect(button("प्रतीक्षा में")).toBeTruthy();
+  await waitFor(() => expect(document.body.textContent).toContain(t("state.tryAgain", "hi")));
+  expect(document.body.textContent).not.toMatch(/\(\d+\)/);
+});
+
+test("counts appear once the data has arrived, including a true zero", async () => {
+  open(queue({ SUGGESTED: [item()], REJECTED: [], UNDONE: [] }));
+  expect(await screen.findByRole("button", { name: "Waiting (1)" })).toBeTruthy();
+  expect(button("Rejected (0)")).toBeTruthy();
+});
+
+test.each([
+  ["REJECTED", "Rejected link", "अस्वीकृत लिंक"],
+  ["UNDONE", "Undone link", "वापस लिया गया लिंक"],
+] as const)(
+  "a %s link is headed by its state, not 'Please check this link'",
+  async (state, en, hi) => {
+    for (const [lang, title] of [
+      ["en", en],
+      ["hi", hi],
+    ] as const) {
+      cleanup();
+      open(
+        {
+          ...queue({ REJECTED: [rejectedRow()] }),
+          [`GET /links/${LINK}`]: json(
+            200,
+            detail({ state, allowed_actions: ["REOPEN"], history: rejectedHistory }),
+          ),
+          [`GET /links/${LINK}/explanation`]: json(200, explanation({ state })),
+        },
+        lang,
+        `/review/${LINK}?show=rejected`,
+      );
+      expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
+      expect(screen.queryByText(t("queue.panel.possible", lang))).toBeNull();
+    }
+  },
+);

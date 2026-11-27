@@ -659,3 +659,25 @@ test("the far case is shown by its number and never by its id", async () => {
   expect(await screen.findAllByText("FAR-2026-0207")).not.toHaveLength(0);
   expect(document.body.textContent).not.toContain("60000000-0000-4000-8000-0000000002c7");
 });
+
+test("access list: the case number and the date cells carry the no-wrap class", async () => {
+  setup("SUPERVISOR");
+  const row = ((await screen.findByText("Meena Rao")).closest("tr") ??
+    document.body) as HTMLElement;
+  const number = within(row).getByText("FAR-2026-0207");
+  expect(number.classList.contains("admin-nowrap")).toBe(true);
+  expect(number.closest("td")).not.toBeNull();
+  const date = within(row).getByText(/^\d{1,2} \w{3} 2026$/);
+  expect(date.classList.contains("admin-nowrap")).toBe(true);
+  expect(date.closest("td")).not.toBeNull();
+});
+
+test("changes list: the date cell carries the no-wrap class", async () => {
+  setup("ADMIN");
+  const row = ((await screen.findByText("Ravi Kumar: Supervisor to Senior officer")).closest(
+    "tr",
+  ) ?? document.body) as HTMLElement;
+  const date = within(row).getByText("12 Mar 2026");
+  expect(date.classList.contains("admin-nowrap")).toBe(true);
+  expect(date.closest("td")).not.toBeNull();
+});
