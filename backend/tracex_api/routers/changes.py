@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import uuid
 from typing import Any
 
@@ -37,6 +38,42 @@ KINDS = (
 INTERNAL_KEYS = ("coverage_rows", "case_id")
 DISTRICT_ROLES = ("JUNIOR", "INVESTIGATOR", "SUPERVISOR")
 
+# Closed allow-lists (D51, D35): the stored, shown and applied value is built only from these keys.
+TOP_KEYS_BY_KIND: dict[str, frozenset[str]] = {
+    "USER_CREATE": frozenset({"kind", "new_value"}),
+    "USER_ENABLE": frozenset({"kind", "subject_user_id"}),
+    "USER_DISABLE": frozenset({"kind", "subject_user_id"}),
+    "USER_ROLE": frozenset({"kind", "subject_user_id", "new_value"}),
+    "USER_JURISDICTION": frozenset({"kind", "subject_user_id", "new_value"}),
+    "ASSIGNMENT_ADD": frozenset({"kind", "subject_user_id", "new_value"}),
+    "ASSIGNMENT_REMOVE": frozenset({"kind", "subject_user_id", "new_value"}),
+    "THRESHOLDS": frozenset({"kind", "new_value"}),
+}
+NEW_VALUE_KEYS_BY_KIND: dict[str, frozenset[str]] = {
+    "USER_CREATE": frozenset({"username", "display_name", "role", "district_id", "coverage"}),
+    "USER_ENABLE": frozenset(),
+    "USER_DISABLE": frozenset(),
+    "USER_ROLE": frozenset({"role"}),
+    "USER_JURISDICTION": frozenset({"district_id", "coverage"}),
+    "ASSIGNMENT_ADD": frozenset({"case_number"}),
+    "ASSIGNMENT_REMOVE": frozenset({"case_number"}),
+    "THRESHOLDS": frozenset({"high_min", "medium_min"}),
+}
+COVERAGE_KEYS = frozenset({"all_states", "state_ids", "district_ids"})
+
+
+def _unknown(key: str, where: str) -> ApiError:
+    """422 for a key outside the allow-list. The contract limits a field name to a-z and
+    underscore, so a key that does not fit is reported under the object that holds it."""
+    return invalid(key if re.fullmatch(r"[a-z_]{1,64}", key) else where, "unknown_field")
+
+
+def _closed(obj: dict[str, Any], allowed: frozenset[str], where: str) -> None:
+    """Refuse any key outside the allow-list with a field error that names the key."""
+    for key in sorted(obj):
+        if key not in allowed:
+            raise _unknown(key, where)
+
 
 def canonical_hash(kind: str, subject: str | None, old: Any, new: Any) -> bytes:
     body = json.dumps(
@@ -56,6 +93,7 @@ def _coverage_rows(ctx: Ctx, coverage: Any) -> tuple[list[dict[str, Any]], list[
     """Coverage rows, the districts they touch, and whether it is all-state."""
     if not isinstance(coverage, dict):
         raise invalid("coverage", "required")
+    _closed(coverage, COVERAGE_KEYS, "coverage")
     if coverage.get("all_states"):
         return [{"all_states": True}], [], True
     rows: list[dict[str, Any]] = []
@@ -83,6 +121,16 @@ def _coverage_rows(ctx: Ctx, coverage: Any) -> tuple[list[dict[str, Any]], list[
     if not rows:
         raise invalid("coverage", "required")
     return rows, sorted(districts), False
+
+
+def _coverage_of(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """The coverage the approver sees, rebuilt from the rows that will be applied."""
+    if rows == [{"all_states": True}]:
+        return {"all_states": True, "state_ids": [], "district_ids": []}
+    return {
+        "state_ids": [r["state_id"] for r in rows if "state_id" in r],
+        "district_ids": [r["district_id"] for r in rows if "district_id" in r],
+    }
 
 
 def _user_districts(ctx: Ctx, user: Row) -> list[str]:
@@ -209,7 +257,14 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
     if not isinstance(raw, dict) or raw.get("kind") not in KINDS:
         raise invalid("kind", "invalid_enum")
     kind: str = raw["kind"]
-    new: dict[str, Any] = dict(raw.get("new_value") or {})
+    _closed(raw, TOP_KEYS_BY_KIND[kind], "body")
+    given = raw.get("new_value")
+    if given is None:
+        given = {}
+    if not isinstance(given, dict):
+        raise invalid("new_value", "invalid")
+    _closed(given, NEW_VALUE_KEYS_BY_KIND[kind], "new_value")
+    new: dict[str, Any] = dict(given)
     subject: Row | None = None
     if kind not in ("USER_CREATE", "THRESHOLDS"):
         subject = _user(ctx, str(raw.get("subject_user_id", "")))
@@ -224,15 +279,21 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
     districts: list[str] = []
     needs_all = False
     if kind == "USER_CREATE":
-        username = str(new.get("username", ""))
-        if not username or one(
-            ctx.conn, "SELECT 1 AS x FROM users WHERE username = %s", (username.lower(),)
+        username = new.get("username")
+        if (
+            not isinstance(username, str)
+            or not username
+            or one(ctx.conn, "SELECT 1 AS x FROM users WHERE username = %s", (username.lower(),))
         ):
             raise invalid("username", "invalid")
         role = new.get("role")
-        if role not in ROLES or not new.get("display_name"):
+        display_name = new.get("display_name")
+        if role not in ROLES or not isinstance(display_name, str) or not display_name:
             raise invalid("role", "invalid_enum")
+        base = {"username": username, "display_name": display_name, "role": role}
         if role in DISTRICT_ROLES:
+            if "coverage" in new:
+                raise _unknown("coverage", "new_value")
             if (
                 not new.get("district_id")
                 or one(
@@ -244,14 +305,22 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
             ):
                 raise invalid("district_id", "unknown_district")
             districts = [str(new["district_id"])]
+            new = {**base, "district_id": str(new["district_id"])}
         elif role == "SENIOR":
+            if "district_id" in new:
+                raise _unknown("district_id", "new_value")
             rows, districts, all_states = _coverage_rows(ctx, new.get("coverage"))
-            new["coverage_rows"] = rows
+            new = {**base, "coverage": _coverage_of(rows), "coverage_rows": rows}
             needs_all = all_states
         else:
+            for extra in ("district_id", "coverage"):
+                if extra in new:
+                    raise _unknown(extra, "new_value")
+            new = base
             needs_all = True
     elif kind in ("USER_ENABLE", "USER_DISABLE"):
         subject = need(subject)
+        new = {}
         if subject["active"] is (kind == "USER_ENABLE"):
             raise invalid("kind", "no_change")
         districts = _user_districts(ctx, subject)
@@ -263,11 +332,14 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
             raise invalid("role", "invalid")
         if role in DISTRICT_ROLES and not subject["district_id"]:
             raise invalid("role", "needs_district")
+        new = {"role": role}
         districts = _user_districts(ctx, subject)
         needs_all = bool({role, subject["role"]} & {"SENIOR", "ADMIN"})
     elif kind == "USER_JURISDICTION":
         subject = need(subject)
         if subject["role"] in DISTRICT_ROLES:
+            if "coverage" in new:
+                raise _unknown("coverage", "new_value")
             district = as_uuid(str(new.get("district_id", "")))
             if (
                 district is None
@@ -275,16 +347,21 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
             ):
                 raise invalid("district_id", "unknown_district")
             districts = sorted({str(subject["district_id"]), str(district)})
+            new = {"district_id": str(district)}
         elif subject["role"] == "SENIOR":
+            if "district_id" in new:
+                raise _unknown("district_id", "new_value")
             rows, new_districts, all_states = _coverage_rows(ctx, new.get("coverage"))
-            new["coverage_rows"] = rows
+            new = {"coverage": _coverage_of(rows), "coverage_rows": rows}
             districts = sorted(set(_user_districts(ctx, subject)) | set(new_districts))
             needs_all = all_states or _user_all_states(ctx, subject)
         else:
             raise invalid("kind", "not_applicable")
     elif kind in ("ASSIGNMENT_ADD", "ASSIGNMENT_REMOVE"):
         subject = need(subject)
-        number = str(new.get("case_number", ""))
+        number = new.get("case_number")
+        if not isinstance(number, str):
+            raise invalid("case_number", "invalid")
         case = one(
             ctx.conn,
             "SELECT * FROM cases WHERE case_number = %s ORDER BY (district_id = %s) DESC LIMIT 1",

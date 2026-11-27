@@ -1525,6 +1525,7 @@ export interface components {
         medium_min: number;
       };
     };
+    /** @description Closed per change type. A key that the type does not list, at the top level or in `new_value` or in `coverage`, is refused with 422 `unknown_field`; the stored, shown and applied value is built from the listed keys only. */
     ProposeChangeRequest:
       | components["schemas"]["ProposeUserCreate"]
       | components["schemas"]["ProposeUserActive"]
