@@ -1064,7 +1064,7 @@ export interface components {
       refresh_expires_in: number;
       user: components["schemas"]["User"];
     };
-    /** @description SENIOR coverage set. Seeded; one SENIOR covers all states. */
+    /** @description SENIOR coverage set. Seeded; one SENIOR covers all states. `all_states` must be a JSON boolean; `state_ids` and `district_ids` are lists of ids without duplicates; anything else is refused with 422. */
     Coverage: {
       /** @description True for the central desk. */
       all_states?: boolean;
@@ -1495,8 +1495,11 @@ export interface components {
       /** @constant */
       kind: "USER_ROLE";
       subject_user_id: components["schemas"]["Uuid"];
+      /** @description A change to SENIOR must carry `coverage`. A change from SENIOR or ADMIN to a district role must carry `district_id`. No other role change carries either; a missing or extra one is refused with 422. The approver sees the coverage or district that will be applied. */
       new_value: {
         role: components["schemas"]["Role"];
+        district_id?: components["schemas"]["Uuid"];
+        coverage?: components["schemas"]["Coverage"];
       };
     };
     ProposeUserJurisdiction: {

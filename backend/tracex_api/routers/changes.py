@@ -53,7 +53,9 @@ NEW_VALUE_KEYS_BY_KIND: dict[str, frozenset[str]] = {
     "USER_CREATE": frozenset({"username", "display_name", "role", "district_id", "coverage"}),
     "USER_ENABLE": frozenset(),
     "USER_DISABLE": frozenset(),
-    "USER_ROLE": frozenset({"role"}),
+    # USER_ROLE also takes `coverage` (to SENIOR) or `district_id` (from SENIOR or ADMIN to a
+    # district role), and only there: see the boundary branch in propose_change.
+    "USER_ROLE": frozenset({"role", "district_id", "coverage"}),
     "USER_JURISDICTION": frozenset({"district_id", "coverage"}),
     "ASSIGNMENT_ADD": frozenset({"case_number"}),
     "ASSIGNMENT_REMOVE": frozenset({"case_number"}),
@@ -89,35 +91,46 @@ def _user(ctx: Ctx, user_id: str) -> Row | None:
     return one(ctx.conn, "SELECT * FROM users WHERE id = %s", (key,)) if key else None
 
 
+def _strict_ids(coverage: dict[str, Any], field_name: str) -> list[str]:
+    """A list of UUID strings in canonical form, without duplicates; anything else is a 422.
+    A missing key is an empty list; an explicit `null` is not a list and is refused."""
+    value = coverage.get(field_name, [])
+    if not isinstance(value, list):
+        raise invalid(field_name, "invalid")
+    out: list[str] = []
+    for item in value:
+        parsed = as_uuid(item) if isinstance(item, str) else None
+        if parsed is None or str(parsed) in out:
+            raise invalid(field_name, "invalid")
+        out.append(str(parsed))
+    return out
+
+
 def _coverage_rows(ctx: Ctx, coverage: Any) -> tuple[list[dict[str, Any]], list[str], bool]:
     """Coverage rows, the districts they touch, and whether it is all-state."""
     if not isinstance(coverage, dict):
         raise invalid("coverage", "required")
     _closed(coverage, COVERAGE_KEYS, "coverage")
-    if coverage.get("all_states"):
+    all_states = coverage.get("all_states", False)
+    if not isinstance(all_states, bool):
+        raise invalid("all_states", "invalid")
+    state_ids = _strict_ids(coverage, "state_ids")
+    district_ids = _strict_ids(coverage, "district_ids")
+    if all_states:
         return [{"all_states": True}], [], True
     rows: list[dict[str, Any]] = []
     districts: set[str] = set()
-    for state_id in coverage.get("state_ids", []):
-        found = many(
-            ctx.conn,
-            "SELECT id FROM districts WHERE state_id = %s",
-            (as_uuid(str(state_id)),),
-        )
+    for state_id in state_ids:
+        found = many(ctx.conn, "SELECT id FROM districts WHERE state_id = %s", (state_id,))
         if not found:
             raise invalid("coverage", "unknown_state")
-        rows.append({"state_id": str(state_id)})
+        rows.append({"state_id": state_id})
         districts.update(str(d["id"]) for d in found)
-    for district_id in coverage.get("district_ids", []):
-        if (
-            one(
-                ctx.conn, "SELECT 1 AS x FROM districts WHERE id = %s", (as_uuid(str(district_id)),)
-            )
-            is None
-        ):
+    for district_id in district_ids:
+        if one(ctx.conn, "SELECT 1 AS x FROM districts WHERE id = %s", (district_id,)) is None:
             raise invalid("coverage", "unknown_district")
-        rows.append({"district_id": str(district_id)})
-        districts.add(str(district_id))
+        rows.append({"district_id": district_id})
+        districts.add(district_id)
     if not rows:
         raise invalid("coverage", "required")
     return rows, sorted(districts), False
@@ -134,7 +147,7 @@ def _coverage_of(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _user_districts(ctx: Ctx, user: Row) -> list[str]:
-    if user["district_id"]:
+    if user["district_id"] and user["role"] in DISTRICT_ROLES:
         return [str(user["district_id"])]
     rows = many(ctx.conn, "SELECT * FROM user_coverage WHERE user_id = %s", (user["id"],))
     out: set[str] = set()
@@ -294,18 +307,15 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
         if role in DISTRICT_ROLES:
             if "coverage" in new:
                 raise _unknown("coverage", "new_value")
+            created_in = as_uuid(str(new.get("district_id", "")))
             if (
-                not new.get("district_id")
-                or one(
-                    ctx.conn,
-                    "SELECT 1 AS x FROM districts WHERE id = %s",
-                    (as_uuid(str(new["district_id"])),),
-                )
+                created_in is None
+                or one(ctx.conn, "SELECT 1 AS x FROM districts WHERE id = %s", (created_in,))
                 is None
             ):
                 raise invalid("district_id", "unknown_district")
-            districts = [str(new["district_id"])]
-            new = {**base, "district_id": str(new["district_id"])}
+            districts = [str(created_in)]
+            new = {**base, "district_id": str(created_in)}
         elif role == "SENIOR":
             if "district_id" in new:
                 raise _unknown("district_id", "new_value")
@@ -330,11 +340,34 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
         role = new.get("role")
         if role not in ROLES or role == subject["role"]:
             raise invalid("role", "invalid")
-        if role in DISTRICT_ROLES and not subject["district_id"]:
-            raise invalid("role", "needs_district")
-        new = {"role": role}
         districts = _user_districts(ctx, subject)
-        needs_all = bool({role, subject["role"]} & {"SENIOR", "ADMIN"})
+        if role == "SENIOR":
+            # A SENIOR works only through coverage, so the change must carry it.
+            if "district_id" in new:
+                raise _unknown("district_id", "new_value")
+            rows, cover, all_states = _coverage_rows(ctx, new.get("coverage"))
+            new = {"role": role, "coverage": _coverage_of(rows), "coverage_rows": rows}
+            districts = sorted(set(districts) | set(cover))
+            needs_all = True
+        elif role in DISTRICT_ROLES and subject["role"] in ("SENIOR", "ADMIN"):
+            # Leaving SENIOR or ADMIN: the user has no district, so the change must give one.
+            if "coverage" in new:
+                raise _unknown("coverage", "new_value")
+            home = as_uuid(str(new.get("district_id", "")))
+            if (
+                home is None
+                or one(ctx.conn, "SELECT 1 AS x FROM districts WHERE id = %s", (home,)) is None
+            ):
+                raise invalid("district_id", "unknown_district")
+            new = {"role": role, "district_id": str(home)}
+            districts = sorted(set(districts) | {str(home)})
+            needs_all = True
+        else:
+            for extra in ("district_id", "coverage"):
+                if extra in new:
+                    raise _unknown(extra, "new_value")
+            new = {"role": role}
+            needs_all = bool({role, subject["role"]} & {"SENIOR", "ADMIN"})
     elif kind == "USER_JURISDICTION":
         subject = need(subject)
         if subject["role"] in DISTRICT_ROLES:

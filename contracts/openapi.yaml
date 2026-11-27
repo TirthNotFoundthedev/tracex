@@ -2269,7 +2269,7 @@ components:
       required:
         - state_ids
         - district_ids
-      description: SENIOR coverage set. Seeded; one SENIOR covers all states.
+      description: SENIOR coverage set. Seeded; one SENIOR covers all states. `all_states` must be a JSON boolean; `state_ids` and `district_ids` are lists of ids without duplicates; anything else is refused with 422.
       properties:
         all_states:
           type: boolean
@@ -3518,11 +3518,16 @@ components:
         new_value:
           type: object
           additionalProperties: false
+          description: A change to SENIOR must carry `coverage`. A change from SENIOR or ADMIN to a district role must carry `district_id`. No other role change carries either; a missing or extra one is refused with 422. The approver sees the coverage or district that will be applied.
           required:
             - role
           properties:
             role:
               $ref: "#/components/schemas/Role"
+            district_id:
+              $ref: "#/components/schemas/Uuid"
+            coverage:
+              $ref: "#/components/schemas/Coverage"
     ProposeUserJurisdiction:
       type: object
       additionalProperties: false

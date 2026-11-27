@@ -129,6 +129,8 @@ Rules the boundary keeps: scores never feed back into weights; the explanation p
 8. Commit. Postgres plus the audit row are now the record. Then call `engine.apply_decision(...)` (idempotent on `decision_id`) and mark the outbox row acknowledged; on failure the retry worker and startup reconcile replay it. Return the updated `LinkDetail`.
 9. A crash between 7 and 8 leaves both stores unchanged and no audit row; a crash after the commit leaves the decision in effect and audited, and Neo4j converges.
 
+Every request connection sets `lock_timeout` to 5 s: a request that cannot get a row lock in that time fails with 500 and rolls back, so no request waits behind a stuck transaction for longer. An unexpected error rolls the transaction back before the 500 is built.
+
 ## 8. Keys, accepted residuals
 
 - A matching run is scoped by upload batch (or every batch not yet run) and always matches new input against all loaded cases; its result for ADMIN is totals of AUTO and SUGGESTED created only (no LOW count, no per-case or per-pair counts). The totals come from `RunRecord.created_by_state` and nowhere else: `counts_by_state` counts every settled pair including existing edges and `NONE` (the Low count), and `counts_by_band` has LOW, so neither is stored in a column an API response reads and neither is returned. The engine still receives `input_case_ids`, derived from the batches.
