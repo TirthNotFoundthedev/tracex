@@ -28,3 +28,88 @@
   gap: var(--space-3, 16px);
   align-items: flex-start;
 }
+
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 16px);
+  max-inline-size: var(--page-width, 72rem);
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 16px);
+  align-items: flex-start;
+  max-inline-size: 36rem;
+}
+
+.admin-actions {
+  display: flex;
+  gap: var(--space-2, 8px);
+}
+
+.admin-hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.admin-error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.admin-values {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.admin-values dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.admin-pending {
+  border: var(--border-2) dashed var(--color-line);
+  padding: var(--space-3);
+}
+
+/* Three score zones, told apart by pattern and by words (never colour alone). */
+.admin-zones {
+  display: flex;
+  border: var(--border-2) solid var(--color-ink);
+  min-block-size: var(--tap-min);
+}
+
+.admin-zone {
+  flex-basis: 0;
+  min-inline-size: fit-content;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  font-weight: var(--weight-semibold);
+}
+
+.admin-zone + .admin-zone {
+  border-inline-start: var(--border-2) solid var(--color-ink);
+}
+
+.admin-zone[data-zone="none"] {
+  background: var(--color-paper);
+}
+
+.admin-zone[data-zone="check"] {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-sunken) 0 var(--space-1),
+    var(--color-line-soft) var(--space-1) var(--space-2)
+  );
+}
+
+.admin-zone[data-zone="auto"] {
+  background: var(--color-strong-bg);
+  color: var(--color-strong-fg);
+}

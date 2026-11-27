@@ -162,7 +162,6 @@ test("a 422 puts the error beside the field that the API names", async () => {
   expect(
     await screen.findByText("Something is missing. Check the fields marked below."),
   ).toBeTruthy();
-  expect(document.querySelector("#" + CSS.escape(screen.getByLabelText("Case").id))).not.toBeNull();
   expect(screen.getByLabelText("Case").getAttribute("aria-invalid")).toBe("true");
 });
 

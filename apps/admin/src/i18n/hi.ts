@@ -45,6 +45,7 @@ export const hi: Record<keyof typeof en, string> = {
   // Shared states
   "common.saved": "सहेज लिया गया।",
   "common.nothingFound": "कुछ नहीं मिला। वर्तनी जाँचें या कम शब्द लिखें।",
+  "common.fillIn": "कृपया भरें: {field}।",
   "common.fillInCount": "कृपया {n} खाने भरें।",
   "common.unsaved": "आपने बदलाव सहेजे नहीं हैं।",
   "common.save": "सहेजें",
@@ -69,6 +70,9 @@ export const hi: Record<keyof typeof en, string> = {
   "upload.status.failed": "पढ़ नहीं सके: {reason}",
   "upload.retry": "फिर कोशिश करें",
   "upload.empty": "अभी कोई फ़ाइल अपलोड नहीं हुई।",
+  "upload.files": "फ़ाइलें",
+  "upload.case.hint": "मौजूदा मामला नंबर लिखें या नया।",
+  "upload.reason.default": "फ़ाइल खुल नहीं सकी",
   "upload.tooMany": "एक बार में 20 फ़ाइलें तक अपलोड कर सकते हैं।",
 
   // A2
@@ -76,7 +80,7 @@ export const hi: Record<keyof typeof en, string> = {
   "matching.last": "पिछली बार: {date}। {strong} पक्के, {possible} संभावित मिले।",
   "matching.never": "अभी तक मिलान नहीं चलाया गया।",
   "matching.start": "मिलान शुरू करें",
-  "matching.progress": "{total} में से {done} रिकॉर्ड का मिलान हुआ...",
+  "matching.running": "मिलान चल रहा है...",
   "matching.noStop": "चलते मिलान को रोका नहीं जा सकता। कृपया प्रतीक्षा करें।",
   "matching.finished": "मिलान पूरा हुआ। {n} संभावित मिलान जाँचने हैं।",
   "matching.goReview": "जाँच की कतार पर जाएँ",

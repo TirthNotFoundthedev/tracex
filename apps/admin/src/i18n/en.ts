@@ -50,6 +50,7 @@ export const en = {
   // Shared states (design-flows section 4)
   "common.saved": "Saved.",
   "common.nothingFound": "Nothing found. Check the spelling or try fewer words.",
+  "common.fillIn": "Please fill in: {field}.",
   "common.fillInCount": "Please fill in {n} fields.",
   "common.unsaved": "You have not saved your changes.",
   "common.save": "Save",
@@ -74,6 +75,9 @@ export const en = {
   "upload.status.failed": "Could not read: {reason}",
   "upload.retry": "Try again",
   "upload.empty": "No files uploaded yet.",
+  "upload.files": "Files",
+  "upload.case.hint": "Write an existing case number or a new one.",
+  "upload.reason.default": "the file could not be opened",
   "upload.tooMany": "You can upload up to 20 files at a time.",
 
   // A2 Matching
@@ -81,7 +85,7 @@ export const en = {
   "matching.last": "Last run: {date}. Found {strong} strong, {possible} possible.",
   "matching.never": "No matching has been run yet.",
   "matching.start": "Start matching",
-  "matching.progress": "Matching {done} of {total} records...",
+  "matching.running": "Matching is running...",
   "matching.noStop": "A run cannot be stopped. Please wait.",
   "matching.finished": "Matching finished. {n} possible matches need review.",
   "matching.goReview": "Go to review queue",
