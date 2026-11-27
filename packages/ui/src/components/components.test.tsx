@@ -70,6 +70,12 @@ describe("styles", () => {
     expect(css).not.toMatch(/border-radius:\s*(?!\s|var\(--radius\))/);
   });
 
+  test("page width tokens: officer 45rem, admin wide page 72rem, both capped (section 4)", () => {
+    expect(tokens).toMatch(/--page-width:\s*45rem/);
+    expect(tokens).toMatch(/--page-width-wide:\s*72rem/);
+    expect(tokens).toMatch(/--measure:\s*40rem/);
+  });
+
   test("officer target is 56px and admin 44px through tokens", () => {
     expect(tokens).toMatch(/--tap-min:\s*3\.5rem/);
     expect(tokens).toMatch(/\[data-app="admin"\][^}]*--tap-min:\s*2\.75rem/);
