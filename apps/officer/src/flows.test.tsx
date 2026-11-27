@@ -686,6 +686,72 @@ describe("session notice", () => {
   });
 });
 
+describe("one primary button per page, and empty states", () => {
+  const primaries = () =>
+    screen.getAllByRole("button").filter((b) => b.getAttribute("data-variant") === "primary");
+
+  test("several possible matches and cards: only the first button is primary", async () => {
+    const detail = entityDetail(
+      [linkSummary("SUGGESTED", "L-1"), linkSummary("SUGGESTED", "L-2")],
+      [stub(), { ...stub(), stub_id: "S-2" }],
+    );
+    const api = mockApi(baseTable("INVESTIGATOR", detail));
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show other cases" }));
+    await screen.findByText("Also appears in", { selector: "h1" });
+    const checks = screen.getAllByRole("button", { name: "Check this" });
+    expect(checks).toHaveLength(2);
+    const asks = screen.getAllByRole("button", { name: "Ask for access" });
+    expect(asks).toHaveLength(2);
+    const marked = primaries().filter((b) => [...checks, ...asks].includes(b));
+    expect(marked).toEqual([checks[0]]);
+  });
+
+  test("with only restricted cards the first one is primary and the rest secondary", async () => {
+    const detail = entityDetail([], [stub(), { ...stub(), stub_id: "S-2" }]);
+    const api = mockApi(baseTable("INVESTIGATOR", detail));
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show other cases" }));
+    const asks = await screen.findAllByRole("button", { name: "Ask for access" });
+    expect(primaries().filter((b) => asks.includes(b))).toEqual([asks[0]]);
+  });
+
+  test("No cases yet says why and what next", async () => {
+    const api = mockApi({
+      ...baseTable("INVESTIGATOR", entityDetail([])),
+      "GET /cases": ok({ items: [], next_cursor: null, total: 0 }),
+    });
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    expect(screen.getByText("No cases yet.")).toBeTruthy();
+    expect(screen.getByText("Ask your supervisor to add your cases.")).toBeTruthy();
+  });
+
+  test("an item with no other cases says why and what next", async () => {
+    const api = mockApi(baseTable("INVESTIGATOR", entityDetail([linkSummary("REJECTED")])));
+    render(<App fetchImpl={api.fetch} />);
+    await signIn();
+    fireEvent.click(await screen.findByRole("button", { name: /Case 24\/118/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /98xxxx1234/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show other cases" }));
+    await screen.findByText(en["also.empty"]);
+    expect(screen.getByText(en["also.emptyHint"])).toBeTruthy();
+  });
+
+  test("the empty-state strings exist in both languages and only the 404 state has no hint", () => {
+    for (const key of ["cases.emptyHint", "cases.noResultsHint", "also.emptyHint"] as const) {
+      expect(en[key].length).toBeGreaterThan(5);
+      expect(hi[key].length).toBeGreaterThan(5);
+    }
+  });
+});
+
 describe("navigation and language", () => {
   test("Back in the header returns to the screen before", async () => {
     const api = mockApi(baseTable("INVESTIGATOR", entityDetail([])));

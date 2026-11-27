@@ -106,7 +106,12 @@ export function Cases() {
           const items = useTail ? tail.items : page.items;
           const cursor = useTail ? tail.cursor : page.next_cursor;
           if (items.length === 0) {
-            return <EmptyState title={tt(query ? "cases.noResults" : "cases.empty")} hint="" />;
+            return (
+              <EmptyState
+                title={tt(query ? "cases.noResults" : "cases.empty")}
+                hint={tt(query ? "cases.noResultsHint" : "cases.emptyHint")}
+              />
+            );
           }
           return (
             <>

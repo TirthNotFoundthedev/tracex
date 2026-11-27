@@ -36,8 +36,10 @@ export const en = {
   "cases.otherCases.other": "{n} items appear in other cases",
   "cases.showMore": "Show more",
   "cases.loading": "Loading your cases...",
-  "cases.empty": "No cases yet. Ask your supervisor to add your cases.",
+  "cases.empty": "No cases yet.",
+  "cases.emptyHint": "Ask your supervisor to add your cases.",
   "cases.noResults": "No case of yours has that number.",
+  "cases.noResultsHint": "Check the number and search again.",
   "cases.accessApproved": "Your request for access was approved.",
   "cases.seeCase": "See the case",
 
@@ -71,6 +73,7 @@ export const en = {
   "also.whyLinked": "Why was this linked?",
   "also.checkThis": "Check this",
   "also.empty": "There are no other cases to show.",
+  "also.emptyHint": "It is only in this case so far. Go back to the case to see its other items.",
 
   // O6 Why linked
   "why.titleStrong": "Why these are linked",

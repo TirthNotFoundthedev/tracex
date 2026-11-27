@@ -31,8 +31,10 @@ export const hi: Record<keyof typeof en, string> = {
   "cases.otherCases.other": "{n} चीज़ें दूसरे मामलों में भी हैं",
   "cases.showMore": "और दिखाएँ",
   "cases.loading": "आपके मामले लोड हो रहे हैं...",
-  "cases.empty": "अभी कोई मामला नहीं है। अपने पर्यवेक्षक से मामले जुड़वाएँ।",
+  "cases.empty": "अभी कोई मामला नहीं है।",
+  "cases.emptyHint": "अपने पर्यवेक्षक से मामले जुड़वाएँ।",
   "cases.noResults": "आपके किसी मामले का यह नंबर नहीं है।",
+  "cases.noResultsHint": "नंबर जाँचें और फिर से खोजें।",
   "cases.accessApproved": "पहुँच के लिए आपका अनुरोध मंज़ूर हो गया।",
   "cases.seeCase": "मामला देखें",
 
@@ -66,6 +68,8 @@ export const hi: Record<keyof typeof en, string> = {
   "also.whyLinked": "यह क्यों जोड़ा गया?",
   "also.checkThis": "इसे जाँचें",
   "also.empty": "दिखाने के लिए कोई और मामला नहीं है।",
+  "also.emptyHint":
+    "अभी यह सिर्फ़ इसी मामले में है। इसकी बाकी चीज़ें देखने के लिए मामले पर वापस जाएँ।",
 
   // O6 Why linked
   "why.titleStrong": "ये क्यों जुड़े हैं",

@@ -24,7 +24,15 @@ function visibleLinks(links: LinkSummary[]): LinkSummary[] {
   ];
 }
 
-function CaseCard({ link, entityId }: { link: LinkSummary; entityId: string }) {
+function CaseCard({
+  link,
+  entityId,
+  primary,
+}: {
+  link: LinkSummary;
+  entityId: string;
+  primary: boolean;
+}) {
   const { tt, lang } = useApp();
   const { t: shared } = useUi();
   const nav = useNav();
@@ -41,7 +49,7 @@ function CaseCard({ link, entityId }: { link: LinkSummary; entityId: string }) {
       <p className="officer-card__title">{line}</p>
       {reason ? <p className="tx-body">{reason}</p> : null}
       <Button
-        variant={possible ? "primary" : "secondary"}
+        variant={primary ? "primary" : "secondary"}
         onClick={() => nav.go(paths.link(link.link_id, entityId))}
       >
         {tt(possible ? "also.checkThis" : "also.whyLinked")}
@@ -54,7 +62,9 @@ function StubCard({
   stub,
   entity,
   note,
+  emphasis,
 }: {
+  emphasis: "primary" | "secondary";
   stub: Stub;
   entity: { type: components["schemas"]["EntityType"]; value: string; id: string };
   note: string | undefined;
@@ -66,6 +76,7 @@ function StubCard({
   return (
     <>
       <RestrictedCard
+        emphasis={emphasis}
         itemType={restrictedType[entity.type]}
         itemValue={entity.value}
         {...(status === "PENDING" && stub.access_request.requested_at
@@ -124,19 +135,31 @@ export function AlsoAppears({ entityId }: { entityId: string }) {
       <Await loaded={loaded} onRetry={() => setEpoch((n) => n + 1)}>
         {(entity) => {
           const links = visibleLinks(entity.links);
+          // One primary button on the page (DESIGN_RULES section 5): the first card that has a button.
+          const firstAsk = entity.stubs.find((stub) => stub.access_request.status !== "PENDING");
           return (
             <>
               <p className="tx-body">{tt("also.intro", { value: entity.display_value })}</p>
               {links.length === 0 && entity.stubs.length === 0 ? (
-                <EmptyState title={tt("also.empty")} hint="" />
+                <EmptyState title={tt("also.empty")} hint={tt("also.emptyHint")} />
               ) : null}
-              {links.map((link) => (
-                <CaseCard key={link.link_id} link={link} entityId={entity.entity_id} />
+              {links.map((link, index) => (
+                <CaseCard
+                  key={link.link_id}
+                  link={link}
+                  entityId={entity.entity_id}
+                  primary={index === 0}
+                />
               ))}
               {entity.stubs.map((stub) => (
                 <StubCard
                   key={stub.stub_id}
                   stub={stub}
+                  emphasis={
+                    links.length === 0 && stub.stub_id === firstAsk?.stub_id
+                      ? "primary"
+                      : "secondary"
+                  }
                   entity={{ type: entity.type, value: entity.display_value, id: entity.entity_id }}
                   note={notes[stub.stub_id]}
                 />
