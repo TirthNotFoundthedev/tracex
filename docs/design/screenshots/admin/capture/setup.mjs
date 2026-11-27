@@ -1,4 +1,5 @@
-import { chromium, newCtx, login, go, settle, T, rx, step } from "./lib.mjs";
+/* global console */
+import { chromium, newCtx, login, go, step } from "./lib.mjs";
 
 const browser = await chromium.launch();
 const longEn =

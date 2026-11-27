@@ -14,202 +14,202 @@ Naming follows `docs/design/screenshots/officer/`: `<screen id>-<name>-<en|hi>[-
 
 Columns: file, role signed in as, what it shows, page scroll width / viewport width.
 
-| File | Role | Screen and notes | Scroll |
-|---|---|---|---|
-| A0-sign-in-en-mobile.png | none | Sign-in, empty | 375/375 |
-| A0-sign-in-en.png | none | Sign-in, empty | 1280/1280 |
-| A0-sign-in-hi-mobile.png | none | Sign-in, empty | 375/375 |
-| A0-sign-in-hi.png | none | Sign-in, empty | 1280/1280 |
-| A0-sign-in-missing-en-mobile.png | none | Submit with empty fields | 375/375 |
-| A0-sign-in-missing-en.png | none | Submit with empty fields | 1280/1280 |
-| A0-sign-in-missing-hi-mobile.png | none | Submit with empty fields | 375/375 |
-| A0-sign-in-missing-hi.png | none | Submit with empty fields | 1280/1280 |
-| A0-sign-in-wrong-password-en-mobile.png | none | Wrong password (real 401 from the API) | 375/375 |
-| A0-sign-in-wrong-password-en.png | none | Wrong password (real 401 from the API) | 1280/1280 |
-| A0-sign-in-wrong-password-hi-mobile.png | none | Wrong password (real 401 from the API) | 375/375 |
-| A0-sign-in-wrong-password-hi.png | none | Wrong password (real 401 from the API) | 1280/1280 |
-| A1-upload-en-mobile.png | ADMIN (hari) | Form and the real upload list from the seed | 375/375 |
-| A1-upload-en.png | ADMIN (hari) | Form and the real upload list from the seed | 1280/1280 |
-| A1-upload-hi-mobile.png | ADMIN (hari) | Form and the real upload list from the seed | 375/375 |
-| A1-upload-hi.png | ADMIN (hari) | Form and the real upload list from the seed | 1280/1280 |
-| A1-upload-nothing-chosen-en-mobile.png | ADMIN (hari) | Submit with no case and no file | 375/375 |
-| A1-upload-nothing-chosen-en.png | ADMIN (hari) | Submit with no case and no file | 1280/1280 |
-| A1-upload-nothing-chosen-hi-mobile.png | ADMIN (hari) | Submit with no case and no file | 375/375 |
-| A1-upload-nothing-chosen-hi.png | ADMIN (hari) | Submit with no case and no file | 1280/1280 |
-| A2-matching-en-mobile.png | ADMIN (hari) | Last run from the seed | 375/375 |
-| A2-matching-en.png | ADMIN (hari) | Last run from the seed | 1280/1280 |
-| A2-matching-hi-mobile.png | ADMIN (hari) | Last run from the seed | 375/375 |
-| A2-matching-hi.png | ADMIN (hari) | Last run from the seed | 1280/1280 |
-| A3-review-filter-empty-en-mobile.png | SENIOR (meena) | Type filter with no match | 375/375 |
-| A3-review-filter-empty-en.png | SENIOR (meena) | Type filter with no match | 1280/1280 |
-| A3-review-filter-empty-hi-mobile.png | SENIOR (meena) | Type filter with no match | 375/375 |
-| A3-review-filter-empty-hi.png | SENIOR (meena) | Type filter with no match | 1280/1280 |
-| A3-review-loading-en.png | SENIOR (meena) | Loading state: the real API answer was held back 6 seconds with a test proxy | 1280/1280 |
-| A3-review-loading-hi.png | SENIOR (meena) | Loading state: the real API answer was held back 6 seconds with a test proxy | 1280/1280 |
-| A3-review-no-connection-en.png | SENIOR (meena) | No-connection state: the request was cut by the test browser, the stack was up | 1280/1280 |
-| A3-review-no-connection-hi.png | SENIOR (meena) | No-connection state: the request was cut by the test browser, the stack was up | 1280/1280 |
-| A3-review-not-available-en-mobile.png | ADMIN (hari) | ADMIN opens /review (no menu item) | 375/375 |
-| A3-review-not-available-en.png | ADMIN (hari) | ADMIN opens /review (no menu item) | 1280/1280 |
-| A3-review-not-available-hi-mobile.png | ADMIN (hari) | ADMIN opens /review (no menu item) | 375/375 |
-| A3-review-not-available-hi.png | ADMIN (hari) | ADMIN opens /review (no menu item) | 1280/1280 |
-| A3-review-waiting-en-grayscale.png | SENIOR (meena) (grayscale) | Grayscale filter on the whole page | 1280/1280 |
-| A3-review-waiting-en-mobile.png | SENIOR (meena) | Review queue, Waiting filter (28 real links) | 375/375 |
-| A3-review-waiting-en-zoom200.png | SENIOR (meena) (zoom200) | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280) | 640/640 |
-| A3-review-waiting-en.png | SENIOR (meena) | Review queue, Waiting filter (28 real links) | 1280/1280 |
-| A3-review-waiting-hi-grayscale.png | SENIOR (meena) (grayscale) | Grayscale filter on the whole page | 1280/1280 |
-| A3-review-waiting-hi-mobile.png | SENIOR (meena) | Review queue, Waiting filter (28 real links) | 375/375 |
-| A3-review-waiting-hi-zoom200.png | SENIOR (meena) (zoom200) | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280) | 640/640 |
-| A3-review-waiting-hi.png | SENIOR (meena) | Review queue, Waiting filter (28 real links) | 1280/1280 |
-| A3-review-waiting-over-7-days-en-mobile.png | SENIOR (meena) | Waiting more than 7 days (empty: all seed links are new) | 375/375 |
-| A3-review-waiting-over-7-days-en.png | SENIOR (meena) | Waiting more than 7 days (empty: all seed links are new) | 1280/1280 |
-| A3-review-waiting-over-7-days-hi-mobile.png | SENIOR (meena) | Waiting more than 7 days (empty: all seed links are new) | 375/375 |
-| A3-review-waiting-over-7-days-hi.png | SENIOR (meena) | Waiting more than 7 days (empty: all seed links are new) | 1280/1280 |
-| A3b-link-detail-en-mobile.png | SENIOR (meena) | Link detail, More detail open by default | 375/375 |
-| A3b-link-detail-en.png | SENIOR (meena) | Link detail, More detail open by default | 1280/1280 |
-| A3b-link-detail-hi-mobile.png | SENIOR (meena) | Link detail, More detail open by default | 375/375 |
-| A3b-link-detail-hi.png | SENIOR (meena) | Link detail, More detail open by default | 1280/1280 |
-| A3b-reject-check-en-mobile.png | SENIOR (meena) | Reject, second step (not confirmed) | 375/375 |
-| A3b-reject-check-en.png | SENIOR (meena) | Reject, second step (not confirmed) | 1280/1280 |
-| A3b-reject-check-hi-mobile.png | SENIOR (meena) | Reject, second step (not confirmed) | 375/375 |
-| A3b-reject-check-hi.png | SENIOR (meena) | Reject, second step (not confirmed) | 1280/1280 |
-| A3c-review-rejected-en-mobile.png | SENIOR (meena) | Rejected filter (2 real rejections made in the app) | 375/375 |
-| A3c-review-rejected-en.png | SENIOR (meena) | Rejected filter (2 real rejections made in the app) | 1280/1280 |
-| A3c-review-rejected-hi-mobile.png | SENIOR (meena) | Rejected filter (2 real rejections made in the app) | 375/375 |
-| A3c-review-rejected-hi.png | SENIOR (meena) | Rejected filter (2 real rejections made in the app) | 1280/1280 |
-| A3c-review-undone-en-mobile.png | SENIOR (meena) | Undone filter (1 real undo made in the app) | 375/375 |
-| A3c-review-undone-en.png | SENIOR (meena) | Undone filter (1 real undo made in the app) | 1280/1280 |
-| A3c-review-undone-hi-mobile.png | SENIOR (meena) | Undone filter (1 real undo made in the app) | 375/375 |
-| A3c-review-undone-hi.png | SENIOR (meena) | Undone filter (1 real undo made in the app) | 1280/1280 |
-| A3d-review-rejected-detail-en-mobile.png | SENIOR (meena) | Rejected link detail with history | 375/375 |
-| A3d-review-rejected-detail-en.png | SENIOR (meena) | Rejected link detail with history | 1280/1280 |
-| A3d-review-rejected-detail-hi-mobile.png | SENIOR (meena) | Rejected link detail with history | 375/375 |
-| A3d-review-rejected-detail-hi.png | SENIOR (meena) | Rejected link detail with history | 1280/1280 |
-| A3d-review-reopen-check-en-mobile.png | SENIOR (meena) | Reopen, second step (not confirmed) | 375/375 |
-| A3d-review-reopen-check-en.png | SENIOR (meena) | Reopen, second step (not confirmed) | 1280/1280 |
-| A3d-review-reopen-check-hi-mobile.png | SENIOR (meena) | Reopen, second step (not confirmed) | 375/375 |
-| A3d-review-reopen-check-hi.png | SENIOR (meena) | Reopen, second step (not confirmed) | 1280/1280 |
-| A3d-review-undone-detail-en-mobile.png | SENIOR (meena) | Undone link detail with history | 375/375 |
-| A3d-review-undone-detail-en.png | SENIOR (meena) | Undone link detail with history | 1280/1280 |
-| A3d-review-undone-detail-hi-mobile.png | SENIOR (meena) | Undone link detail with history | 375/375 |
-| A3d-review-undone-detail-hi.png | SENIOR (meena) | Undone link detail with history | 1280/1280 |
-| A4-approvals-access-approve-check-en-mobile.png | SENIOR (meena) | Approve, second step (not confirmed) | 375/375 |
-| A4-approvals-access-approve-check-en.png | SENIOR (meena) | Approve, second step (not confirmed) | 1280/1280 |
-| A4-approvals-access-approve-check-hi-mobile.png | SENIOR (meena) | Approve, second step (not confirmed) | 375/375 |
-| A4-approvals-access-approve-check-hi.png | SENIOR (meena) | Approve, second step (not confirmed) | 1280/1280 |
-| A4-approvals-access-detail-en-mobile.png | SENIOR (meena) | Access request detail | 375/375 |
-| A4-approvals-access-detail-en.png | SENIOR (meena) | Access request detail | 1280/1280 |
-| A4-approvals-access-detail-hi-mobile.png | SENIOR (meena) | Access request detail | 375/375 |
-| A4-approvals-access-detail-hi.png | SENIOR (meena) | Access request detail | 1280/1280 |
-| A4-approvals-access-en-mobile.png | SENIOR (meena) | Access requests tab, 2 real waiting requests (one with a 330-character reason) | 375/375 |
-| A4-approvals-access-en.png | SENIOR (meena) | Access requests tab, 2 real waiting requests (one with a 330-character reason) | 1280/1280 |
-| A4-approvals-access-hi-mobile.png | SENIOR (meena) | Access requests tab, 2 real waiting requests (one with a 330-character reason) | 375/375 |
-| A4-approvals-access-hi.png | SENIOR (meena) | Access requests tab, 2 real waiting requests (one with a 330-character reason) | 1280/1280 |
-| A4-approvals-change-detail-en-mobile.png | ADMIN (hari) | Change detail | 375/375 |
-| A4-approvals-change-detail-en.png | ADMIN (hari) | Change detail | 1280/1280 |
-| A4-approvals-change-detail-hi-mobile.png | ADMIN (hari) | Change detail | 375/375 |
-| A4-approvals-change-detail-hi.png | ADMIN (hari) | Change detail | 1280/1280 |
-| A4-approvals-changes-en-mobile.png | SENIOR (meena) | Changes tab with 1 waiting change | 375/375 |
-| A4-approvals-changes-en.png | SENIOR (meena) | Changes tab with 1 waiting change | 1280/1280 |
-| A4-approvals-changes-hi-mobile.png | SENIOR (meena) | Changes tab with 1 waiting change | 375/375 |
-| A4-approvals-changes-hi.png | SENIOR (meena) | Changes tab with 1 waiting change | 1280/1280 |
-| A4a-approvals-change-approve-check-en-mobile.png | SENIOR (meena) | Approve this change, second step (not confirmed) | 375/375 |
-| A4a-approvals-change-approve-check-en.png | SENIOR (meena) | Approve this change, second step (not confirmed) | 1280/1280 |
-| A4a-approvals-change-approve-check-hi-mobile.png | SENIOR (meena) | Approve this change, second step (not confirmed) | 375/375 |
-| A4a-approvals-change-approve-check-hi.png | SENIOR (meena) | Approve this change, second step (not confirmed) | 1280/1280 |
-| A4a-approvals-change-detail-en-mobile.png | SENIOR (meena) | Change to approve, old and new value | 375/375 |
-| A4a-approvals-change-detail-en.png | SENIOR (meena) | Change to approve, old and new value | 1280/1280 |
-| A4a-approvals-change-detail-hi-mobile.png | SENIOR (meena) | Change to approve, old and new value | 375/375 |
-| A4a-approvals-change-detail-hi.png | SENIOR (meena) | Change to approve, old and new value | 1280/1280 |
-| A5-user-detail-readonly-en-mobile.png | SENIOR (meena) | User detail as SENIOR | 375/375 |
-| A5-user-detail-readonly-en.png | SENIOR (meena) | User detail as SENIOR | 1280/1280 |
-| A5-user-detail-readonly-hi-mobile.png | SENIOR (meena) | User detail as SENIOR | 375/375 |
-| A5-user-detail-readonly-hi.png | SENIOR (meena) | User detail as SENIOR | 1280/1280 |
-| A5-user-form-edit-en-mobile.png | ADMIN (hari) | Edit user form (second user) | 375/375 |
-| A5-user-form-edit-en.png | ADMIN (hari) | Edit user form (second user) | 1280/1280 |
-| A5-user-form-edit-hi-mobile.png | ADMIN (hari) | Edit user form (second user) | 375/375 |
-| A5-user-form-edit-hi.png | ADMIN (hari) | Edit user form (second user) | 1280/1280 |
-| A5-user-form-new-en-mobile.png | ADMIN (hari) | Add user form | 375/375 |
-| A5-user-form-new-en.png | ADMIN (hari) | Add user form | 1280/1280 |
-| A5-user-form-new-errors-en-mobile.png | ADMIN (hari) | Add user form, saved empty | 375/375 |
-| A5-user-form-new-errors-en.png | ADMIN (hari) | Add user form, saved empty | 1280/1280 |
-| A5-user-form-new-errors-hi-mobile.png | ADMIN (hari) | Add user form, saved empty | 375/375 |
-| A5-user-form-new-errors-hi.png | ADMIN (hari) | Add user form, saved empty | 1280/1280 |
-| A5-user-form-new-hi-mobile.png | ADMIN (hari) | Add user form | 375/375 |
-| A5-user-form-new-hi.png | ADMIN (hari) | Add user form | 1280/1280 |
-| A5-users-list-en-mobile.png | SENIOR (meena) | User list as SENIOR (read only) | 375/375 |
-| A5-users-list-en.png | SENIOR (meena) | User list as SENIOR (read only) | 1280/1280 |
-| A5-users-list-hi-mobile.png | SENIOR (meena) | User list as SENIOR (read only) | 375/375 |
-| A5-users-list-hi.png | SENIOR (meena) | User list as SENIOR (read only) | 1280/1280 |
-| A6-audit-en-mobile.png | SENIOR (meena) | Activity log, real chain written by the seed and this session | 375/375 |
-| A6-audit-en.png | SENIOR (meena) | Activity log, real chain written by the seed and this session | 1280/1280 |
-| A6-audit-hi-mobile.png | SENIOR (meena) | Activity log, real chain written by the seed and this session | 375/375 |
-| A6-audit-hi.png | SENIOR (meena) | Activity log, real chain written by the seed and this session | 1280/1280 |
-| A7-thresholds-en-mobile.png | SENIOR (meena) | Match settings as SENIOR | 375/375 |
-| A7-thresholds-en.png | SENIOR (meena) | Match settings as SENIOR | 1280/1280 |
-| A7-thresholds-hi-mobile.png | SENIOR (meena) | Match settings as SENIOR | 375/375 |
-| A7-thresholds-hi.png | SENIOR (meena) | Match settings as SENIOR | 1280/1280 |
-| A7-thresholds-invalid-en-mobile.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 375/375 |
-| A7-thresholds-invalid-en.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 1280/1280 |
-| A7-thresholds-invalid-hi-mobile.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 375/375 |
-| A7-thresholds-invalid-hi.png | ADMIN (hari) | Strong match set to 60, below the allowed 70 | 1280/1280 |
-| A8-graph-link-panel-en-mobile.png | SENIOR (meena) | Why linked panel opened from the graph | 375/375 |
-| A8-graph-link-panel-en.png | SENIOR (meena) | Why linked panel opened from the graph | 1280/1280 |
-| A8-graph-link-panel-hi-mobile.png | SENIOR (meena) | Why linked panel opened from the graph | 375/375 |
-| A8-graph-link-panel-hi.png | SENIOR (meena) | Why linked panel opened from the graph | 1280/1280 |
-| A8-graph-list-en-mobile.png | SENIOR (meena) | Same network as a list | 375/375 |
-| A8-graph-list-en.png | SENIOR (meena) | Same network as a list | 1280/1280 |
-| A8-graph-list-hi-mobile.png | SENIOR (meena) | Same network as a list | 375/375 |
-| A8-graph-list-hi.png | SENIOR (meena) | Same network as a list | 1280/1280 |
-| A8-graph-list-selected-en-mobile.png | SENIOR (meena) | List view, one item selected | 375/375 |
-| A8-graph-list-selected-en.png | SENIOR (meena) | List view, one item selected | 1280/1280 |
-| A8-graph-list-selected-hi-mobile.png | SENIOR (meena) | List view, one item selected | 375/375 |
-| A8-graph-list-selected-hi.png | SENIOR (meena) | List view, one item selected | 1280/1280 |
-| A8-graph-matches-en-mobile.png | SENIOR (meena) | Search results (English and Hindi spellings of one name) | 375/375 |
-| A8-graph-matches-en.png | SENIOR (meena) | Search results (English and Hindi spellings of one name) | 1280/1280 |
-| A8-graph-matches-hi-mobile.png | SENIOR (meena) | Search results (English and Hindi spellings of one name) | 375/375 |
-| A8-graph-matches-hi.png | SENIOR (meena) | Search results (English and Hindi spellings of one name) | 1280/1280 |
-| A8-graph-not-available-en-mobile.png | ADMIN (hari) | ADMIN opens /graph: plain not-available state, no API call | 375/375 |
-| A8-graph-not-available-en.png | ADMIN (hari) | ADMIN opens /graph: plain not-available state, no API call | 1280/1280 |
-| A8-graph-not-available-hi-mobile.png | ADMIN (hari) | ADMIN opens /graph: plain not-available state, no API call | 375/375 |
-| A8-graph-not-available-hi.png | ADMIN (hari) | ADMIN opens /graph: plain not-available state, no API call | 1280/1280 |
-| A8-graph-nothing-found-en-mobile.png | SENIOR (meena) | Search with no result | 375/375 |
-| A8-graph-nothing-found-en.png | SENIOR (meena) | Search with no result | 1280/1280 |
-| A8-graph-nothing-found-hi-mobile.png | SENIOR (meena) | Search with no result | 375/375 |
-| A8-graph-nothing-found-hi.png | SENIOR (meena) | Search with no result | 1280/1280 |
-| A8-graph-picture-en-grayscale.png | SENIOR (meena) (grayscale) | Grayscale filter on the whole page | 1280/1280 |
-| A8-graph-picture-en-mobile.png | SENIOR (meena) | Network picture: phone 90000 14471 (5 items, possible and restricted links) | 375/375 |
-| A8-graph-picture-en-zoom200.png | SENIOR (meena) (zoom200) | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280) | 640/640 |
-| A8-graph-picture-en.png | SENIOR (meena) | Network picture: phone 90000 14471 (5 items, possible and restricted links) | 1280/1280 |
-| A8-graph-picture-hi-grayscale.png | SENIOR (meena) (grayscale) | Grayscale filter on the whole page | 1280/1280 |
-| A8-graph-picture-hi-mobile.png | SENIOR (meena) | Network picture: phone 90000 14471 (5 items, possible and restricted links) | 375/375 |
-| A8-graph-picture-hi-zoom200.png | SENIOR (meena) (zoom200) | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280) | 640/640 |
-| A8-graph-picture-hi.png | SENIOR (meena) | Network picture: phone 90000 14471 (5 items, possible and restricted links) | 1280/1280 |
-| A8-graph-search-en-mobile.png | SENIOR (meena) | Search form | 375/375 |
-| A8-graph-search-en.png | SENIOR (meena) | Search form | 1280/1280 |
-| A8-graph-search-hi-mobile.png | SENIOR (meena) | Search form | 375/375 |
-| A8-graph-search-hi.png | SENIOR (meena) | Search form | 1280/1280 |
-| F-filter-button-en.png | SENIOR (meena) | Keyboard focus on a status filter button (Rejected) (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-filter-button-hi.png | SENIOR (meena) | Keyboard focus on a status filter button (Rejected) (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-form-field-en.png | ADMIN (hari) | Add user form: focus on the first field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-form-field-hi.png | ADMIN (hari) | Add user form: focus on the first field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-graph-node-en.png | SENIOR (meena) | Keyboard focus on a graph node (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-graph-node-hi.png | SENIOR (meena) | Keyboard focus on a graph node (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-menu-button-en-mobile.png | SENIOR (meena) | 375 wide: keyboard focus on the Menu button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
-| F-menu-button-hi-mobile.png | SENIOR (meena) | 375 wide: keyboard focus on the Menu button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
-| F-menu-item-en.png | SENIOR (meena) | Keyboard focus on a menu item (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
-| F-menu-item-hi.png | SENIOR (meena) | Keyboard focus on a menu item (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1) | viewport shot |
-| F-menu-open-en-mobile.png | SENIOR (meena) | 375 wide: menu opened with Enter | viewport shot |
-| F-menu-open-hi-mobile.png | SENIOR (meena) | 375 wide: menu opened with Enter | viewport shot |
-| F-primary-button-en.png | ADMIN (hari) | Add user form: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
-| F-primary-button-hi.png | ADMIN (hari) | Add user form: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
-| F-queue-row-open-en.png | SENIOR (meena) | Keyboard focus on a queue row Open button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-queue-row-open-hi.png | SENIOR (meena) | Keyboard focus on a queue row Open button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-reject-step-button-en.png | SENIOR (meena) | Reject second step: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.4:1, ring/outside 11.5:1) | viewport shot |
-| F-reject-step-button-hi.png | SENIOR (meena) | Reject second step: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.4:1, ring/outside 11.5:1) | viewport shot |
-| F-reject-step-field-en.png | SENIOR (meena) | Reject second step: focus on the reason field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-reject-step-field-hi.png | SENIOR (meena) | Reject second step: focus on the reason field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
-| F-sign-in-button-en.png | none | Keyboard focus on the sign-in button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
-| F-sign-in-button-hi.png | none | Keyboard focus on the sign-in button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1) | viewport shot |
+| File                                             | Role                       | Screen and notes                                                                                                                   | Scroll        |
+| ------------------------------------------------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| A0-sign-in-en-mobile.png                         | none                       | Sign-in, empty                                                                                                                     | 375/375       |
+| A0-sign-in-en.png                                | none                       | Sign-in, empty                                                                                                                     | 1280/1280     |
+| A0-sign-in-hi-mobile.png                         | none                       | Sign-in, empty                                                                                                                     | 375/375       |
+| A0-sign-in-hi.png                                | none                       | Sign-in, empty                                                                                                                     | 1280/1280     |
+| A0-sign-in-missing-en-mobile.png                 | none                       | Submit with empty fields                                                                                                           | 375/375       |
+| A0-sign-in-missing-en.png                        | none                       | Submit with empty fields                                                                                                           | 1280/1280     |
+| A0-sign-in-missing-hi-mobile.png                 | none                       | Submit with empty fields                                                                                                           | 375/375       |
+| A0-sign-in-missing-hi.png                        | none                       | Submit with empty fields                                                                                                           | 1280/1280     |
+| A0-sign-in-wrong-password-en-mobile.png          | none                       | Wrong password (real 401 from the API)                                                                                             | 375/375       |
+| A0-sign-in-wrong-password-en.png                 | none                       | Wrong password (real 401 from the API)                                                                                             | 1280/1280     |
+| A0-sign-in-wrong-password-hi-mobile.png          | none                       | Wrong password (real 401 from the API)                                                                                             | 375/375       |
+| A0-sign-in-wrong-password-hi.png                 | none                       | Wrong password (real 401 from the API)                                                                                             | 1280/1280     |
+| A1-upload-en-mobile.png                          | ADMIN (hari)               | Form and the real upload list from the seed                                                                                        | 375/375       |
+| A1-upload-en.png                                 | ADMIN (hari)               | Form and the real upload list from the seed                                                                                        | 1280/1280     |
+| A1-upload-hi-mobile.png                          | ADMIN (hari)               | Form and the real upload list from the seed                                                                                        | 375/375       |
+| A1-upload-hi.png                                 | ADMIN (hari)               | Form and the real upload list from the seed                                                                                        | 1280/1280     |
+| A1-upload-nothing-chosen-en-mobile.png           | ADMIN (hari)               | Submit with no case and no file                                                                                                    | 375/375       |
+| A1-upload-nothing-chosen-en.png                  | ADMIN (hari)               | Submit with no case and no file                                                                                                    | 1280/1280     |
+| A1-upload-nothing-chosen-hi-mobile.png           | ADMIN (hari)               | Submit with no case and no file                                                                                                    | 375/375       |
+| A1-upload-nothing-chosen-hi.png                  | ADMIN (hari)               | Submit with no case and no file                                                                                                    | 1280/1280     |
+| A2-matching-en-mobile.png                        | ADMIN (hari)               | Last run from the seed                                                                                                             | 375/375       |
+| A2-matching-en.png                               | ADMIN (hari)               | Last run from the seed                                                                                                             | 1280/1280     |
+| A2-matching-hi-mobile.png                        | ADMIN (hari)               | Last run from the seed                                                                                                             | 375/375       |
+| A2-matching-hi.png                               | ADMIN (hari)               | Last run from the seed                                                                                                             | 1280/1280     |
+| A3-review-filter-empty-en-mobile.png             | SENIOR (meena)             | Type filter with no match                                                                                                          | 375/375       |
+| A3-review-filter-empty-en.png                    | SENIOR (meena)             | Type filter with no match                                                                                                          | 1280/1280     |
+| A3-review-filter-empty-hi-mobile.png             | SENIOR (meena)             | Type filter with no match                                                                                                          | 375/375       |
+| A3-review-filter-empty-hi.png                    | SENIOR (meena)             | Type filter with no match                                                                                                          | 1280/1280     |
+| A3-review-loading-en.png                         | SENIOR (meena)             | Loading state: the real API answer was held back 6 seconds with a test proxy                                                       | 1280/1280     |
+| A3-review-loading-hi.png                         | SENIOR (meena)             | Loading state: the real API answer was held back 6 seconds with a test proxy                                                       | 1280/1280     |
+| A3-review-no-connection-en.png                   | SENIOR (meena)             | No-connection state: the request was cut by the test browser, the stack was up                                                     | 1280/1280     |
+| A3-review-no-connection-hi.png                   | SENIOR (meena)             | No-connection state: the request was cut by the test browser, the stack was up                                                     | 1280/1280     |
+| A3-review-not-available-en-mobile.png            | ADMIN (hari)               | ADMIN opens /review (no menu item)                                                                                                 | 375/375       |
+| A3-review-not-available-en.png                   | ADMIN (hari)               | ADMIN opens /review (no menu item)                                                                                                 | 1280/1280     |
+| A3-review-not-available-hi-mobile.png            | ADMIN (hari)               | ADMIN opens /review (no menu item)                                                                                                 | 375/375       |
+| A3-review-not-available-hi.png                   | ADMIN (hari)               | ADMIN opens /review (no menu item)                                                                                                 | 1280/1280     |
+| A3-review-waiting-en-grayscale.png               | SENIOR (meena) (grayscale) | Grayscale filter on the whole page                                                                                                 | 1280/1280     |
+| A3-review-waiting-en-mobile.png                  | SENIOR (meena)             | Review queue, Waiting filter (28 real links)                                                                                       | 375/375       |
+| A3-review-waiting-en-zoom200.png                 | SENIOR (meena) (zoom200)   | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280)                                       | 640/640       |
+| A3-review-waiting-en.png                         | SENIOR (meena)             | Review queue, Waiting filter (28 real links)                                                                                       | 1280/1280     |
+| A3-review-waiting-hi-grayscale.png               | SENIOR (meena) (grayscale) | Grayscale filter on the whole page                                                                                                 | 1280/1280     |
+| A3-review-waiting-hi-mobile.png                  | SENIOR (meena)             | Review queue, Waiting filter (28 real links)                                                                                       | 375/375       |
+| A3-review-waiting-hi-zoom200.png                 | SENIOR (meena) (zoom200)   | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280)                                       | 640/640       |
+| A3-review-waiting-hi.png                         | SENIOR (meena)             | Review queue, Waiting filter (28 real links)                                                                                       | 1280/1280     |
+| A3-review-waiting-over-7-days-en-mobile.png      | SENIOR (meena)             | Waiting more than 7 days (empty: all seed links are new)                                                                           | 375/375       |
+| A3-review-waiting-over-7-days-en.png             | SENIOR (meena)             | Waiting more than 7 days (empty: all seed links are new)                                                                           | 1280/1280     |
+| A3-review-waiting-over-7-days-hi-mobile.png      | SENIOR (meena)             | Waiting more than 7 days (empty: all seed links are new)                                                                           | 375/375       |
+| A3-review-waiting-over-7-days-hi.png             | SENIOR (meena)             | Waiting more than 7 days (empty: all seed links are new)                                                                           | 1280/1280     |
+| A3b-link-detail-en-mobile.png                    | SENIOR (meena)             | Link detail, More detail open by default                                                                                           | 375/375       |
+| A3b-link-detail-en.png                           | SENIOR (meena)             | Link detail, More detail open by default                                                                                           | 1280/1280     |
+| A3b-link-detail-hi-mobile.png                    | SENIOR (meena)             | Link detail, More detail open by default                                                                                           | 375/375       |
+| A3b-link-detail-hi.png                           | SENIOR (meena)             | Link detail, More detail open by default                                                                                           | 1280/1280     |
+| A3b-reject-check-en-mobile.png                   | SENIOR (meena)             | Reject, second step (not confirmed)                                                                                                | 375/375       |
+| A3b-reject-check-en.png                          | SENIOR (meena)             | Reject, second step (not confirmed)                                                                                                | 1280/1280     |
+| A3b-reject-check-hi-mobile.png                   | SENIOR (meena)             | Reject, second step (not confirmed)                                                                                                | 375/375       |
+| A3b-reject-check-hi.png                          | SENIOR (meena)             | Reject, second step (not confirmed)                                                                                                | 1280/1280     |
+| A3c-review-rejected-en-mobile.png                | SENIOR (meena)             | Rejected filter (2 real rejections made in the app)                                                                                | 375/375       |
+| A3c-review-rejected-en.png                       | SENIOR (meena)             | Rejected filter (2 real rejections made in the app)                                                                                | 1280/1280     |
+| A3c-review-rejected-hi-mobile.png                | SENIOR (meena)             | Rejected filter (2 real rejections made in the app)                                                                                | 375/375       |
+| A3c-review-rejected-hi.png                       | SENIOR (meena)             | Rejected filter (2 real rejections made in the app)                                                                                | 1280/1280     |
+| A3c-review-undone-en-mobile.png                  | SENIOR (meena)             | Undone filter (1 real undo made in the app)                                                                                        | 375/375       |
+| A3c-review-undone-en.png                         | SENIOR (meena)             | Undone filter (1 real undo made in the app)                                                                                        | 1280/1280     |
+| A3c-review-undone-hi-mobile.png                  | SENIOR (meena)             | Undone filter (1 real undo made in the app)                                                                                        | 375/375       |
+| A3c-review-undone-hi.png                         | SENIOR (meena)             | Undone filter (1 real undo made in the app)                                                                                        | 1280/1280     |
+| A3d-review-rejected-detail-en-mobile.png         | SENIOR (meena)             | Rejected link detail with history                                                                                                  | 375/375       |
+| A3d-review-rejected-detail-en.png                | SENIOR (meena)             | Rejected link detail with history                                                                                                  | 1280/1280     |
+| A3d-review-rejected-detail-hi-mobile.png         | SENIOR (meena)             | Rejected link detail with history                                                                                                  | 375/375       |
+| A3d-review-rejected-detail-hi.png                | SENIOR (meena)             | Rejected link detail with history                                                                                                  | 1280/1280     |
+| A3d-review-reopen-check-en-mobile.png            | SENIOR (meena)             | Reopen, second step (not confirmed)                                                                                                | 375/375       |
+| A3d-review-reopen-check-en.png                   | SENIOR (meena)             | Reopen, second step (not confirmed)                                                                                                | 1280/1280     |
+| A3d-review-reopen-check-hi-mobile.png            | SENIOR (meena)             | Reopen, second step (not confirmed)                                                                                                | 375/375       |
+| A3d-review-reopen-check-hi.png                   | SENIOR (meena)             | Reopen, second step (not confirmed)                                                                                                | 1280/1280     |
+| A3d-review-undone-detail-en-mobile.png           | SENIOR (meena)             | Undone link detail with history                                                                                                    | 375/375       |
+| A3d-review-undone-detail-en.png                  | SENIOR (meena)             | Undone link detail with history                                                                                                    | 1280/1280     |
+| A3d-review-undone-detail-hi-mobile.png           | SENIOR (meena)             | Undone link detail with history                                                                                                    | 375/375       |
+| A3d-review-undone-detail-hi.png                  | SENIOR (meena)             | Undone link detail with history                                                                                                    | 1280/1280     |
+| A4-approvals-access-approve-check-en-mobile.png  | SENIOR (meena)             | Approve, second step (not confirmed)                                                                                               | 375/375       |
+| A4-approvals-access-approve-check-en.png         | SENIOR (meena)             | Approve, second step (not confirmed)                                                                                               | 1280/1280     |
+| A4-approvals-access-approve-check-hi-mobile.png  | SENIOR (meena)             | Approve, second step (not confirmed)                                                                                               | 375/375       |
+| A4-approvals-access-approve-check-hi.png         | SENIOR (meena)             | Approve, second step (not confirmed)                                                                                               | 1280/1280     |
+| A4-approvals-access-detail-en-mobile.png         | SENIOR (meena)             | Access request detail                                                                                                              | 375/375       |
+| A4-approvals-access-detail-en.png                | SENIOR (meena)             | Access request detail                                                                                                              | 1280/1280     |
+| A4-approvals-access-detail-hi-mobile.png         | SENIOR (meena)             | Access request detail                                                                                                              | 375/375       |
+| A4-approvals-access-detail-hi.png                | SENIOR (meena)             | Access request detail                                                                                                              | 1280/1280     |
+| A4-approvals-access-en-mobile.png                | SENIOR (meena)             | Access requests tab, 2 real waiting requests (one with a 330-character reason)                                                     | 375/375       |
+| A4-approvals-access-en.png                       | SENIOR (meena)             | Access requests tab, 2 real waiting requests (one with a 330-character reason)                                                     | 1280/1280     |
+| A4-approvals-access-hi-mobile.png                | SENIOR (meena)             | Access requests tab, 2 real waiting requests (one with a 330-character reason)                                                     | 375/375       |
+| A4-approvals-access-hi.png                       | SENIOR (meena)             | Access requests tab, 2 real waiting requests (one with a 330-character reason)                                                     | 1280/1280     |
+| A4-approvals-change-detail-en-mobile.png         | ADMIN (hari)               | Change detail                                                                                                                      | 375/375       |
+| A4-approvals-change-detail-en.png                | ADMIN (hari)               | Change detail                                                                                                                      | 1280/1280     |
+| A4-approvals-change-detail-hi-mobile.png         | ADMIN (hari)               | Change detail                                                                                                                      | 375/375       |
+| A4-approvals-change-detail-hi.png                | ADMIN (hari)               | Change detail                                                                                                                      | 1280/1280     |
+| A4-approvals-changes-en-mobile.png               | SENIOR (meena)             | Changes tab with 1 waiting change                                                                                                  | 375/375       |
+| A4-approvals-changes-en.png                      | SENIOR (meena)             | Changes tab with 1 waiting change                                                                                                  | 1280/1280     |
+| A4-approvals-changes-hi-mobile.png               | SENIOR (meena)             | Changes tab with 1 waiting change                                                                                                  | 375/375       |
+| A4-approvals-changes-hi.png                      | SENIOR (meena)             | Changes tab with 1 waiting change                                                                                                  | 1280/1280     |
+| A4a-approvals-change-approve-check-en-mobile.png | SENIOR (meena)             | Approve this change, second step (not confirmed)                                                                                   | 375/375       |
+| A4a-approvals-change-approve-check-en.png        | SENIOR (meena)             | Approve this change, second step (not confirmed)                                                                                   | 1280/1280     |
+| A4a-approvals-change-approve-check-hi-mobile.png | SENIOR (meena)             | Approve this change, second step (not confirmed)                                                                                   | 375/375       |
+| A4a-approvals-change-approve-check-hi.png        | SENIOR (meena)             | Approve this change, second step (not confirmed)                                                                                   | 1280/1280     |
+| A4a-approvals-change-detail-en-mobile.png        | SENIOR (meena)             | Change to approve, old and new value                                                                                               | 375/375       |
+| A4a-approvals-change-detail-en.png               | SENIOR (meena)             | Change to approve, old and new value                                                                                               | 1280/1280     |
+| A4a-approvals-change-detail-hi-mobile.png        | SENIOR (meena)             | Change to approve, old and new value                                                                                               | 375/375       |
+| A4a-approvals-change-detail-hi.png               | SENIOR (meena)             | Change to approve, old and new value                                                                                               | 1280/1280     |
+| A5-user-detail-readonly-en-mobile.png            | SENIOR (meena)             | User detail as SENIOR                                                                                                              | 375/375       |
+| A5-user-detail-readonly-en.png                   | SENIOR (meena)             | User detail as SENIOR                                                                                                              | 1280/1280     |
+| A5-user-detail-readonly-hi-mobile.png            | SENIOR (meena)             | User detail as SENIOR                                                                                                              | 375/375       |
+| A5-user-detail-readonly-hi.png                   | SENIOR (meena)             | User detail as SENIOR                                                                                                              | 1280/1280     |
+| A5-user-form-edit-en-mobile.png                  | ADMIN (hari)               | Edit user form (second user)                                                                                                       | 375/375       |
+| A5-user-form-edit-en.png                         | ADMIN (hari)               | Edit user form (second user)                                                                                                       | 1280/1280     |
+| A5-user-form-edit-hi-mobile.png                  | ADMIN (hari)               | Edit user form (second user)                                                                                                       | 375/375       |
+| A5-user-form-edit-hi.png                         | ADMIN (hari)               | Edit user form (second user)                                                                                                       | 1280/1280     |
+| A5-user-form-new-en-mobile.png                   | ADMIN (hari)               | Add user form                                                                                                                      | 375/375       |
+| A5-user-form-new-en.png                          | ADMIN (hari)               | Add user form                                                                                                                      | 1280/1280     |
+| A5-user-form-new-errors-en-mobile.png            | ADMIN (hari)               | Add user form, saved empty                                                                                                         | 375/375       |
+| A5-user-form-new-errors-en.png                   | ADMIN (hari)               | Add user form, saved empty                                                                                                         | 1280/1280     |
+| A5-user-form-new-errors-hi-mobile.png            | ADMIN (hari)               | Add user form, saved empty                                                                                                         | 375/375       |
+| A5-user-form-new-errors-hi.png                   | ADMIN (hari)               | Add user form, saved empty                                                                                                         | 1280/1280     |
+| A5-user-form-new-hi-mobile.png                   | ADMIN (hari)               | Add user form                                                                                                                      | 375/375       |
+| A5-user-form-new-hi.png                          | ADMIN (hari)               | Add user form                                                                                                                      | 1280/1280     |
+| A5-users-list-en-mobile.png                      | SENIOR (meena)             | User list as SENIOR (read only)                                                                                                    | 375/375       |
+| A5-users-list-en.png                             | SENIOR (meena)             | User list as SENIOR (read only)                                                                                                    | 1280/1280     |
+| A5-users-list-hi-mobile.png                      | SENIOR (meena)             | User list as SENIOR (read only)                                                                                                    | 375/375       |
+| A5-users-list-hi.png                             | SENIOR (meena)             | User list as SENIOR (read only)                                                                                                    | 1280/1280     |
+| A6-audit-en-mobile.png                           | SENIOR (meena)             | Activity log, real chain written by the seed and this session                                                                      | 375/375       |
+| A6-audit-en.png                                  | SENIOR (meena)             | Activity log, real chain written by the seed and this session                                                                      | 1280/1280     |
+| A6-audit-hi-mobile.png                           | SENIOR (meena)             | Activity log, real chain written by the seed and this session                                                                      | 375/375       |
+| A6-audit-hi.png                                  | SENIOR (meena)             | Activity log, real chain written by the seed and this session                                                                      | 1280/1280     |
+| A7-thresholds-en-mobile.png                      | SENIOR (meena)             | Match settings as SENIOR                                                                                                           | 375/375       |
+| A7-thresholds-en.png                             | SENIOR (meena)             | Match settings as SENIOR                                                                                                           | 1280/1280     |
+| A7-thresholds-hi-mobile.png                      | SENIOR (meena)             | Match settings as SENIOR                                                                                                           | 375/375       |
+| A7-thresholds-hi.png                             | SENIOR (meena)             | Match settings as SENIOR                                                                                                           | 1280/1280     |
+| A7-thresholds-invalid-en-mobile.png              | ADMIN (hari)               | Strong match set to 60, below the allowed 70                                                                                       | 375/375       |
+| A7-thresholds-invalid-en.png                     | ADMIN (hari)               | Strong match set to 60, below the allowed 70                                                                                       | 1280/1280     |
+| A7-thresholds-invalid-hi-mobile.png              | ADMIN (hari)               | Strong match set to 60, below the allowed 70                                                                                       | 375/375       |
+| A7-thresholds-invalid-hi.png                     | ADMIN (hari)               | Strong match set to 60, below the allowed 70                                                                                       | 1280/1280     |
+| A8-graph-link-panel-en-mobile.png                | SENIOR (meena)             | Why linked panel opened from the graph                                                                                             | 375/375       |
+| A8-graph-link-panel-en.png                       | SENIOR (meena)             | Why linked panel opened from the graph                                                                                             | 1280/1280     |
+| A8-graph-link-panel-hi-mobile.png                | SENIOR (meena)             | Why linked panel opened from the graph                                                                                             | 375/375       |
+| A8-graph-link-panel-hi.png                       | SENIOR (meena)             | Why linked panel opened from the graph                                                                                             | 1280/1280     |
+| A8-graph-list-en-mobile.png                      | SENIOR (meena)             | Same network as a list                                                                                                             | 375/375       |
+| A8-graph-list-en.png                             | SENIOR (meena)             | Same network as a list                                                                                                             | 1280/1280     |
+| A8-graph-list-hi-mobile.png                      | SENIOR (meena)             | Same network as a list                                                                                                             | 375/375       |
+| A8-graph-list-hi.png                             | SENIOR (meena)             | Same network as a list                                                                                                             | 1280/1280     |
+| A8-graph-list-selected-en-mobile.png             | SENIOR (meena)             | List view, one item selected                                                                                                       | 375/375       |
+| A8-graph-list-selected-en.png                    | SENIOR (meena)             | List view, one item selected                                                                                                       | 1280/1280     |
+| A8-graph-list-selected-hi-mobile.png             | SENIOR (meena)             | List view, one item selected                                                                                                       | 375/375       |
+| A8-graph-list-selected-hi.png                    | SENIOR (meena)             | List view, one item selected                                                                                                       | 1280/1280     |
+| A8-graph-matches-en-mobile.png                   | SENIOR (meena)             | Search results (English and Hindi spellings of one name)                                                                           | 375/375       |
+| A8-graph-matches-en.png                          | SENIOR (meena)             | Search results (English and Hindi spellings of one name)                                                                           | 1280/1280     |
+| A8-graph-matches-hi-mobile.png                   | SENIOR (meena)             | Search results (English and Hindi spellings of one name)                                                                           | 375/375       |
+| A8-graph-matches-hi.png                          | SENIOR (meena)             | Search results (English and Hindi spellings of one name)                                                                           | 1280/1280     |
+| A8-graph-not-available-en-mobile.png             | ADMIN (hari)               | ADMIN opens /graph: plain not-available state, no API call                                                                         | 375/375       |
+| A8-graph-not-available-en.png                    | ADMIN (hari)               | ADMIN opens /graph: plain not-available state, no API call                                                                         | 1280/1280     |
+| A8-graph-not-available-hi-mobile.png             | ADMIN (hari)               | ADMIN opens /graph: plain not-available state, no API call                                                                         | 375/375       |
+| A8-graph-not-available-hi.png                    | ADMIN (hari)               | ADMIN opens /graph: plain not-available state, no API call                                                                         | 1280/1280     |
+| A8-graph-nothing-found-en-mobile.png             | SENIOR (meena)             | Search with no result                                                                                                              | 375/375       |
+| A8-graph-nothing-found-en.png                    | SENIOR (meena)             | Search with no result                                                                                                              | 1280/1280     |
+| A8-graph-nothing-found-hi-mobile.png             | SENIOR (meena)             | Search with no result                                                                                                              | 375/375       |
+| A8-graph-nothing-found-hi.png                    | SENIOR (meena)             | Search with no result                                                                                                              | 1280/1280     |
+| A8-graph-picture-en-grayscale.png                | SENIOR (meena) (grayscale) | Grayscale filter on the whole page                                                                                                 | 1280/1280     |
+| A8-graph-picture-en-mobile.png                   | SENIOR (meena)             | Network picture: phone 90000 14471 (5 items, possible and restricted links)                                                        | 375/375       |
+| A8-graph-picture-en-zoom200.png                  | SENIOR (meena) (zoom200)   | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280)                                       | 640/640       |
+| A8-graph-picture-en.png                          | SENIOR (meena)             | Network picture: phone 90000 14471 (5 items, possible and restricted links)                                                        | 1280/1280     |
+| A8-graph-picture-hi-grayscale.png                | SENIOR (meena) (grayscale) | Grayscale filter on the whole page                                                                                                 | 1280/1280     |
+| A8-graph-picture-hi-mobile.png                   | SENIOR (meena)             | Network picture: phone 90000 14471 (5 items, possible and restricted links)                                                        | 375/375       |
+| A8-graph-picture-hi-zoom200.png                  | SENIOR (meena) (zoom200)   | 200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280)                                       | 640/640       |
+| A8-graph-picture-hi.png                          | SENIOR (meena)             | Network picture: phone 90000 14471 (5 items, possible and restricted links)                                                        | 1280/1280     |
+| A8-graph-search-en-mobile.png                    | SENIOR (meena)             | Search form                                                                                                                        | 375/375       |
+| A8-graph-search-en.png                           | SENIOR (meena)             | Search form                                                                                                                        | 1280/1280     |
+| A8-graph-search-hi-mobile.png                    | SENIOR (meena)             | Search form                                                                                                                        | 375/375       |
+| A8-graph-search-hi.png                           | SENIOR (meena)             | Search form                                                                                                                        | 1280/1280     |
+| F-filter-button-en.png                           | SENIOR (meena)             | Keyboard focus on a status filter button (Rejected) (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-filter-button-hi.png                           | SENIOR (meena)             | Keyboard focus on a status filter button (Rejected) (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1) | viewport shot |
+| F-form-field-en.png                              | ADMIN (hari)               | Add user form: focus on the first field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)             | viewport shot |
+| F-form-field-hi.png                              | ADMIN (hari)               | Add user form: focus on the first field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)             | viewport shot |
+| F-graph-node-en.png                              | SENIOR (meena)             | Keyboard focus on a graph node (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)                      | viewport shot |
+| F-graph-node-hi.png                              | SENIOR (meena)             | Keyboard focus on a graph node (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)                      | viewport shot |
+| F-menu-button-en-mobile.png                      | SENIOR (meena)             | 375 wide: keyboard focus on the Menu button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1)         | viewport shot |
+| F-menu-button-hi-mobile.png                      | SENIOR (meena)             | 375 wide: keyboard focus on the Menu button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1)         | viewport shot |
+| F-menu-item-en.png                               | SENIOR (meena)             | Keyboard focus on a menu item (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1)                       | viewport shot |
+| F-menu-item-hi.png                               | SENIOR (meena)             | Keyboard focus on a menu item (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 10.1:1)                       | viewport shot |
+| F-menu-open-en-mobile.png                        | SENIOR (meena)             | 375 wide: menu opened with Enter                                                                                                   | viewport shot |
+| F-menu-open-hi-mobile.png                        | SENIOR (meena)             | 375 wide: menu opened with Enter                                                                                                   | viewport shot |
+| F-primary-button-en.png                          | ADMIN (hari)               | Add user form: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1)           | viewport shot |
+| F-primary-button-hi.png                          | ADMIN (hari)               | Add user form: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1)           | viewport shot |
+| F-queue-row-open-en.png                          | SENIOR (meena)             | Keyboard focus on a queue row Open button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)           | viewport shot |
+| F-queue-row-open-hi.png                          | SENIOR (meena)             | Keyboard focus on a queue row Open button (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)           | viewport shot |
+| F-reject-step-button-en.png                      | SENIOR (meena)             | Reject second step: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.4:1, ring/outside 11.5:1)      | viewport shot |
+| F-reject-step-button-hi.png                      | SENIOR (meena)             | Reject second step: focus on the primary button (ring 3px solid, offset 2px; contrast ring/inside 1.4:1, ring/outside 11.5:1)      | viewport shot |
+| F-reject-step-field-en.png                       | SENIOR (meena)             | Reject second step: focus on the reason field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)       | viewport shot |
+| F-reject-step-field-hi.png                       | SENIOR (meena)             | Reject second step: focus on the reason field (ring 3px solid, offset 2px; contrast ring/inside 11.5:1, ring/outside 11.5:1)       | viewport shot |
+| F-sign-in-button-en.png                          | none                       | Keyboard focus on the sign-in button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1)                 | viewport shot |
+| F-sign-in-button-hi.png                          | none                       | Keyboard focus on the sign-in button (ring 3px solid, offset 2px; contrast ring/inside 1.0:1, ring/outside 11.5:1)                 | viewport shot |
 
 ## How the data was made
 

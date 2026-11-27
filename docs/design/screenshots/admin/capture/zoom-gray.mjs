@@ -1,4 +1,16 @@
-import { chromium, newCtx, login, go, settle, T, rx, step, shot, toggleLang, save } from "./lib.mjs";
+import {
+  chromium,
+  newCtx,
+  login,
+  go,
+  settle,
+  T,
+  rx,
+  step,
+  shot,
+  toggleLang,
+  save,
+} from "./lib.mjs";
 
 const browser = await chromium.launch();
 const R = { role: "SENIOR (meena)" };
@@ -13,12 +25,18 @@ async function graph(page, lang) {
 
 for (const mode of ["zoom200", "grayscale"]) {
   for (const lang of ["en", "hi"]) {
-    const page = await newCtx(browser, mode === "zoom200" ? { width: 640, height: 800, dpr: 2 } : { width: 1280 });
+    const page = await newCtx(
+      browser,
+      mode === "zoom200" ? { width: 640, height: 800, dpr: 2 } : { width: 1280 },
+    );
     await login(page, "meena");
     if (lang === "hi") await toggleLang(page);
     if (mode === "grayscale") await page.addStyleTag({ content: "html{filter:grayscale(1)}" });
     const meta = { ...R, mode };
-    const note = mode === "zoom200" ? "200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280)" : "Grayscale filter on the whole page";
+    const note =
+      mode === "zoom200"
+        ? "200 percent zoom: 640 CSS px wide, device scale 2 (same layout as browser zoom 200% at 1280)"
+        : "Grayscale filter on the whole page";
     await step("review-" + mode + lang, async () => {
       await go(page, "/review");
       await shot(page, `A3-review-waiting-${lang}-${mode}`, note, meta);
