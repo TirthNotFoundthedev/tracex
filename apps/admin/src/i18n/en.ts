@@ -292,6 +292,21 @@ export const en = {
   "users.empty": "No users to show.",
   "users.noCaseContent": "Administrators see counts and status. Case details are not shown here.",
   "users.pending": "Change waiting for approval",
+  "users.col.cases": "Cases",
+  "users.area.choose": "Choose an area",
+  "users.role.choose": "Choose a role",
+  "users.coverage.all": "All areas",
+  "users.areaLater": "Change the area after the new role is approved.",
+  "users.turnOn.confirm": "Turn on {name}?",
+  "users.readOnly": "Only an administrator can propose changes to users.",
+  "users.error.area": "Please choose an area.",
+  "users.error.coverage": "Please choose at least one area.",
+  "users.error.role": "Please choose a role.",
+  "users.error.userId": "This user ID cannot be used.",
+  "users.error.userIdFormat":
+    "Use 3 to 64 small letters, digits, dots, dashes or underscores. No spaces.",
+  "users.error.nameLong": "Please use 120 characters or fewer.",
+  "users.error.roleUnknown": "This role is not available now. Nothing can be saved.",
 
   // A6 Audit log
   "audit.title": "Activity log",

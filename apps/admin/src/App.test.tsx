@@ -158,6 +158,16 @@ test("a page the role may not open goes to its first page", async () => {
   expect(window.location.pathname).toBe("/review");
 });
 
+test("a supervisor has no users page: the address goes to the first page", async () => {
+  window.history.replaceState(null, "", "/users");
+  const api = setup(() => json(200, person("SUPERVISOR")));
+  await signIn(api);
+  await screen.findByRole("navigation", { name: /Main sections/i });
+  expect(window.location.pathname).toBe("/review");
+  expect(screen.queryByRole("button", { name: "Users and roles" })).toBeNull();
+  expect(screen.queryByText("Users and roles", { selector: "h2" })).toBeNull();
+});
+
 test("menu clicks use browser history: Back returns to the earlier page", async () => {
   window.history.replaceState(null, "", "/review");
   await signIn(setup(() => json(200, person("SUPERVISOR"))));

@@ -293,6 +293,21 @@ export const hi: Record<keyof typeof en, string> = {
   "users.empty": "दिखाने के लिए कोई उपयोगकर्ता नहीं।",
   "users.noCaseContent": "एडमिन को गिनती और स्थिति दिखती है। मामले का ब्योरा यहाँ नहीं दिखता।",
   "users.pending": "बदलाव मंज़ूरी की प्रतीक्षा में है",
+  "users.col.cases": "मामले",
+  "users.area.choose": "क्षेत्र चुनें",
+  "users.role.choose": "भूमिका चुनें",
+  "users.coverage.all": "सभी क्षेत्र",
+  "users.areaLater": "नई भूमिका मंज़ूर होने के बाद क्षेत्र बदलें।",
+  "users.turnOn.confirm": "{name} को चालू करें?",
+  "users.readOnly": "उपयोगकर्ताओं में बदलाव का प्रस्ताव केवल एडमिन दे सकते हैं।",
+  "users.error.area": "कृपया एक क्षेत्र चुनें।",
+  "users.error.coverage": "कृपया कम से कम एक क्षेत्र चुनें।",
+  "users.error.role": "कृपया एक भूमिका चुनें।",
+  "users.error.userId": "यह यूज़र आईडी इस्तेमाल नहीं हो सकती।",
+  "users.error.userIdFormat":
+    "3 से 64 छोटे अक्षर, अंक, बिंदु, डैश या अंडरस्कोर इस्तेमाल करें। खाली जगह नहीं।",
+  "users.error.nameLong": "कृपया 120 या उससे कम अक्षर लिखें।",
+  "users.error.roleUnknown": "यह भूमिका अभी उपलब्ध नहीं है। कुछ सहेजा नहीं जा सकता।",
 
   // A6
   "audit.title": "गतिविधि का रिकॉर्ड",
