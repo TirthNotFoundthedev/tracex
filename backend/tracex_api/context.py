@@ -27,7 +27,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from tracex_api import audit
 from tracex_api.audit import Actor, AuditEvent
 from tracex_api.config import Settings
-from tracex_api.db import Conn, Row, connect, many, need, one
+from tracex_api.db import REQUEST_LOCK_TIMEOUT_MS, Conn, Row, connect, many, need, one
 from tracex_api.errors import ApiError
 from tracex_api.policy import CaseFact, Principal
 from tracex_api.security import TokenError, decode_token, keyed_hash, well_formed_uuid
@@ -417,7 +417,7 @@ async def read_body(request: Request) -> None:
 
 def _make_ctx(request: Request) -> Iterator[Ctx]:
     state: AppState = request.app.state.tracex
-    conn = connect(state.settings.database_url)
+    conn = connect(state.settings.database_url, lock_timeout_ms=REQUEST_LOCK_TIMEOUT_MS)
     ctx = Ctx(request, state, conn)
     request.state.ctx = ctx
     try:
@@ -495,6 +495,16 @@ def _run(
         if exc.audits:
             _append_independent(ctx.state, exc.audits)
         return JSONResponse(exc.body(), status_code=exc.status, headers=exc.headers)
+    except Exception:
+        # An unexpected failure (a database error in the middle of a change) must not leave its
+        # transaction open holding row locks while the 500 is being built.
+        ctx.pending.clear()
+        if not ctx.conn.closed:
+            try:
+                ctx.conn.rollback()
+            except Exception:  # noqa: BLE001 - keep the original error, not the rollback's
+                logger.debug("rollback failed", exc_info=True)
+        raise
 
 
 async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
