@@ -76,6 +76,11 @@ function setup(role: Role, over: Routes = {}) {
   return fake;
 }
 
+// The filters repeat some words as options, so rows are looked for inside the table only.
+const tableView = () => within(screen.getByRole("table"));
+const inTable = async (text: string | RegExp) =>
+  (await within(await screen.findByRole("table")).findAllByText(text))[0];
+
 const calls = (fake: { calls: { method: string; path: string }[] }) =>
   fake.calls.map((c) => `${c.method} ${c.path}`).sort();
 
@@ -83,7 +88,7 @@ const calls = (fake: { calls: { method: string; path: string }[] }) =>
 
 test("the log is read-only: the line is there, and no export, download, edit or delete control exists", async () => {
   setup("SENIOR");
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   expect(screen.getByRole("heading", { name: "Activity log" })).toBeTruthy();
   expect(screen.getByText("This log cannot be changed.")).toBeTruthy();
   expect(
@@ -98,17 +103,19 @@ test("the log is read-only: the line is there, and no export, download, edit or 
 
 test("the table shows time, person, what they did, case and item, in words", async () => {
   setup("SENIOR");
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   for (const header of ["Time", "Person", "What they did", "Case", "Item"]) {
     expect(screen.getByRole("columnheader", { name: header })).toBeTruthy();
   }
-  const first = screen.getByText("Confirmed").closest("tr") as HTMLElement;
+  const first = tableView().getByText("Confirmed").closest("tr") as HTMLElement;
   expect(within(first).getByText("Asha Devi")).toBeTruthy();
   expect(within(first).getByText("C-101")).toBeTruthy();
   expect(within(first).getByText("Link")).toBeTruthy();
-  const denied = screen.getByText(/Was refused access/).closest("tr") as HTMLElement;
+  const denied = tableView()
+    .getByText(/Was refused access/)
+    .closest("tr") as HTMLElement;
   expect(within(denied).getByText(/Not allowed/)).toBeTruthy();
-  const system = screen.getByText("Started a matching run").closest("tr") as HTMLElement;
+  const system = tableView().getByText("Started a matching run").closest("tr") as HTMLElement;
   expect(within(system).getByText("The system")).toBeTruthy();
 });
 
@@ -116,7 +123,7 @@ test("no sequence number, hash, row reference, or role code is shown", async () 
   setup("SENIOR", {
     "GET /audit": auditPage([row({ seq: 41, first_bad_seq: 9, row_hash: "deadbeef" })]),
   });
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   const text = document.body.textContent ?? "";
   expect(text).not.toMatch(/\b(41|deadbeef|ref-opaque-1)\b/);
   expect(text).not.toMatch(/\b(JUNIOR|INVESTIGATOR|SUPERVISOR|SENIOR|ADMIN)\b/);
@@ -128,13 +135,13 @@ test("a person the list cannot name shows the role in words, never the code", as
       row({ actor: { kind: "USER", user_id: "zzz", role: "INVESTIGATOR", district_id: D1 } }),
     ]),
   });
-  expect(await screen.findByText("Investigating officer")).toBeTruthy();
+  expect(await inTable("Investigating officer")).toBeTruthy();
   expect(document.body.textContent).not.toMatch(/\bINVESTIGATOR\b/);
 });
 
 test("an administrator sees no case content: no Case column, and a case id in a row is not drawn", async () => {
   setup("ADMIN");
-  await screen.findByText("Started a matching run");
+  await inTable("Started a matching run");
   expect(screen.queryByRole("columnheader", { name: "Case" })).toBeNull();
   expect(document.body.textContent).not.toContain("C-101");
 });
@@ -155,7 +162,7 @@ test.each([
   "%s: rendering the log makes exactly these calls and no per-row reads",
   async (role, expected) => {
     const fake = setup(role);
-    await screen.findByText(/Started a matching run/);
+    await inTable(/Started a matching run/);
     expect(calls(fake)).toEqual([...expected].sort());
     expect(fake.calls.some((c) => c.method === "POST")).toBe(false);
   },
@@ -173,8 +180,8 @@ test("Show more reads the next page with the cursor and adds the rows", async ()
     },
   });
   fireEvent.click(await screen.findByRole("button", { name: "Show more" }));
-  expect(await screen.findByText("Uploaded")).toBeTruthy();
-  expect(screen.getByText("Confirmed")).toBeTruthy();
+  expect(await inTable("Uploaded")).toBeTruthy();
+  expect(tableView().getByText("Confirmed")).toBeTruthy();
   expect(new URL(urls[1] as string).searchParams.get("cursor")).toBe("CURSOR-1");
 });
 
@@ -190,7 +197,7 @@ test("filters: date range, person and action in words; nothing is read until Sho
       return auditPage([row()]);
     },
   });
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-01" } });
   fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-03-31" } });
   fireEvent.change(screen.getByLabelText("Person"), { target: { value: ASHA } });
@@ -213,7 +220,7 @@ test("filters: date range, person and action in words; nothing is read until Sho
 
 test("the action filter speaks in words and holds the six the design names", async () => {
   setup("SENIOR");
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   const select = screen.getByLabelText("What they did");
   const labels = within(select)
     .getAllByRole("option")
@@ -233,14 +240,14 @@ test("the action filter speaks in words and holds the six the design names", asy
 
 test("a supervisor has no person filter (the user list is for senior officers and administrators)", async () => {
   setup("SUPERVISOR");
-  await screen.findByText(/Started a matching run/);
+  await inTable(/Started a matching run/);
   expect(screen.queryByLabelText("Person")).toBeNull();
   expect(screen.getByLabelText("From date")).toBeTruthy();
 });
 
 test("a start date after the end date is not sent", async () => {
   const fake = setup("SENIOR");
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-04-01" } });
   fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-03-01" } });
   fireEvent.click(screen.getByRole("button", { name: "Show" }));
@@ -252,7 +259,7 @@ test("a start date after the end date is not sent", async () => {
 
 test("a senior officer can check the log; OK says it is intact and shows no number", async () => {
   const fake = setup("SENIOR");
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   fireEvent.click(screen.getByRole("button", { name: "Check the log is intact" }));
   expect(await screen.findByText("The log is intact.")).toBeTruthy();
   expect(fake.calls.filter((c) => c.method === "POST").map((c) => c.path)).toEqual([
@@ -264,7 +271,7 @@ test("BROKEN gives a senior officer the first bad entry number, the only number 
   setup("SENIOR", {
     "POST /audit/verify": json(200, { result: "BROKEN", first_bad_seq: 17 }),
   });
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   fireEvent.click(screen.getByRole("button", { name: "Check the log is intact" }));
   expect(await screen.findByText("The log has a problem. Tell the system owner now.")).toBeTruthy();
   expect(screen.getByText("First problem at entry 17.")).toBeTruthy();
@@ -272,17 +279,17 @@ test("BROKEN gives a senior officer the first bad entry number, the only number 
 
 test("a supervisor and an administrator have no check button", async () => {
   setup("SUPERVISOR");
-  await screen.findByText(/Started a matching run/);
+  await inTable(/Started a matching run/);
   expect(screen.queryByRole("button", { name: "Check the log is intact" })).toBeNull();
   cleanup();
   setup("ADMIN");
-  await screen.findByText(/Started a matching run/);
+  await inTable(/Started a matching run/);
   expect(screen.queryByRole("button", { name: "Check the log is intact" })).toBeNull();
 });
 
 test("a failed check goes through the shared failure message", async () => {
   setup("SENIOR", { "POST /audit/verify": json(503) });
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   fireEvent.click(screen.getByRole("button", { name: "Check the log is intact" }));
   expect(await screen.findByText(t("error.safetyPause", "en"))).toBeTruthy();
 });
@@ -314,7 +321,7 @@ test("a network failure shows the no-connection message with Try again", async (
 test("if the names do not load, the log still shows and the failure is told", async () => {
   setup("SENIOR", { "GET /users": json(503) });
   expect(await screen.findByText(t("error.safetyPause", "en"))).toBeTruthy();
-  expect(await screen.findByText("Confirmed")).toBeTruthy();
+  expect(await inTable("Confirmed")).toBeTruthy();
   expect(screen.queryByLabelText("Person")).toBeNull();
 });
 
@@ -326,7 +333,7 @@ test("a 422 on a filter shows the shared message and keeps the filters", async (
         ? json(422, { code: "VALIDATION_FAILED" })
         : auditPage([row()]),
   });
-  await screen.findByText("Asha Devi");
+  await inTable("Asha Devi");
   fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-01" } });
   fireEvent.click(screen.getByRole("button", { name: "Show" }));
   expect(await screen.findByText(t("state.somethingMissing", "en"))).toBeTruthy();
@@ -349,5 +356,5 @@ test("Hindi: the page draws in Hindi", async () => {
   });
   renderPage(<AuditPage api={fake.api} lang="hi" role="SENIOR" />, "hi");
   expect(await screen.findByText(t("audit.cannotChange", "hi"))).toBeTruthy();
-  expect(await screen.findByText(t("audit.action.confirmed", "hi"))).toBeTruthy();
+  expect(await inTable(t("audit.action.confirmed", "hi"))).toBeTruthy();
 });
