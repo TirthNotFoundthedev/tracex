@@ -113,6 +113,9 @@ function change(over: Record<string, unknown> = {}) {
 function setup(role: Role, over: Routes = {}) {
   const fake = fakeApi({
     "GET /users": page([ravi, meena, asha, off]),
+    ...Object.fromEntries(
+      [ravi, meena, asha, off].map((u) => [`GET /users/${u.user_id}`, json(200, u)]),
+    ),
     "GET /pending-changes": page([]),
     "GET /jurisdictions": jurisdictions,
     "GET /roles": roles,
@@ -131,6 +134,8 @@ const bodyOf = (call: { init: RequestInit } | undefined) =>
 async function openRow(name: string) {
   const cell = (await screen.findAllByText(name))[0] as HTMLElement;
   fireEvent.click(within(cell.closest("tr") as HTMLElement).getByRole("button", { name: "Open" }));
+  // The form is built from the answer to the one read made on open.
+  await screen.findByRole("button", { name: "Back to the list" });
 }
 
 const field = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
@@ -153,13 +158,172 @@ test.each(["ADMIN", "SENIOR"] as const)(
       "GET /roles",
       "GET /users",
     ]);
-    // Opening a row, and going back, reads nothing more: the row already has the details.
+    // Opening one row reads that one user, once, and nothing else.
     const before = calls.length;
     await openRow("Ravi Kumar");
     await screen.findByText("Ravi Kumar", { selector: "dd" });
-    expect(calls.length).toBe(before);
+    expect(calls.slice(before).map((c) => `${c.method} ${c.path}`)).toEqual([`GET /users/${RAVI}`]);
   },
 );
+
+test("the form is built from the fresh read, not from the list row (stale coverage is not sent back)", async () => {
+  const fresh = { ...meena, coverage: { all_states: false, state_ids: [S1], district_ids: [] } };
+  const { calls } = setup("ADMIN", { [`GET /users/${MEENA}`]: json(200, fresh) });
+  await openRow("Meena Rao");
+  expect((screen.getByRole("checkbox", { name: "All areas" }) as HTMLInputElement).checked).toBe(
+    false,
+  );
+  expect((screen.getByRole("checkbox", { name: "Northvale" }) as HTMLInputElement).checked).toBe(
+    true,
+  );
+  check("Hillcrest");
+  save();
+  await screen.findByText(SENT);
+  expect(bodyOf(posts(calls)[0])).toEqual({
+    kind: "USER_JURISDICTION",
+    subject_user_id: MEENA,
+    new_value: { coverage: { all_states: false, state_ids: [S1], district_ids: [D3] } },
+  });
+});
+
+test("a failed read of the opened user shows the shared message and no form", async () => {
+  setup("ADMIN", { [`GET /users/${RAVI}`]: json(404) });
+  const cell = (await screen.findAllByText("Ravi Kumar"))[0] as HTMLElement;
+  fireEvent.click(within(cell.closest("tr") as HTMLElement).getByRole("button", { name: "Open" }));
+  expect(await screen.findByText(t("state.notFound", "en"))).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Save user" })).toBeNull();
+});
+
+test("every waiting change shows its tag: the pending list is read to its end", async () => {
+  const urls: string[] = [];
+  const { calls } = setup("ADMIN", {
+    "GET /pending-changes": ({ url }) => {
+      urls.push(url);
+      return new URL(url).searchParams.get("cursor")
+        ? json(200, {
+            items: [
+              change({
+                change_id: "d0000000-0000-4000-8000-000000000002",
+                subject: { user_id: ASHA, display_name: "Asha Devi", role: "JUNIOR" },
+              }),
+            ],
+            next_cursor: null,
+            total: 2,
+          })
+        : json(200, { items: [change()], next_cursor: "P2", total: 2 });
+    },
+  });
+  const asha = (await screen.findByText("Asha Devi")).closest("tr") as HTMLElement;
+  await waitFor(() =>
+    expect(within(asha).getAllByText("Change waiting for approval").length).toBe(1),
+  );
+  expect(urls).toHaveLength(2);
+  expect(new URL(urls[1] as string).searchParams.get("cursor")).toBe("P2");
+  expect(calls.filter((c) => c.path === "/pending-changes")).toHaveLength(2);
+  // And a second proposal for that user is blocked.
+  await openRow("Asha Devi");
+  expect(
+    (screen.getByRole("button", { name: "Turn off this user" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+});
+
+test("a form checks the user ID and the name before anything is sent", async () => {
+  const { calls } = setup("ADMIN");
+  await fillNewUser("ADMIN");
+  const send = (name: string, id: string) => {
+    fireEvent.change(field("Name"), { target: { value: name } });
+    fireEvent.change(field("User ID"), { target: { value: id } });
+    save();
+  };
+  for (const id of ["ab", "Sunil", "sunil rao", "su@nil", "a".repeat(65)]) {
+    send("Sunil Rao", id);
+    expect(await screen.findByText(t("users.error.userIdFormat", "en"))).toBeTruthy();
+    expect(field("User ID").getAttribute("aria-invalid")).toBe("true");
+  }
+  send("N".repeat(121), "sunil");
+  expect(await screen.findByText(t("users.error.nameLong", "en"))).toBeTruthy();
+  expect(posts(calls)).toEqual([]);
+  // Edges that are allowed.
+  send("N".repeat(120), "a.b_c-9");
+  await screen.findByText(SENT);
+  expect(bodyOf(posts(calls)[0])).toMatchObject({
+    new_value: { username: "a.b_c-9", display_name: "N".repeat(120) },
+  });
+});
+
+test("the field messages for user ID and name exist in Hindi", () => {
+  expect(t("users.error.userIdFormat", "hi").length).toBeGreaterThan(0);
+  expect(t("users.error.nameLong", "hi")).not.toBe(t("users.error.nameLong", "en"));
+  expect(t("users.error.roleUnknown", "hi")).not.toBe(t("users.error.roleUnknown", "en"));
+});
+
+test("a role that /roles does not list cannot be chosen or saved", async () => {
+  const withoutSenior = json(200, {
+    items: [
+      { role: "JUNIOR", name_key: "a", description_key: "b", scope: "DISTRICT" },
+      { role: "ADMIN", name_key: "a", description_key: "b", scope: "NONE" },
+    ],
+  });
+  const { calls } = setup("ADMIN", { "GET /roles": withoutSenior });
+  await openRow("Meena Rao");
+  const options = within(field("Role")).getAllByRole("option") as HTMLOptionElement[];
+  expect(options.map((o) => o.value)).not.toContain("SENIOR");
+  expect(screen.getByText(t("users.error.roleUnknown", "en"))).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Save user" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  expect(posts(calls)).toEqual([]);
+});
+
+test.each([
+  ["coverage.state_ids"],
+  ["coverage.all_states"],
+  ["new_value.coverage.district_ids"],
+  ["district_id"],
+])("a 422 naming %s marks the area field", async (name) => {
+  setup("ADMIN", {
+    "POST /pending-changes": json(422, {
+      code: "VALIDATION_FAILED",
+      field_errors: [{ field: name, code: "invalid" }],
+    }),
+  });
+  await openRow("Ravi Kumar");
+  pick("Role", "SENIOR");
+  check("All areas");
+  save();
+  expect(await screen.findByText("Please choose at least one area.")).toBeTruthy();
+});
+
+test("Show more on the users list reads the next page with the cursor", async () => {
+  const urls: string[] = [];
+  setup("ADMIN", {
+    "GET /users": ({ url }) => {
+      urls.push(url);
+      return new URL(url).searchParams.get("cursor")
+        ? json(200, { items: [off], next_cursor: null, total: 2 })
+        : json(200, { items: [ravi], next_cursor: "U2", total: 2 });
+    },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Show more" }));
+  expect(await screen.findByText("Old Hand")).toBeTruthy();
+  expect(screen.getByText("Ravi Kumar")).toBeTruthy();
+  expect(new URL(urls[1] as string).searchParams.get("cursor")).toBe("U2");
+});
+
+test("SENIOR to ADMIN: the role alone is sent and no area is asked for", async () => {
+  const { calls } = setup("ADMIN");
+  await openRow("Meena Rao");
+  pick("Role", "ADMIN");
+  expect(screen.queryByRole("group", { name: "Area" })).toBeNull();
+  expect(screen.queryByLabelText("Area")).toBeNull();
+  save();
+  await screen.findByText(SENT);
+  expect(bodyOf(posts(calls)[0])).toEqual({
+    kind: "USER_ROLE",
+    subject_user_id: MEENA,
+    new_value: { role: "ADMIN" },
+  });
+});
 
 test("pending tags come from one list of waiting changes, not from reads per row", async () => {
   const urls: string[] = [];
