@@ -232,3 +232,39 @@ test("a 429 on sign-in is the lockout text, not the plain busy text", async () =
     await screen.findByText("Too many tries. Please wait 15 minutes, then try again."),
   ).toBeTruthy();
 });
+
+test("ADMIN who opens /graph directly sees a plain not-available page and no graph or search call", async () => {
+  window.history.replaceState(null, "", "/graph");
+  const urls: string[] = [];
+  const fetchImpl = vi.fn((input: RequestInfo | URL) => {
+    const url = String(input);
+    urls.push(url);
+    if (url.endsWith("/auth/login")) {
+      return Promise.resolve(
+        json(200, {
+          access_token: "a",
+          refresh_token: "r",
+          token_type: "Bearer",
+          expires_in: 900,
+          refresh_expires_in: 28800,
+          user: person("ADMIN", null),
+        }),
+      );
+    }
+    if (url.endsWith("/me")) return Promise.resolve(json(200, person("ADMIN", null)));
+    return Promise.resolve(json(404));
+  }) as unknown as typeof fetch;
+  await signIn(createApi({ baseUrl: "http://api.test", fetch: fetchImpl }));
+  expect(await screen.findByText("The network is for officers with case access.")).toBeTruthy();
+  expect(window.location.pathname).toBe("/graph");
+  expect(navLabels()).not.toContain("Network graph");
+  expect(urls.filter((u) => /\/(search|entities|links|stubs)/.test(u))).toEqual([]);
+});
+
+test("the graph page heading is 'Network of links' (A8), not the short menu label", async () => {
+  window.history.replaceState(null, "", "/graph");
+  await signIn(setup(() => json(200, person("SENIOR", null))));
+  await screen.findByRole("navigation", { name: /Main sections/i });
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Network of links");
+  expect(navLabels()).toContain("Network graph");
+});

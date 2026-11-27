@@ -20,7 +20,6 @@ export const en = {
   "nav.graph": "Network graph",
   "shell.notForRole": "This panel is for supervisors, senior officers and administrators.",
   "shell.loadingUser": "Loading your details...",
-  "shell.placeholder": "This page is being built.",
   "shell.noArea": "All areas",
 
   // Sign in
@@ -429,4 +428,12 @@ export const en = {
   "graphPage.selected": "Selected item",
   "graphPage.nothingSelected": "Choose an item to see why it is linked.",
   "graphPage.notAvailable": "The network is for officers with case access.",
+  "graphPage.results": "Matches",
+  "graphPage.showRow": "Show this network",
+  "graphPage.tooShort": "Please write at least 2 characters.",
+  "graphPage.firstOnly": "Showing the first {n}. Narrow the search to see others.",
+  "graphPage.links": "Links of this item",
+  "graphPage.linkRow": "With {name}: {strength}",
+  "graphPage.seeWhy": "See why they are linked",
+  "graphPage.noLinks": "No links are shown for this item.",
 } as const;

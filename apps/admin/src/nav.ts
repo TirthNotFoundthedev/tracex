@@ -48,3 +48,13 @@ export function navFor(role: Role): NavEntry[] {
 export function entryForPath(role: Role, path: string): NavEntry | undefined {
   return navFor(role).find((entry) => path === entry.path || path.startsWith(`${entry.path}/`));
 }
+
+/**
+ * The graph entry for an administrator who opens its address directly. ADMIN has no menu item for it, but
+ * the page shows a plain "not available" state instead of moving them elsewhere; it makes no API call.
+ */
+export function graphEntryForPath(role: Role, path: string): NavEntry | undefined {
+  const graph = ENTRIES.graph;
+  const open = path === graph.path || path.startsWith(`${graph.path}/`);
+  return role === "ADMIN" && open ? graph : undefined;
+}
