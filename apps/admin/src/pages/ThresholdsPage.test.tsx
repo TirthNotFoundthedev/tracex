@@ -161,4 +161,34 @@ test("the page reads in Hindi", async () => {
   const fake = page();
   renderPage(<ThresholdsPage api={fake.api} lang="hi" role="ADMIN" />);
   expect(await screen.findByRole("button", { name: "सेटिंग सहेजें" })).toBeTruthy();
+  expect(screen.getByText("मान्य: 70 से 100 तक।")).toBeTruthy();
+});
+
+test.each([
+  [403, "You do not have access to do this."],
+  [404, "We could not find this. Go back and try again."],
+  [429, "Too many tries. Please wait 15 minutes, then try again."],
+  [503, "The system is paused for a safety check. Try again later."],
+])(
+  "a %s answer on the waiting-changes list shows the failure, no Save form and Try again",
+  async (status, text) => {
+    const fake = page({ "GET /pending-changes": json(status) });
+    renderPage(<ThresholdsPage api={fake.api} lang="en" role="ADMIN" />);
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  },
+);
+
+test("a field error named new_value.high_min marks the strong field", async () => {
+  await admin({
+    "POST /pending-changes": json(422, {
+      code: "VALIDATION_ERROR",
+      field_errors: [{ field: "new_value.high_min", code: "out_of_range" }],
+    }),
+  });
+  fireEvent.click(save());
+  await screen.findByText("Please enter a number from 70 to 100.");
+  expect(strong().getAttribute("aria-invalid")).toBe("true");
+  expect(possible().getAttribute("aria-invalid")).not.toBe("true");
 });

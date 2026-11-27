@@ -67,11 +67,9 @@ export function ThresholdsPage({ api, lang, role }: ThresholdsPageProps) {
       api.client.listPendingChanges({ state: "PENDING", kind: "THRESHOLDS", limit: 1 }),
     ]);
     if (current.kind !== "ok") return setLoad({ state: "failed", result: current });
-    // A role that may not list changes simply has none to show; every other failure is shown.
-    if (waiting.kind !== "ok" && waiting.kind !== "notAllowed" && waiting.kind !== "notFound") {
-      return setLoad({ state: "failed", result: waiting });
-    }
-    const pending = waiting.kind === "ok" ? pairOf(waiting.data.items[0]?.new_value) : undefined;
+    // Only a 200 says whether a change waits; until then the Save form stays hidden.
+    if (waiting.kind !== "ok") return setLoad({ state: "failed", result: waiting });
+    const pending = pairOf(waiting.data.items[0]?.new_value);
     setStrong(String(current.data.high_min));
     setPossible(String(current.data.medium_min));
     setLoad({ state: "ready", current: current.data, pending });
@@ -117,8 +115,8 @@ export function ThresholdsPage({ api, lang, role }: ThresholdsPageProps) {
     setSaving(false);
     if (result.kind === "invalid") {
       setBad({
-        strong: result.fieldErrors.some((e) => e.field === "high_min"),
-        possible: result.fieldErrors.some((e) => e.field === "medium_min"),
+        strong: result.fieldErrors.some((e) => e.field.endsWith("high_min")),
+        possible: result.fieldErrors.some((e) => e.field.endsWith("medium_min")),
       });
       return setProblem(result);
     }

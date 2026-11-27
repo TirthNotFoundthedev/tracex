@@ -113,7 +113,7 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
     setSending(false);
     if (result.kind === "invalid") {
       const named = result.fieldErrors
-        .map((error) => FIELD_OF[error.field])
+        .map((error) => FIELD_OF[error.field.split(".").at(-1) ?? ""])
         .filter((field): field is Field => field !== undefined);
       setMissing(named);
       setProblem(result);
