@@ -226,7 +226,7 @@ test("the action filter speaks in words and holds the six the design names", asy
     .getAllByRole("option")
     .map((o) => o.textContent);
   for (const word of [
-    "Looked at",
+    "Opened a link",
     "Confirmed",
     "Rejected",
     "Asked for access",
@@ -236,6 +236,41 @@ test("the action filter speaks in words and holds the six the design names", asy
     expect(labels).toContain(word);
   }
   expect(labels.join(" ")).not.toMatch(/[A-Z]{3,}_[A-Z]+/);
+});
+
+test("each action option sends exactly the one event type its words name, and no option promises a group", async () => {
+  const urls: string[] = [];
+  setup("SENIOR", {
+    "GET /audit": ({ url }) => {
+      urls.push(url);
+      return auditPage([row()]);
+    },
+  });
+  await inTable("Asha Devi");
+  const select = screen.getByLabelText("What they did") as HTMLSelectElement;
+  const options = within(select).getAllByRole("option") as HTMLOptionElement[];
+  const labels = options.map((o) => o.textContent);
+  expect(new Set(labels).size).toBe(labels.length);
+  expect(labels).not.toContain("Looked at");
+  // Words and event types are fixed in the test, not read back from the page's own table.
+  const expected: Record<string, string> = {
+    "Opened a link": "LINK_VIEWED",
+    Confirmed: "LINK_CONFIRMED",
+    Rejected: "LINK_REJECTED",
+    "Asked for access": "ACCESS_REQUEST_CREATED",
+    "Approved access": "ACCESS_REQUEST_APPROVED",
+    Uploaded: "DATA_UPLOADED",
+    "Looked at the network": "GRAPH_VIEWED",
+  };
+  for (const [words, type] of Object.entries(expected)) {
+    const option = options.find((o) => o.textContent === words);
+    expect(option?.value, words).toBe(type);
+    fireEvent.change(select, { target: { value: option?.value } });
+    fireEvent.click(screen.getByRole("button", { name: "Show" }));
+    await waitFor(() =>
+      expect(query(urls[urls.length - 1] as string).get("event_type")).toBe(type),
+    );
+  }
 });
 
 test("a supervisor has no person filter (the user list is for senior officers and administrators)", async () => {
