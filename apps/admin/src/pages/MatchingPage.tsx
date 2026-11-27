@@ -16,6 +16,8 @@ interface MatchingPageProps {
   lang: Language;
   /** How often a running run is checked. Tests pass a small number. */
   pollMs?: number;
+  /** After this long a running run gets the shared slow line (DESIGN_RULES: over 10 seconds). */
+  slowAfterMs?: number;
 }
 
 type Load =
@@ -30,7 +32,12 @@ type Outcome = { kind: "finished"; run: Run } | { kind: "failed" } | undefined;
  * that is all this page shows: no progress count, no band or per-pair numbers (D49), and no stop button
  * because a run cannot be stopped.
  */
-export function MatchingPage({ api, lang, pollMs = 3000 }: MatchingPageProps) {
+export function MatchingPage({
+  api,
+  lang,
+  pollMs = 3000,
+  slowAfterMs = 10_000,
+}: MatchingPageProps) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [running, setRunning] = useState<Run | undefined>();
   const [outcome, setOutcome] = useState<Outcome>();
@@ -61,6 +68,13 @@ export function MatchingPage({ api, lang, pollMs = 3000 }: MatchingPageProps) {
 
   const runId = running?.run_id;
   const [pollTick, setPollTick] = useState(0);
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    setSlow(false);
+    if (!runId) return;
+    const timer = setTimeout(() => setSlow(true), slowAfterMs);
+    return () => clearTimeout(timer);
+  }, [runId, slowAfterMs]);
   useEffect(() => {
     if (!runId) return;
     let cancelled = false;
@@ -99,6 +113,8 @@ export function MatchingPage({ api, lang, pollMs = 3000 }: MatchingPageProps) {
     setStarting(false);
     if (result.kind !== "ok") {
       setProblem(result);
+      // Another run is already going: show it.
+      if (result.kind === "tryAgainShortly") await refresh();
       return;
     }
     setRunning(result.data);
@@ -154,6 +170,12 @@ export function MatchingPage({ api, lang, pollMs = 3000 }: MatchingPageProps) {
       {running ? (
         <Message kind="info">
           <span>{t("matching.running", lang)}</span> <span>{t("matching.noStop", lang)}</span>
+          {slow ? (
+            <>
+              {" "}
+              <span>{t("loading.slow", lang)}</span>
+            </>
+          ) : null}
         </Message>
       ) : null}
       {outcome?.kind === "finished" ? (

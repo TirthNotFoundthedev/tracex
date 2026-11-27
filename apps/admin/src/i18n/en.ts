@@ -78,6 +78,9 @@ export const en = {
   "upload.files": "Files",
   "upload.case.hint": "Write an existing case number or a new one.",
   "upload.reason.default": "the file could not be opened",
+  "upload.remove": "Remove {name}",
+  "upload.sent": "Files sent to case {case}.",
+  "upload.retryHint": "Choose the file again to try it again.",
   "upload.tooMany": "You can upload up to 20 files at a time.",
 
   // A2 Matching
@@ -87,7 +90,7 @@ export const en = {
   "matching.start": "Start matching",
   "matching.running": "Matching is running...",
   "matching.noStop": "A run cannot be stopped. Please wait.",
-  "matching.finished": "Matching finished. {n} possible matches need review.",
+  "matching.finished": "Matching finished. {n} possible matches are waiting for officers to check.",
   "matching.goReview": "Go to review queue",
   "matching.totals": "Links now: {strong} strong, {possible} possible, {confirmed} confirmed.",
   "matching.failed": "The run did not finish. Nothing was changed. Try again.",

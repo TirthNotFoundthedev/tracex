@@ -85,7 +85,9 @@ test("when the run finishes it says how many possible matches need review", asyn
   renderPage(<MatchingPage api={api} lang="en" pollMs={5} />);
   fireEvent.click(await screen.findByRole("button", { name: "Start matching" }));
   expect(
-    await screen.findByText("Matching finished. 9 possible matches need review."),
+    await screen.findByText(
+      "Matching finished. 9 possible matches are waiting for officers to check.",
+    ),
   ).toBeTruthy();
   expect(screen.queryByText("A run cannot be stopped. Please wait.")).toBeNull();
   expect(screen.getByRole("button", { name: "Start matching" })).toBeTruthy();
@@ -149,8 +151,51 @@ test("a failed first load shows the shared failure and Try again loads again", a
   expect(await screen.findByText(/Found 6 strong, 14 possible/)).toBeTruthy();
 });
 
-test("the page reads in Hindi", async () => {
-  const { api } = page();
-  renderPage(<MatchingPage api={api} lang="hi" />);
-  expect(await screen.findByRole("button", { name: "मिलान शुरू करें" })).toBeTruthy();
+test("a 409 on Start shows the shared message and then the running state", async () => {
+  let started = false;
+  const { api } = page({
+    "GET /matching/runs": () =>
+      json(200, {
+        items: [started ? run({ status: "RUNNING", finished_at: null }) : run()],
+        next_cursor: null,
+      }),
+    "POST /matching/runs": () => {
+      started = true;
+      return json(409, { code: "RUN_IN_PROGRESS" });
+    },
+    [`GET /matching/runs/${RUN}`]: json(200, run({ status: "RUNNING", finished_at: null })),
+  });
+  renderPage(<MatchingPage api={api} lang="en" pollMs={5} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Start matching" }));
+  expect(
+    await screen.findByText("A matching run is in progress. Try again in a few minutes."),
+  ).toBeTruthy();
+  expect(await screen.findByText("A run cannot be stopped. Please wait.")).toBeTruthy();
+});
+
+test("a run that lasts long shows the slow line", async () => {
+  const { api } = page({
+    "GET /matching/runs": json(200, {
+      items: [run({ status: "RUNNING", finished_at: null })],
+      next_cursor: null,
+    }),
+    [`GET /matching/runs/${RUN}`]: json(200, run({ status: "RUNNING", finished_at: null })),
+  });
+  renderPage(<MatchingPage api={api} lang="en" pollMs={5} slowAfterMs={30} />);
+  expect(await screen.findByText("A run cannot be stopped. Please wait.")).toBeTruthy();
+  expect(screen.queryByText("This is taking long. Please wait or try again.")).toBeNull();
+  expect(await screen.findByText("This is taking long. Please wait or try again.")).toBeTruthy();
+});
+
+test("the page reads in Hindi, including the running line", async () => {
+  const { api } = page({
+    "GET /matching/runs": json(200, {
+      items: [run({ status: "RUNNING", finished_at: null })],
+      next_cursor: null,
+    }),
+    [`GET /matching/runs/${RUN}`]: json(200, run({ status: "RUNNING", finished_at: null })),
+  });
+  renderPage(<MatchingPage api={api} lang="hi" pollMs={5} />);
+  expect(await screen.findByText("मिलान चल रहा है...")).toBeTruthy();
+  expect(screen.getByText("चलते मिलान को रोका नहीं जा सकता। कृपया प्रतीक्षा करें।")).toBeTruthy();
 });

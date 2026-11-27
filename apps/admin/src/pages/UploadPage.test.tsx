@@ -83,7 +83,11 @@ test("lists earlier uploads with their status in words and a reason for a failed
   expect(screen.getByText("Waiting")).toBeTruthy();
   expect(screen.getByText("Reading")).toBeTruthy();
   expect(screen.getByText("Done")).toBeTruthy();
-  expect(screen.getByText(/^Could not read: /)).toBeTruthy();
+  expect(
+    screen.getByText(
+      "Could not read: the file could not be opened. Choose the file again to try it again.",
+    ),
+  ).toBeTruthy();
   // The contract returns no retry or open route, so the page offers none.
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
@@ -104,7 +108,44 @@ test("uploading sends the case number, the area and the files as a form", async 
   expect(form.get("case_number")).toBe("31/207");
   expect(form.get("district_id")).toBe(DISTRICT);
   expect((form.getAll("files")[0] as File).name).toBe("notes.pdf");
-  expect(await screen.findByText("notes.pdf", { selector: "td, span, p, div" })).toBeTruthy();
+  expect(await screen.findByText("Files sent to case 31/207.")).toBeTruthy();
+});
+
+test("every picked file is listed with a Remove button, and only the kept files are sent", async () => {
+  const { api, calls } = page({
+    "POST /uploads": json(202, { batches: [batch({ file_name: "a.pdf" })] }),
+  });
+  renderPage(<UploadPage api={api} lang="en" />);
+  await ready();
+  fillCase();
+  pick("a.pdf");
+  pick("b.pdf");
+  pick("c.pdf");
+  expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  fireEvent.click(screen.getByRole("button", { name: "Remove b.pdf" }));
+  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Upload files" }));
+  await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
+  const form = calls.find((c) => c.method === "POST")?.init.body as FormData;
+  expect(form.getAll("files").map((f) => (f as File).name)).toEqual(["a.pdf", "c.pdf"]);
+  expect(await screen.findByText("Files sent to case 31/207.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Remove a.pdf" })).toBeNull();
+});
+
+test("choosing a failed file again sends it again through the same route", async () => {
+  const { api, calls } = page({
+    "GET /uploads": json(200, {
+      items: [batch({ file_name: "bad.doc", status: "FAILED", error_code: "INGEST_ERROR" })],
+      next_cursor: null,
+    }),
+    "POST /uploads": json(202, { batches: [batch({ file_name: "bad.doc" })] }),
+  });
+  renderPage(<UploadPage api={api} lang="en" />);
+  await ready();
+  fillCase();
+  pick("bad.doc");
+  fireEvent.click(screen.getByRole("button", { name: "Upload files" }));
+  await waitFor(() => expect(calls.filter((c) => c.method === "POST")).toHaveLength(1));
 });
 
 test("a missing case number, area or file is named and nothing is sent", async () => {
@@ -165,6 +206,21 @@ test("a 422 puts the error beside the field that the API names", async () => {
   expect(screen.getByLabelText("Case").getAttribute("aria-invalid")).toBe("true");
 });
 
+test("a field error named files.0 marks the Files field", async () => {
+  const { api } = page({
+    "POST /uploads": json(422, {
+      code: "VALIDATION_ERROR",
+      field_errors: [{ field: "body.district_id", code: "invalid" }],
+    }),
+  });
+  renderPage(<UploadPage api={api} lang="en" />);
+  await ready();
+  fillCase();
+  pick();
+  fireEvent.click(screen.getByRole("button", { name: "Upload files" }));
+  expect(await screen.findByText("Please fill in: Police area.")).toBeTruthy();
+});
+
 test("a failed list shows the failure and Try again loads it again", async () => {
   let n = 0;
   const { api } = page({
@@ -183,4 +239,6 @@ test("the page reads in Hindi", async () => {
   const { api } = page();
   renderPage(<UploadPage api={api} lang="hi" />);
   expect(await screen.findByRole("button", { name: "फ़ाइलें अपलोड करें" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "फ़ाइलें अपलोड करें" }));
+  expect(await screen.findByText("कृपया भरें: मामला।")).toBeTruthy();
 });

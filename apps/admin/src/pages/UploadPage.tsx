@@ -61,6 +61,7 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
   const [tooMany, setTooMany] = useState(false);
   const [problem, setProblem] = useState<FailureResult | undefined>();
   const [sending, setSending] = useState(false);
+  const [sentTo, setSentTo] = useState<string | undefined>();
 
   const refresh = useCallback(async () => {
     const [places, uploads] = await Promise.all([
@@ -95,6 +96,7 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
 
   const submit = async () => {
     setProblem(undefined);
+    setSentTo(undefined);
     const absent: Field[] = [];
     if (caseNumber.trim() === "") absent.push("case");
     if (district === "") absent.push("district");
@@ -122,7 +124,7 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
     if (result.kind !== "ok") return setProblem(result);
     setBatches((old) => [...result.data.batches, ...old]);
     setFiles([]);
-    setCaseNumber("");
+    setSentTo(caseNumber.trim());
   };
 
   if (load.state === "loading") return <Loading label={t("loading.default", lang)} />;
@@ -152,6 +154,7 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
         <Message kind="error">{t("common.fillInCount", lang, { n: missing.length })}</Message>
       ) : null}
       {problem ? <FailureView result={problem} lang={lang} /> : null}
+      {sentTo ? <Message kind="success">{t("upload.sent", lang, { case: sentTo })}</Message> : null}
       {tooMany ? <Message kind="error">{t("upload.tooMany", lang)}</Message> : null}
       <form
         className="admin-form"
@@ -181,9 +184,24 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
         <FileDrop
           label={t("upload.files", lang)}
           accept={ACCEPT}
-          fileName={files.at(-1)?.name}
           onFile={(file) => setFiles((old) => [...old, file])}
         />
+        {files.length > 0 ? (
+          <ul className="admin-files">
+            {files.map((file, index) => (
+              <li key={`${file.name}-${index}`}>
+                <span>{file.name}</span>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => setFiles((old) => old.filter((_, i) => i !== index))}
+                >
+                  {t("upload.remove", lang, { name: file.name })}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <p className="admin-hint">{t("upload.types", lang)}</p>
         {error("files") ? <p className="admin-error">{error("files")}</p> : null}
         <div className="admin-actions">
@@ -206,7 +224,7 @@ export function UploadPage({ api, lang, pollMs = 3000 }: UploadPageProps) {
               header: t("common.status", lang),
               cell: (b) =>
                 b.status === "FAILED"
-                  ? t("upload.status.failed", lang, { reason: t("upload.reason.default", lang) })
+                  ? `${t("upload.status.failed", lang, { reason: t("upload.reason.default", lang) })}. ${t("upload.retryHint", lang)}`
                   : t(STATUS_KEY[b.status], lang),
             },
             {

@@ -73,6 +73,9 @@ export const hi: Record<keyof typeof en, string> = {
   "upload.files": "फ़ाइलें",
   "upload.case.hint": "मौजूदा मामला नंबर लिखें या नया।",
   "upload.reason.default": "फ़ाइल खुल नहीं सकी",
+  "upload.remove": "{name} हटाएँ",
+  "upload.sent": "फ़ाइलें मामला {case} के लिए भेज दी गईं।",
+  "upload.retryHint": "फिर कोशिश करने के लिए फ़ाइल दोबारा चुनें।",
   "upload.tooMany": "एक बार में 20 फ़ाइलें तक अपलोड कर सकते हैं।",
 
   // A2
@@ -82,7 +85,8 @@ export const hi: Record<keyof typeof en, string> = {
   "matching.start": "मिलान शुरू करें",
   "matching.running": "मिलान चल रहा है...",
   "matching.noStop": "चलते मिलान को रोका नहीं जा सकता। कृपया प्रतीक्षा करें।",
-  "matching.finished": "मिलान पूरा हुआ। {n} संभावित मिलान जाँचने हैं।",
+  "matching.finished":
+    "मिलान पूरा हुआ। {n} संभावित मिलान अधिकारियों की जाँच के लिए प्रतीक्षा में हैं।",
   "matching.goReview": "जाँच की कतार पर जाएँ",
   "matching.totals": "अभी लिंक: {strong} पक्के, {possible} संभावित, {confirmed} पक्के किए गए।",
   "matching.failed": "मिलान पूरा नहीं हुआ। कुछ भी बदला नहीं गया। फिर कोशिश करें।",
