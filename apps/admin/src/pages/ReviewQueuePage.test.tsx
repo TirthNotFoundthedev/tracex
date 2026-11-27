@@ -1,11 +1,12 @@
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { useEffect, useState } from "react";
 import { afterEach, beforeEach, expect, test } from "vitest";
 
 import type { AdminApi } from "../api";
 import { t } from "../i18n";
 import type { Role } from "../nav";
 import { usePath } from "../router";
-import { DISTRICT, fakeApi, json, renderPage, type Routes } from "../testing";
+import { DISTRICT, fakeApi, json, renderPage, type Answer, type Routes } from "../testing";
 import { ReviewQueuePage } from "./ReviewQueuePage";
 
 afterEach(cleanup);
@@ -829,4 +830,150 @@ test("the page and the panel read in Hindi", async () => {
   expect(
     within(document.body).getByText(t("queue.more.score", "hi", { score: "62.5" })),
   ).toBeTruthy();
+});
+
+function Gate({ api }: { api: AdminApi }) {
+  const [signedIn, setSignedIn] = useState(Boolean(api.session.state()));
+  useEffect(() => api.session.subscribe((state) => setSignedIn(Boolean(state))), [api]);
+  return signedIn ? <Harness api={api} /> : null;
+}
+
+type Who = { role: "SENIOR" | "SUPERVISOR" };
+
+/** Sign-in answers with a token named by role; `GET /users/{id}` answers by the token, as the API does. */
+function sessionRoutes(who: Who, users: Answer): Routes {
+  return {
+    ...queue({ REJECTED: [rejectedRow()] }),
+    "POST /auth/login": () =>
+      json(200, {
+        access_token: `tok-${who.role}`,
+        refresh_token: "r",
+        token_type: "Bearer",
+        expires_in: 900,
+        refresh_expires_in: 28800,
+        user: { user_id: CHARU, username: "u", display_name: "U", role: who.role, active: true },
+      }),
+    "POST /auth/logout": json(204),
+    [`GET /links/${LINK}`]: json(
+      200,
+      detail({ state: "REJECTED", allowed_actions: ["REOPEN"], history: rejectedHistory }),
+    ),
+    [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
+    [`GET /users/${MEENA}`]: users,
+  };
+}
+
+const bearer = (init: RequestInit) => (init.headers as Record<string, string>).Authorization;
+const NAMED = "Rejected by Meena Rao (Investigating officer) on 12 Mar 2026";
+const UNNAMED = "Rejected on 12 Mar 2026";
+const bySeniorOnly: Answer = ({ init }) =>
+  bearer(init) === "Bearer tok-SENIOR"
+    ? user(MEENA, "Meena Rao", "INVESTIGATOR")
+    : json(403, { code: "FORBIDDEN" });
+
+async function signIn(api: AdminApi, name: string) {
+  await act(async () => {
+    await api.session.signIn(name, "pw");
+  });
+}
+
+function mount(routes: Routes) {
+  const made = fakeApi(routes);
+  window.history.replaceState(null, "", `/review/${LINK}?show=rejected`);
+  renderPage(<Gate api={made.api} />);
+  return made;
+}
+
+const userCalls = (calls: { path: string }[]) =>
+  calls.filter((c) => c.path === `/users/${MEENA}`).length;
+
+test("names looked up by a SENIOR are not shown to a SUPERVISOR who signs in next in the same app", async () => {
+  const who: Who = { role: "SENIOR" };
+  const { api, calls } = mount(sessionRoutes(who, bySeniorOnly));
+  await signIn(api, "senior");
+  expect(await screen.findByText(NAMED)).toBeTruthy();
+
+  await act(async () => {
+    await api.session.signOut();
+  });
+  expect(screen.queryByText(NAMED)).toBeNull();
+
+  who.role = "SUPERVISOR";
+  await signIn(api, "supervisor");
+  expect(await screen.findByText(UNNAMED)).toBeTruthy();
+  expect(screen.queryByText(/Meena Rao/)).toBeNull();
+  expect(userCalls(calls)).toBe(2);
+});
+
+test("a refusal seen by a SUPERVISOR does not hide the name from the SENIOR who signs in next", async () => {
+  const who: Who = { role: "SUPERVISOR" };
+  const { api } = mount(sessionRoutes(who, bySeniorOnly));
+  await signIn(api, "supervisor");
+  expect(await screen.findByText(UNNAMED)).toBeTruthy();
+  await act(async () => {
+    await api.session.signOut();
+  });
+  who.role = "SENIOR";
+  await signIn(api, "senior");
+  expect(await screen.findByText(NAMED)).toBeTruthy();
+});
+
+test("a session that ends on its own also clears the names", async () => {
+  const who: Who = { role: "SENIOR" };
+  const { api } = mount(sessionRoutes(who, bySeniorOnly));
+  await signIn(api, "senior");
+  expect(await screen.findByText(NAMED)).toBeTruthy();
+  act(() => api.session.endLocally());
+  who.role = "SUPERVISOR";
+  await signIn(api, "supervisor");
+  expect(await screen.findByText(UNNAMED)).toBeTruthy();
+});
+
+test("inside one session a refused look-up is not repeated", async () => {
+  const who: Who = { role: "SUPERVISOR" };
+  const { api, calls } = mount(sessionRoutes(who, json(403, { code: "FORBIDDEN" })));
+  await signIn(api, "supervisor");
+  expect(await screen.findByText(UNNAMED)).toBeTruthy();
+  fireEvent.click(button("Back to the list"));
+  await screen.findAllByText("24/118");
+  fireEvent.click(button("Open"));
+  expect(await screen.findByText(UNNAMED)).toBeTruthy();
+  expect(userCalls(calls)).toBe(1);
+});
+
+test.each([429, 503, 500])(
+  "a %s on the name look-up is not kept: the next opening asks again",
+  async (status) => {
+    let n = 0;
+    const who: Who = { role: "SENIOR" };
+    const { api, calls } = mount(
+      sessionRoutes(who, () =>
+        n++ === 0 ? json(status) : user(MEENA, "Meena Rao", "INVESTIGATOR"),
+      ),
+    );
+    await signIn(api, "senior");
+    expect(await screen.findByText(UNNAMED)).toBeTruthy();
+    fireEvent.click(button("Back to the list"));
+    await screen.findAllByText("24/118");
+    fireEvent.click(button("Open"));
+    expect(await screen.findByText(NAMED)).toBeTruthy();
+    expect(userCalls(calls)).toBe(2);
+  },
+);
+
+test("a network error on the name look-up is not kept either", async () => {
+  let n = 0;
+  const who: Who = { role: "SENIOR" };
+  const { api } = mount(
+    sessionRoutes(who, () => {
+      if (n++ === 0) throw new TypeError("offline");
+      return user(MEENA, "Meena Rao", "INVESTIGATOR");
+    }),
+  );
+  await signIn(api, "senior");
+  expect(await screen.findByText(UNNAMED)).toBeTruthy();
+  fireEvent.click(button("Back to the list"));
+  await screen.findAllByText("24/118");
+  fireEvent.click(button("Open"));
+  expect(await screen.findByText(NAMED)).toBeTruthy();
 });

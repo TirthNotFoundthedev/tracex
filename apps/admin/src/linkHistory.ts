@@ -67,21 +67,47 @@ const ROLE_KEY: Record<Actor["role"], AnyMessageKey> = {
 
 export const roleLabel = (role: Actor["role"], lang: Language) => t(ROLE_KEY[role], lang);
 
-/** One lookup per person for the life of the session; a refused lookup (null) is kept so it is not repeated. */
-const cache = new WeakMap<AdminApi, Map<string, Promise<Actor | null>>>();
+/**
+ * Name look-ups belong to the signed-in session. The cache is emptied at once when the session ends for any
+ * reason (sign-out, expiry, a different person signing in), so names a SENIOR could read never reach the next
+ * person at the same screen, and a refusal given to one role is never held against the next. Only a real
+ * answer is kept: a found person, or a 403 or 404 (a refusal is the same for the whole session). A 429, any
+ * other 5xx, a pause or a network error is dropped so the next opening asks again.
+ */
+interface SessionNames {
+  map: Map<string, Promise<Actor | null>>;
+}
+const caches = new WeakMap<AdminApi, SessionNames>();
+
+function namesFor(api: AdminApi): SessionNames {
+  let names = caches.get(api);
+  if (!names) {
+    const fresh: SessionNames = { map: new Map() };
+    names = fresh;
+    caches.set(api, fresh);
+    let owner = api.session.state()?.user.user_id;
+    api.session.subscribe((state) => {
+      const next = state?.user.user_id;
+      if (next === owner && state) return;
+      owner = next;
+      // A new map, so an answer still on its way from the old session cannot land in the new one.
+      fresh.map = new Map();
+    });
+  }
+  return names;
+}
 
 function lookup(api: AdminApi, id: string): Promise<Actor | null> {
-  let map = cache.get(api);
-  if (!map) cache.set(api, (map = new Map()));
-  let found = map.get(id);
-  if (!found) {
-    found = api.client
-      .getUser(id)
-      .then((result) =>
-        result.kind === "ok" ? { name: result.data.display_name, role: result.data.role } : null,
-      );
-    map.set(id, found);
-  }
+  const names = namesFor(api);
+  const map = names.map;
+  const kept = map.get(id);
+  if (kept) return kept;
+  const found = api.client.getUser(id).then((result) => {
+    if (result.kind === "ok") return { name: result.data.display_name, role: result.data.role };
+    if (result.kind !== "notAllowed" && result.kind !== "notFound") map.delete(id);
+    return null;
+  });
+  map.set(id, found);
   return found;
 }
 
