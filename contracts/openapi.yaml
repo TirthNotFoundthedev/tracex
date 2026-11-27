@@ -4018,6 +4018,7 @@ components:
         - reason
         - requester
         - far_case_id
+        - far_case_number
         - stub
       description: The approver's view. `stub` is bound to (approver, link) with `near_entity_id` on the approver's side; the requester's stub id and entity are never shown.
       properties:
@@ -4045,6 +4046,9 @@ components:
           $ref: "#/components/schemas/UserRef"
         far_case_id:
           $ref: "#/components/schemas/Id"
+        far_case_number:
+          type: string
+          description: Case number of the far case, which lies in the decider's own district (SUPERVISOR) or coverage (SENIOR). No other far-case field is carried. AccessRequestMine never carries it.
         stub:
           $ref: "#/components/schemas/Stub"
         grant:

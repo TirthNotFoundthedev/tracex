@@ -130,7 +130,7 @@ In every other case `actor` is `null`. This covers a JUNIOR or INVESTIGATOR view
 | Item | Rule |
 |---|---|
 | Request | From one stub: one link, one far case. No fan-out, no aggregate. Reason 10 to 500 chars (no personal data). Requesters: JUNIOR, INVESTIGATOR, SUPERVISOR, SENIOR. Max 10 PENDING per user. |
-| Approver | SUPERVISOR of the far case's district, or SENIOR whose coverage includes it. Never the requester, never ADMIN. Approver sees the requester's reason. |
+| Approver | SUPERVISOR of the far case's district, or SENIOR whose coverage includes it. Never the requester, never ADMIN. |
 | States | Request: PENDING -> APPROVED / DENIED / WITHDRAWN / EXPIRED (7 days). Grant: ACTIVE -> EXPIRED / REVOKED. Denied: re-request after 24 hours. |
 | Duration | 7, 30 or 90 days (default 30); hard `expires_at`, checked every request; no renewal. |
 | Grant scope | Read-only. The far entity of that one link, the link's explanation, and the **exact source-line ranges** cited by its evidence, fixed at approval. Capped by the holder's role in their own jurisdiction (a JUNIOR gets no source lines). Covers only the link existing at request time. |
@@ -140,6 +140,8 @@ In every other case `actor` is `null`. This covers a JUNIOR or INVESTIGATOR view
 | Denial note | The optional note reaches the requester: it must carry no case detail (the field is 200 characters and the UI says so). |
 | Approver's own stub | The approver gets a stub bound to (approver, link) with `near_entity_id` on the approver's side; the requester's `stub_id` and near entity are never shown to the approver. |
 | Views | Requester and approver have different response shapes (`AccessRequestMine`, `AccessRequestToDecide`; `GrantHeld`, `GrantAuthority`); neither carries a field of the other. |
+| Approver view of the far case | `AccessRequestToDecide` carries `far_case_id` and `far_case_number` of the far case, which lies in the decider's own district (SUPERVISOR) or coverage (SENIOR). It carries no other far-case field. `AccessRequestMine` never carries either field. |
+| Approver view of the requester | The decider sees the requester only as `UserRef` (user id, display name, role) and the requester's reason. No district, state, coverage or case of the requester appears in `AccessRequestToDecide`, its errors or its audit detail: the requester's side is the far side of the decider's own stub (section 4). |
 
 ## 6. Session rules
 | Item | Rule |
