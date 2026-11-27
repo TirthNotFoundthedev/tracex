@@ -137,6 +137,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - Reasons are plain sentences, one per line, each with its evidence icon (check for support, alert for against) and its source line "Case 24/118, statement, page 2" in `ink-2` 16px.
 - If there is no evidence against, show "Nothing found against this link." Never omit the section. Reason: officers must see that the system looked.
 - "More detail" holds: numeric score, tier, matching rules fired, thresholds, raw values. Labels there may use admin terms, each explained.
+- "More detail" is closed by default in the officer app (D69). In the admin link detail it is open by default (design-flows A3, A3d), because admins read the numbers.
 - Wording patterns and examples are in design-flows.md.
 
 ## 10. Restricted (other-jurisdiction) content
