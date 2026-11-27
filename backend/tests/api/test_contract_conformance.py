@@ -138,3 +138,27 @@ def test_audit_rows_with_every_kind_of_detail_match_the_contract(world: World) -
             break
     assert seen > 20
     _ok(api.get("hari", "/audit"), "AuditPage")
+
+
+def test_every_paged_route_returns_the_total_of_the_items_the_caller_may_see(world: World) -> None:
+    api = world.api
+    case = world.cases["C-101"]
+    routes = [
+        ("bharat", "/cases", {}),
+        ("bharat", f"/cases/{case}/entities", {}),
+        ("bharat", "/search/entities", {"q": "9100000001"}),
+        ("bharat", "/links", {}),
+        ("bharat", "/review-queue", {}),
+        ("bharat", "/access-requests", {}),
+        ("bharat", "/grants", {}),
+        ("meena", "/users", {}),
+        ("hari", "/uploads", {}),
+        ("hari", "/matching/runs", {}),
+        ("meena", "/pending-changes", {}),
+    ]
+    for viewer, path, params in routes:
+        response = api.get(viewer, path, **params)
+        assert response.status_code == 200, (path, response.text)
+        body = response.json()
+        assert isinstance(body["total"], int), path
+        assert body["total"] >= len(body["items"]), path

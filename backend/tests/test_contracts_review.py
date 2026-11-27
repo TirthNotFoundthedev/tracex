@@ -267,3 +267,26 @@ def test_spec_amendments_are_in_both_specs() -> None:
     ):
         assert event in audit
     assert "an actor with no jurisdiction" in audit
+
+
+def test_tir85_page_total_is_required_on_every_page_that_extends_the_base() -> None:
+    schemas = _schemas()
+    assert "total" in schemas["PageBase"]["required"]
+    base = {"$ref": "#/components/schemas/PageBase"}
+    pages = [n for n, s in schemas.items() if base in s.get("allOf", [])]
+    assert len(pages) >= 10
+    assert "AuditPage" not in pages  # the audit page counts with `result_count` (audit spec 7)
+
+
+def test_tir85_history_and_queue_items_name_the_decider_only_through_user_ref() -> None:
+    schemas = _schemas()
+    actor = schemas["HistoryEntry"]["properties"]["actor"]
+    assert actor["oneOf"] == [{"$ref": "#/components/schemas/UserRef"}, {"type": "null"}]
+    assert "actor_user_id" in schemas["HistoryEntry"]["properties"]
+    assert "actor" not in schemas["HistoryEntryGranted"]["properties"]
+    queue_item = schemas["ReviewQueueItem"]["allOf"][1]
+    assert "last_decision" not in queue_item["required"]
+    decision = schemas["LastDecision"]
+    assert decision["additionalProperties"] is False
+    assert set(decision["required"]) == {"to", "at", "actor", "reason_text"}
+    assert decision["properties"]["actor"]["oneOf"] == actor["oneOf"]
