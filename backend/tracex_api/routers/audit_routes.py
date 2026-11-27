@@ -5,6 +5,7 @@ Spec: docs/specs/api-audit-log.md section 7. A row exists for the reader only if
 sorting run only over what the reader can see.
 """
 
+import logging
 import uuid
 from datetime import datetime
 from typing import Any
@@ -19,6 +20,8 @@ from tracex_api.db import Row, many, one
 from tracex_api.errors import ApiError, invalid
 from tracex_api.security import CursorError, open_cursor, row_ref, seal_cursor
 from tracex_api.views import as_uuid
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 SORTS = ("occurred_at", "event_type", "outcome")
@@ -251,24 +254,35 @@ def list_audit(
 
 @endpoint(router, "POST", "/audit/verify", policy=SENIOR_ONLY, audit_event="AUDIT_VERIFY_RUN")
 def verify_chain(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
+    from tracex_api.main import record_chain  # local import: main imports this module
+
     path = ctx.state.settings.audit_anchor_path
-    ok, bad = audit.verify(ctx.conn, path)
+    result: audit.VerifyResult | None
+    with ctx.state.chain_lock:  # one writer of the latest result, and the anchor is the row checked
+        try:
+            result = audit.verify_checked(ctx.conn, path)
+        except Exception:
+            logger.exception("audit verify failed; treating the chain as BROKEN")
+            result = None
+        ok = result is not None and result.ok
+        record_chain(ctx.state, ok)
+        if result is not None and result.ok:
+            audit.anchor_checked(path, result)
+    bad = result.first_bad_seq if result is not None else None
     head = one(ctx.conn, "SELECT max(seq) AS m FROM audit_log")
-    anchor = audit.read_anchor(path)
     detail: dict[str, Any] = {
         "result": "OK" if ok else "BROKEN",
         "range_from": 1,
         "range_to": int(head["m"]) if head and head["m"] is not None else 0,
         "head_seq": int(head["m"]) if head and head["m"] is not None else 0,
     }
+    anchor = audit.read_anchor(path)
     if anchor:
         detail["anchor_seq"] = int(anchor["seq"])
     if bad is not None:
         detail["first_bad_seq"] = bad
     ctx.audit("AUDIT_VERIFY_RUN", target_type="AUDIT", target_id="chain", detail=detail)
     if ok:
-        ctx.commit()
-        audit.write_anchor(ctx.conn, path)
         return {"result": "OK"}
     return {"result": "BROKEN", "first_bad_seq": bad}
 

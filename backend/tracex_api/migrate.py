@@ -14,6 +14,7 @@ import psycopg.conninfo
 from psycopg import sql
 
 from tracex_api import audit
+from tracex_api.config import ConfigError, refuse_dev_secrets_in_tools
 from tracex_api.db import API_ROLE, MIGRATOR_ROLE, bootstrap_roles, connect, migrate, need, one
 
 
@@ -37,6 +38,10 @@ def start_chain(migrator_url: str) -> bool:
 
 
 def main() -> int:
+    try:
+        refuse_dev_secrets_in_tools()
+    except ConfigError as exc:
+        raise SystemExit(f"refused: {exc}") from None
     needed = ("DATABASE_ADMIN_URL", "TRACEX_MIGRATOR_DB_PASSWORD", "TRACEX_API_DB_PASSWORD")
     missing = [name for name in needed if not os.environ.get(name)]
     if missing:
