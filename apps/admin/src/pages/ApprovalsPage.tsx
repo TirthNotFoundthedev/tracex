@@ -229,7 +229,7 @@ function AccessDetail({
         <dt>{t("approvals.col.requestedBy", lang)}</dt>
         <dd>{item.requester.display_name}</dd>
         <dt>{t("approvals.col.forCase", lang)}</dt>
-        <dd>{item.far_case_id}</dd>
+        <dd>{item.far_case_number}</dd>
         <dt>{t("common.date", lang)}</dt>
         <dd>{dateOnly(item.requested_at, lang)}</dd>
         <dt>{t("common.status", lang)}</dt>
@@ -279,7 +279,7 @@ function AccessDetail({
           <p>
             {t("approvals.access.confirm", lang, {
               name: item.requester.display_name,
-              case: item.far_case_id,
+              case: item.far_case_number,
               days,
             })}
           </p>
@@ -358,7 +358,7 @@ function AccessTab({
           header: t("approvals.col.requestedBy", lang),
           cell: (r) => r.requester.display_name,
         },
-        { id: "case", header: t("approvals.col.forCase", lang), cell: (r) => r.far_case_id },
+        { id: "case", header: t("approvals.col.forCase", lang), cell: (r) => r.far_case_number },
         { id: "reason", header: t("approvals.col.reason", lang), cell: (r) => r.reason },
         { id: "date", header: t("common.date", lang), cell: (r) => dateOnly(r.requested_at, lang) },
         {

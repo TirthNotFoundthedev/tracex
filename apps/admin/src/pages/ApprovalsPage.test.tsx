@@ -653,8 +653,8 @@ test("refusing with a note of only spaces sends a body without note", async () =
 });
 
 test("the far case is shown by its number and never by its id", async () => {
-  const { container } = setup("SUPERVISOR");
+  setup("SUPERVISOR");
   await openRow("Meena Rao");
   expect(await screen.findAllByText("FAR-2026-0207")).not.toHaveLength(0);
-  expect(container.textContent).not.toContain("60000000-0000-4000-8000-0000000002c7");
+  expect(document.body.textContent).not.toContain("60000000-0000-4000-8000-0000000002c7");
 });
