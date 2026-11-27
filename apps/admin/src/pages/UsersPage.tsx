@@ -14,6 +14,8 @@ import {
   buildAreaChange,
   buildCreate,
   buildRoleChange,
+  nameFits,
+  usernameFits,
   coverageOf,
   EMPTY_AREA,
   type AreaDraft,
@@ -381,7 +383,9 @@ function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack
         username: result.fieldErrors.some((e) => e.field.endsWith("username")),
         name: result.fieldErrors.some((e) => e.field.endsWith("display_name")),
         role: result.fieldErrors.some((e) => e.field.endsWith("role")),
-        area: result.fieldErrors.some((e) => /district_id|coverage/.test(e.field)),
+        area: result.fieldErrors.some((e) =>
+          /district_id|coverage|state_ids|all_states/.test(e.field),
+        ),
       });
       return setFailure(result);
     }
@@ -395,13 +399,17 @@ function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack
       ? t(areaKind === "coverage" ? "users.error.coverage" : "users.error.area", lang)
       : undefined;
 
+  // A role /roles does not list has no known scope, so nothing is built or sent for it.
+  const roleKnown = !role || reference.scopes.has(role);
+
   const save = () => {
     setFailure(undefined);
+    if (!roleKnown) return;
     if (!user) {
       const built = buildCreate({ name, username, role, scopeOf, area });
       setBad({
-        name: !name.trim(),
-        username: !username.trim(),
+        name: !nameFits(name.trim()),
+        username: !usernameFits(username.trim()),
         role: !role,
         area: !built.ok && built.field === "area",
       });
@@ -518,7 +526,9 @@ function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack
                 value={name}
                 error={
                   bad.name
-                    ? t("common.fillIn", lang, { field: t("users.field.name", lang) })
+                    ? name.trim()
+                      ? t("users.error.nameLong", lang)
+                      : t("common.fillIn", lang, { field: t("users.field.name", lang) })
                     : undefined
                 }
                 onChange={(value) => {
@@ -532,7 +542,9 @@ function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack
                 error={
                   bad.username
                     ? username.trim()
-                      ? t("users.error.userId", lang)
+                      ? usernameFits(username.trim())
+                        ? t("users.error.userId", lang)
+                        : t("users.error.userIdFormat", lang)
                       : t("common.fillIn", lang, { field: t("users.field.userId", lang) })
                     : undefined
                 }
@@ -548,11 +560,20 @@ function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack
             value={role}
             options={[
               { value: "", label: t("users.role.choose", lang) },
-              ...ROLES.map((r) => ({ value: r, label: roleSentence(r, lang) })),
+              // Only roles that /roles lists can be chosen.
+              ...ROLES.filter((r) => reference.scopes.has(r)).map((r) => ({
+                value: r,
+                label: roleSentence(r, lang),
+              })),
             ]}
             error={bad.role ? t("users.error.role", lang) : undefined}
             onChange={changeRole}
           />
+          {!roleKnown ? (
+            <p className="admin-error" role="alert">
+              {t("users.error.roleUnknown", lang)}
+            </p>
+          ) : null}
           {areaPicker}
           {role === "ADMIN" ? <p className="admin-hint">{t("users.noCaseContent", lang)}</p> : null}
           <div className="admin-actions">
@@ -560,7 +581,7 @@ function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack
               variant="primary"
               type="submit"
               icon="confirm"
-              disabled={busy || pendingNow || (!!user && !dirty)}
+              disabled={busy || pendingNow || !roleKnown || (!!user && !dirty)}
             >
               {t("users.save", lang)}
             </Button>

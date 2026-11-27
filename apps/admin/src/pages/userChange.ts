@@ -53,6 +53,18 @@ function areaKeys(
   return {};
 }
 
+const USERNAME_PATTERN = /^[a-z0-9._-]+$/;
+const USERNAME_MIN = 3;
+const USERNAME_MAX = 64;
+const NAME_MAX = 120;
+
+/** The limits the sign-in name and the display name must meet before a proposal is sent. */
+export const usernameFits = (username: string) =>
+  username.length >= USERNAME_MIN &&
+  username.length <= USERNAME_MAX &&
+  USERNAME_PATTERN.test(username);
+export const nameFits = (name: string) => name.length > 0 && name.length <= NAME_MAX;
+
 export function buildCreate(input: {
   name: string;
   username: string;
@@ -62,8 +74,8 @@ export function buildCreate(input: {
 }): Built<Create> {
   const display_name = input.name.trim();
   const username = input.username.trim();
-  if (!display_name) return { ok: false, field: "name" };
-  if (!username) return { ok: false, field: "username" };
+  if (!display_name || !nameFits(display_name)) return { ok: false, field: "name" };
+  if (!usernameFits(username)) return { ok: false, field: "username" };
   if (!input.role) return { ok: false, field: "role" };
   const keys = areaKeys(input.scopeOf(input.role), input.area);
   if (!keys) return { ok: false, field: "area" };

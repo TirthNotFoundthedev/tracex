@@ -303,6 +303,10 @@ export const en = {
   "users.error.coverage": "Please choose at least one area.",
   "users.error.role": "Please choose a role.",
   "users.error.userId": "This user ID cannot be used.",
+  "users.error.userIdFormat":
+    "Use 3 to 64 small letters, digits, dots, dashes or underscores. No spaces.",
+  "users.error.nameLong": "Please use 120 characters or fewer.",
+  "users.error.roleUnknown": "This role is not available now. Nothing can be saved.",
 
   // A6 Audit log
   "audit.title": "Activity log",

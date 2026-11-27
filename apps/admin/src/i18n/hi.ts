@@ -304,6 +304,10 @@ export const hi: Record<keyof typeof en, string> = {
   "users.error.coverage": "कृपया कम से कम एक क्षेत्र चुनें।",
   "users.error.role": "कृपया एक भूमिका चुनें।",
   "users.error.userId": "यह यूज़र आईडी इस्तेमाल नहीं हो सकती।",
+  "users.error.userIdFormat":
+    "3 से 64 छोटे अक्षर, अंक, बिंदु, डैश या अंडरस्कोर इस्तेमाल करें। खाली जगह नहीं।",
+  "users.error.nameLong": "कृपया 120 या उससे कम अक्षर लिखें।",
+  "users.error.roleUnknown": "यह भूमिका अभी उपलब्ध नहीं है। कुछ सहेजा नहीं जा सकता।",
 
   // A6
   "audit.title": "गतिविधि का रिकॉर्ड",
