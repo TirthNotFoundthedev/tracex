@@ -75,9 +75,11 @@ function lookup(api: AdminApi, id: string): Promise<Actor | null> {
   if (!map) cache.set(api, (map = new Map()));
   let found = map.get(id);
   if (!found) {
-    found = api.client.getUser(id).then((result) =>
-      result.kind === "ok" ? { name: result.data.display_name, role: result.data.role } : null,
-    );
+    found = api.client
+      .getUser(id)
+      .then((result) =>
+        result.kind === "ok" ? { name: result.data.display_name, role: result.data.role } : null,
+      );
     map.set(id, found);
   }
   return found;

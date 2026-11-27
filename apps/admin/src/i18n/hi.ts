@@ -158,7 +158,8 @@ export const hi: Record<keyof typeof en, string> = {
   "queue.panel.possible": "कृपया इस लिंक को जाँचें",
   "queue.autoNote": "यह अपने-आप जुड़ा था। ग़लत हो तो इसे वापस ले सकते हैं।",
   "queue.more.score": "मिलान अंक: {score} (100 में से)",
-  "queue.more.levels": "पक्का मिलान {high} से शुरू होता है। संभावित मिलान {medium} से शुरू होता है।",
+  "queue.more.levels":
+    "पक्का मिलान {high} से शुरू होता है। संभावित मिलान {medium} से शुरू होता है।",
   "queue.more.raw": "मामला {case}, जैसा दर्ज है: {text}",
   "queue.reject.title": "इस लिंक को अस्वीकार करें?",
   "queue.reject.body": "दोनों रिकॉर्ड अब एक जैसे नहीं दिखाए जाएँगे।",

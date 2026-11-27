@@ -139,7 +139,8 @@ test("SUPERVISOR shows the area name and no system pages", async () => {
   await signIn(setup(() => json(200, person("SUPERVISOR"))));
   await screen.findByRole("navigation", { name: /Main sections/i });
   expect(navLabels()).toEqual(["Review queue", "Approvals", "Audit log", "Network graph"]);
-  expect(await screen.findByText("Rivergate")).toBeTruthy();
+  // The Area filter on the review queue lists the same name, so look in the header.
+  expect(await within(screen.getByRole("banner")).findByText("Rivergate")).toBeTruthy();
   expect(window.location.pathname).toBe("/review");
 });
 

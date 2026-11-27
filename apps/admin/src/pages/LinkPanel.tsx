@@ -1,4 +1,4 @@
-import {
+﻿import {
   Badge,
   Button,
   ConfirmStep,
@@ -19,7 +19,7 @@ import { FailureView } from "../components/FailureView";
 import { panelContent, groupPhone } from "../explain";
 import { dateOnly } from "../format";
 import { t, type Language, type MessageKey } from "../i18n";
-import { lastDecision, reopeningOf, roleLabel, useActors, type Actor } from "../linkHistory";
+import { lastDecision, reopeningOf, roleLabel, useActors } from "../linkHistory";
 
 type LinkDetail = components["schemas"]["LinkDetail"];
 type Explanation = components["schemas"]["Explanation"];
@@ -67,7 +67,8 @@ function blockedKey(detail: LinkDetail): MessageKey | undefined {
   }
 }
 
-const displayValue = (type: string, value: string) => (type === "PHONE" ? groupPhone(value) : value);
+const displayValue = (type: string, value: string) =>
+  type === "PHONE" ? groupPhone(value) : value;
 
 /**
  * A3b and A3d: the explanation panel with admin detail open, the history of a decided or reopened link,
@@ -100,14 +101,22 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
   const history = load.state === "ready" ? load.detail.history : [];
   const reopening = reopeningOf(history);
   const decision = lastDecision(history);
-  const actors = useActors(api, [decision?.actorId, reopening?.actorId, reopening?.earlier?.actorId]);
+  const actors = useActors(api, [
+    decision?.actorId,
+    reopening?.actorId,
+    reopening?.earlier?.actorId,
+  ]);
 
   if (load.state === "loading") return <Loading label={t("shell.loadingUser", lang)} />;
   if (load.state === "failed") {
     const gone = load.result.kind === "notFound";
     return (
       <div className="admin-page">
-        <FailureView result={load.result} lang={lang} {...(gone ? {} : { onRetry: () => void refresh() })} />
+        <FailureView
+          result={load.result}
+          lang={lang}
+          {...(gone ? {} : { onRetry: () => void refresh() })}
+        />
         <div className="admin-actions">
           <Button variant="secondary" onClick={onBack}>
             {t("queue.backToList", lang)}
@@ -139,7 +148,6 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
     const actor = id ? actors[id] : undefined;
     return actor ? actor.name : t("queue.someone", lang);
   };
-  const withRole = (actor: Actor) => `${actor.name} (${roleLabel(actor.role, lang)})`;
 
   const problem = failure ? (
     <div className="admin-page">
@@ -244,7 +252,15 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
   const decided = detail.state === "REJECTED" || detail.state === "UNDONE";
   const suggested = detail.state === "SUGGESTED";
   const strength = detail.state === "AUTO" || detail.state === "CONFIRMED" ? "strong" : "possible";
-  const primary = canConfirm ? "confirm" : canUndo ? "undo" : canReopen ? "reopen" : canReject ? "reject" : undefined;
+  const primary = canConfirm
+    ? "confirm"
+    : canUndo
+      ? "undo"
+      : canReopen
+        ? "reopen"
+        : canReject
+          ? "reject"
+          : undefined;
   const variant = (which: string) => (primary === which ? "primary" : "secondary");
   const record = (id: string) => explanation.records.find((r) => r.case_id === id);
 
@@ -252,7 +268,9 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
     <div className="admin-page">
       {problem}
       {position ? (
-        <p className="admin-hint">{t("queue.position", lang, { n: position.n, total: position.total })}</p>
+        <p className="admin-hint">
+          {t("queue.position", lang, { n: position.n, total: position.total })}
+        </p>
       ) : null}
       <h2 className="admin-panel-title">
         {t(strength === "strong" && !decided ? "queue.panel.strong" : "queue.panel.possible", lang)}
@@ -369,7 +387,11 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
           </Button>
         ) : null}
         {canUndo ? (
-          <Button variant={variant("undo")} disabled={busy} onClick={() => setView({ name: "undo" })}>
+          <Button
+            variant={variant("undo")}
+            disabled={busy}
+            onClick={() => setView({ name: "undo" })}
+          >
             {t("queue.undo", lang)}
           </Button>
         ) : null}

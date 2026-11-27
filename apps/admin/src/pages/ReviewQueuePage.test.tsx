@@ -52,7 +52,13 @@ function item(over: Record<string, unknown> = {}) {
   };
 }
 
-const source = { case_id: "c1", document_id: "d1", line: 14, page: 2, document_type: "call record" };
+const source = {
+  case_id: "c1",
+  document_id: "d1",
+  line: 14,
+  page: 2,
+  document_type: "call record",
+};
 
 function explanation(over: Record<string, unknown> = {}) {
   return {
@@ -130,7 +136,13 @@ const places = json(200, {
 });
 
 const rejectedHistory = [
-  { from: null, to: "SUGGESTED", at: "2026-03-01T09:00:00Z", actor_kind: "ENGINE", reason_code: "NEW" },
+  {
+    from: null,
+    to: "SUGGESTED",
+    at: "2026-03-01T09:00:00Z",
+    actor_kind: "ENGINE",
+    reason_code: "NEW",
+  },
   {
     from: "SUGGESTED",
     to: "REJECTED",
@@ -166,21 +178,12 @@ function queue(by: { SUGGESTED?: unknown[]; REJECTED?: unknown[]; UNDONE?: unkno
   };
 }
 
-function Harness({
-  api,
-  lang = "en",
-  role = "SUPERVISOR",
-}: {
-  api: AdminApi;
-  lang?: "en" | "hi";
-  role?: Role;
-}) {
+function Harness({ api, lang = "en" }: { api: AdminApi; lang?: "en" | "hi" }) {
   const route = usePath();
   return (
     <ReviewQueuePage
       api={api}
       lang={lang}
-      role={role}
       path={route.path}
       search={route.search}
       navigate={route.navigate}
@@ -198,7 +201,12 @@ function open(routes: Routes, lang: "en" | "hi" = "en", start = "/review") {
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
 
 const rejectedRow = (over: Record<string, unknown> = {}) =>
-  item({ state: "REJECTED", updated_at: "2026-03-12T10:00:00Z", allowed_actions: ["REOPEN"], ...over });
+  item({
+    state: "REJECTED",
+    updated_at: "2026-03-12T10:00:00Z",
+    allowed_actions: ["REOPEN"],
+    ...over,
+  });
 
 const sentBody = (calls: { method: string; path: string; init: RequestInit }[], path: string) =>
   JSON.parse(String(calls.find((c) => c.method === "POST" && c.path === path)?.init.body));
@@ -207,7 +215,7 @@ test("lists the waiting links with the three counts and the columns of the spec"
   const { calls } = open({
     ...queue({ SUGGESTED: [item()], REJECTED: [rejectedRow({ link_id: LINK2 })], UNDONE: [] }),
   });
-  expect(await screen.findByText("24/118")).toBeTruthy();
+  expect((await screen.findAllByText("24/118")).length).toBeGreaterThan(0);
   expect(button("Waiting (1)")).toBeTruthy();
   expect(button("Rejected (1)")).toBeTruthy();
   expect(button("Undone (0)")).toBeTruthy();
@@ -228,10 +236,12 @@ test("lists the waiting links with the three counts and the columns of the spec"
 
 test("the status choice is kept in the page address so Back returns to it", async () => {
   open({ ...queue({ SUGGESTED: [item()], REJECTED: [rejectedRow()] }) });
-  await screen.findByText("24/118");
+  await screen.findAllByText("24/118");
   fireEvent.click(button("Rejected (1)"));
   await waitFor(() => expect(window.location.search).toContain("show=rejected"));
-  expect(await screen.findByText("These links were rejected. A supervisor can reopen them.")).toBeTruthy();
+  expect(
+    await screen.findByText("These links were rejected. A supervisor can reopen them."),
+  ).toBeTruthy();
   window.history.back();
   expect(await screen.findByText("Waiting more than 7 days")).toBeTruthy();
 });
@@ -296,7 +306,9 @@ test("the Undone filter lists undone links with its own columns", async () => {
     "en",
     "/review?show=undone",
   );
-  expect(await screen.findByText("These links were undone. A supervisor can reopen them.")).toBeTruthy();
+  expect(
+    await screen.findByText("These links were undone. A supervisor can reopen them."),
+  ).toBeTruthy();
   expect(await screen.findByText("Charu Singh (Supervisor)")).toBeTruthy();
   expect(screen.getByRole("columnheader", { name: /Undone by/ })).toBeTruthy();
   expect(screen.getByRole("columnheader", { name: /Undone on/ })).toBeTruthy();
@@ -320,50 +332,49 @@ test("empty states say what will appear, and filters that hide everything offer 
   ).toBeTruthy();
   cleanup();
   open({ ...queue({}) }, "en", "/review?old=1");
-  expect(await screen.findByText("Nothing found. Check the filters or try fewer words.")).toBeTruthy();
+  expect(
+    await screen.findByText("Nothing found. Check the filters or try fewer words."),
+  ).toBeTruthy();
   fireEvent.click(button("Clear filters"));
   await waitFor(() => expect(window.location.search).toBe(""));
 });
 
-test("the Type, Area and waiting-time filters narrow the request", async () => {
-  const { calls } = open({ ...queue({ SUGGESTED: [item()] }) });
-  await screen.findByText("24/118");
+test("the Type, Area and waiting-time filters narrow the request and stay in the address", async () => {
+  const { fetchImpl } = open({ ...queue({ SUGGESTED: [item()] }) });
+  await screen.findAllByText("24/118");
   await screen.findByRole("option", { name: "Rivergate" });
   fireEvent.change(screen.getByLabelText("Type"), { target: { value: "PHONE" } });
   fireEvent.change(screen.getByLabelText("Area"), { target: { value: DISTRICT } });
   fireEvent.click(screen.getByLabelText("Waiting more than 7 days"));
   await waitFor(() => {
-    const last = [...calls].reverse().find((c) => c.path === "/review-queue");
-    expect(last).toBeTruthy();
+    const urls = (fetchImpl as unknown as { mock: { calls: [string][] } }).mock.calls
+      .map(([url]) => new URL(String(url)))
+      .filter((url) => url.pathname === "/review-queue" && url.searchParams.get("limit") === "50");
+    const last = urls.at(-1);
+    expect(last?.searchParams.get("entity_type")).toBe("PHONE");
+    expect(last?.searchParams.get("district_id")).toBe(DISTRICT);
+    expect(last?.searchParams.get("waiting_days_min")).toBe("7");
   });
-  await waitFor(() => expect(window.location.search).toContain("old=1"));
-  const request = new URL(
-    String(
-      (calls.filter((c) => c.path === "/review-queue" && c.init.method !== "POST").at(-1) as never as {
-        path: string;
-      }).path,
-    ),
-    "http://x",
-  );
-  expect(request.pathname).toBe("/review-queue");
   expect(window.location.search).toContain("type=PHONE");
   expect(window.location.search).toContain(`area=${DISTRICT}`);
+  expect(window.location.search).toContain("old=1");
 });
-
 test("opening a possible match shows the explanation panel in the fixed order, detail open", async () => {
   open({
     ...queue({ SUGGESTED: [item(), item({ link_id: LINK2 })] }),
     [`GET /links/${LINK}`]: json(200, detail()),
     [`GET /links/${LINK}/explanation`]: json(200, explanation()),
   });
-  await screen.findByText("24/118");
+  await screen.findAllByText("24/118");
   fireEvent.click(screen.getAllByRole("button", { name: "Open" })[0] as HTMLElement);
   expect(await screen.findByText("Please check this link")).toBeTruthy();
   expect(window.location.pathname).toBe(`/review/${LINK}`);
   expect(screen.getByText("Link 1 of 2")).toBeTruthy();
   const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
   expect(headings.indexOf("Why we think so")).toBeGreaterThan(-1);
-  expect(headings.indexOf("Why it may be wrong")).toBeGreaterThan(headings.indexOf("Why we think so"));
+  expect(headings.indexOf("Why it may be wrong")).toBeGreaterThan(
+    headings.indexOf("Why we think so"),
+  );
   expect(headings.indexOf("Where this came from")).toBeGreaterThan(
     headings.indexOf("Why it may be wrong"),
   );
@@ -379,12 +390,12 @@ test("opening a possible match shows the explanation panel in the fixed order, d
 
 test("only Confirm is primary; Reject, Next one and Back are secondary", async () => {
   open({
-    ...queue({ SUGGESTED: [item()] }),
+    ...queue({ SUGGESTED: [item(), item({ link_id: LINK2 })] }),
     [`GET /links/${LINK}`]: json(200, detail()),
     [`GET /links/${LINK}/explanation`]: json(200, explanation()),
   });
-  await screen.findByText("24/118");
-  fireEvent.click(button("Open"));
+  await screen.findAllByText("24/118");
+  fireEvent.click(screen.getAllByRole("button", { name: "Open" })[0] as HTMLElement);
   await screen.findByText("Please check this link");
   expect(button("Confirm they are the same").getAttribute("data-variant")).toBe("primary");
   for (const name of ["Reject this link", "Next one", "Back to the list"]) {
@@ -397,9 +408,12 @@ test("Confirm acts at once and sends the state the officer saw", async () => {
     ...queue({ SUGGESTED: [item(), item({ link_id: LINK2 })] }),
     [`GET /links/${LINK}`]: json(200, detail()),
     [`GET /links/${LINK}/explanation`]: json(200, explanation()),
-    [`POST /links/${LINK}/confirm`]: json(200, detail({ state: "CONFIRMED", allowed_actions: ["REJECT", "UNDO"] })),
+    [`POST /links/${LINK}/confirm`]: json(
+      200,
+      detail({ state: "CONFIRMED", allowed_actions: ["REJECT", "UNDO"] }),
+    ),
   });
-  await screen.findByText("24/118");
+  await screen.findAllByText("24/118");
   fireEvent.click(screen.getAllByRole("button", { name: "Open" })[0] as HTMLElement);
   await screen.findByText("Please check this link");
   fireEvent.click(button("Confirm they are the same"));
@@ -414,9 +428,12 @@ test("Reject needs a reason of 3 to 1000 characters and sends expected_state", a
     ...queue({ SUGGESTED: [item()] }),
     [`GET /links/${LINK}`]: json(200, detail()),
     [`GET /links/${LINK}/explanation`]: json(200, explanation()),
-    [`POST /links/${LINK}/reject`]: json(200, detail({ state: "REJECTED", allowed_actions: ["REOPEN"] })),
+    [`POST /links/${LINK}/reject`]: json(
+      200,
+      detail({ state: "REJECTED", allowed_actions: ["REOPEN"] }),
+    ),
   });
-  await screen.findByText("24/118");
+  await screen.findAllByText("24/118");
   fireEvent.click(button("Open"));
   await screen.findByText("Please check this link");
   fireEvent.click(button("Reject this link"));
@@ -424,7 +441,9 @@ test("Reject needs a reason of 3 to 1000 characters and sends expected_state", a
   expect(screen.getByLabelText(/Why are you rejecting it\?/)).toBeTruthy();
   fireEvent.click(button("Yes, reject"));
   expect(calls.some((c) => c.path.endsWith("/reject"))).toBe(false);
-  fireEvent.change(screen.getByLabelText(/Why are you rejecting it\?/), { target: { value: "ab" } });
+  fireEvent.change(screen.getByLabelText(/Why are you rejecting it\?/), {
+    target: { value: "ab" },
+  });
   fireEvent.click(button("Yes, reject"));
   expect(calls.some((c) => c.path.endsWith("/reject"))).toBe(false);
   fireEvent.change(screen.getByLabelText(/Why are you rejecting it\?/), {
@@ -448,7 +467,7 @@ test("No, go back leaves the reject step with nothing sent", async () => {
     [`GET /links/${LINK}`]: json(200, detail()),
     [`GET /links/${LINK}/explanation`]: json(200, explanation()),
   });
-  await screen.findByText("24/118");
+  await screen.findAllByText("24/118");
   fireEvent.click(button("Open"));
   await screen.findByText("Please check this link");
   fireEvent.click(button("Reject this link"));
@@ -458,25 +477,39 @@ test("No, go back leaves the reject step with nothing sent", async () => {
 });
 
 test("a strong automatic link offers Undo instead of Reject, with its reason step", async () => {
-  const { calls } = open({
-    ...queue({ SUGGESTED: [] }),
-    [`GET /links/${LINK}`]: json(200, detail({ state: "AUTO", band: "HIGH", allowed_actions: ["UNDO"] })),
-    [`GET /links/${LINK}/explanation`]: json(
-      200,
-      explanation({ state: "AUTO", gates: { passed: true, failed: [] } }),
-    ),
-    [`POST /links/${LINK}/undo`]: json(200, detail({ state: "UNDONE", allowed_actions: ["REOPEN"] })),
-  }, "en", `/review/${LINK}`);
+  const { calls } = open(
+    {
+      ...queue({ SUGGESTED: [] }),
+      [`GET /links/${LINK}`]: json(
+        200,
+        detail({ state: "AUTO", band: "HIGH", allowed_actions: ["UNDO"] }),
+      ),
+      [`GET /links/${LINK}/explanation`]: json(
+        200,
+        explanation({ state: "AUTO", gates: { passed: true, failed: [] } }),
+      ),
+      [`POST /links/${LINK}/undo`]: json(
+        200,
+        detail({ state: "UNDONE", allowed_actions: ["REOPEN"] }),
+      ),
+    },
+    "en",
+    `/review/${LINK}`,
+  );
   expect(await screen.findByText("Why these are linked")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Reject this link" })).toBeNull();
-  expect(screen.getByText("This was linked automatically. You can undo it if it is wrong.")).toBeTruthy();
+  expect(
+    screen.getByText("This was linked automatically. You can undo it if it is wrong."),
+  ).toBeTruthy();
   fireEvent.click(button("Undo this link"));
   fireEvent.change(screen.getByLabelText(/Why are you undoing it\?/), {
     target: { value: "Number was reused" },
   });
   fireEvent.click(button("Yes, undo"));
   expect(
-    await screen.findByText("You undid this link. A supervisor can reopen it from the Undone list."),
+    await screen.findByText(
+      "You undid this link. A supervisor can reopen it from the Undone list.",
+    ),
   ).toBeTruthy();
   expect(sentBody(calls, `/links/${LINK}/undo`)).toEqual({
     reason: "Number was reused",
@@ -616,7 +649,12 @@ test("a rejected link the viewer cannot reopen shows the role line, never a grey
       ...queue({}),
       [`GET /links/${LINK}`]: json(
         200,
-        detail({ state: "REJECTED", allowed_actions: [], decision_block: "ROLE_VIEW_ONLY", history: rejectedHistory }),
+        detail({
+          state: "REJECTED",
+          allowed_actions: [],
+          decision_block: "ROLE_VIEW_ONLY",
+          history: rejectedHistory,
+        }),
       ),
       [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
       [`GET /users/${MEENA}`]: json(403),
@@ -734,21 +772,22 @@ test("a failed list load shows the failure with Try again", async () => {
     await screen.findByText("The system is paused for a safety check. Try again later."),
   ).toBeTruthy();
   fireEvent.click(button("Try again"));
-  expect(await screen.findByText("24/118")).toBeTruthy();
+  expect((await screen.findAllByText("24/118")).length).toBeGreaterThan(0);
 });
 
 test("the list shows Show more past the first page", async () => {
   open({
     "GET /review-queue": ({ url }) => {
       const params = new URL(url).searchParams;
-      if (params.get("limit") === "1") return json(200, { items: [], next_cursor: null, total: 80 });
+      if (params.get("limit") === "1")
+        return json(200, { items: [], next_cursor: null, total: 80 });
       return params.get("cursor")
         ? json(200, { items: [item({ link_id: LINK2 })], next_cursor: null, total: 80 })
         : json(200, { items: [item()], next_cursor: "next-page", total: 80 });
     },
     "GET /jurisdictions": places,
   });
-  await screen.findByText("24/118");
+  await screen.findAllByText("24/118");
   fireEvent.click(button("Show more"));
   await waitFor(() => expect(screen.getAllByRole("button", { name: "Open" }).length).toBe(2));
 });
@@ -761,7 +800,7 @@ test("Next one opens the following link in the list", async () => {
     [`GET /links/${LINK2}`]: json(200, detail({ link_id: LINK2 })),
     [`GET /links/${LINK2}/explanation`]: json(200, explanation({ link_id: LINK2 })),
   });
-  await screen.findByText("24/118");
+  await screen.findAllByText("24/118");
   fireEvent.click(screen.getAllByRole("button", { name: "Open" })[0] as HTMLElement);
   await screen.findByText("Link 1 of 2");
   fireEvent.click(button("Next one"));
@@ -784,6 +823,7 @@ test("the page and the panel read in Hindi", async () => {
   expect(await screen.findByText("कृपया इस लिंक को जाँचें")).toBeTruthy();
   expect(t("queue.panel.possible", "hi")).not.toBe(t("queue.panel.possible", "en"));
   expect(screen.getByRole("button", { name: t("queue.confirm", "hi") })).toBeTruthy();
-  expect(within(document.body).getByText(t("queue.more.score", "hi", { score: "62.5" }))).toBeTruthy();
+  expect(
+    within(document.body).getByText(t("queue.more.score", "hi", { score: "62.5" })),
+  ).toBeTruthy();
 });
-

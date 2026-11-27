@@ -169,7 +169,8 @@ export const en = {
   "queue.undo.body": "The two records will no longer be shown as the same.",
   "queue.undo.yes": "Yes, undo",
   "queue.decided.confirmed": "You confirmed this link. The two records are now shown as the same.",
-  "queue.decided.rejected": "You rejected this link. A supervisor can reopen it from the Rejected list.",
+  "queue.decided.rejected":
+    "You rejected this link. A supervisor can reopen it from the Rejected list.",
   "queue.decided.undone": "You undid this link. A supervisor can reopen it from the Undone list.",
   "queue.block.viewOnly": "You can look at this link but not decide it.",
   "queue.block.twoAreas": "This link joins two police areas. Only a senior officer can decide it.",
