@@ -8,7 +8,7 @@ import {
   StrengthBadge,
   Table,
 } from "@tracex/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AdminApi } from "../api";
 import type { FailureResult } from "../api/resultKeys";
@@ -63,6 +63,8 @@ type Load =
       items: Item[];
       next: string | null;
       counts: Counts;
+      /** The API's count for this list; absent when the API leaves it out. */
+      total: number | undefined;
     };
 
 /**
@@ -87,6 +89,10 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [places, setPlaces] = useState<{ value: string; label: string }[]>([]);
   const [more, setMore] = useState(false);
+  const [moreFailure, setMoreFailure] = useState<FailureResult | undefined>();
+  // Each refresh starts a new generation; an answer from an older one is dropped, so a slow answer for
+  // an earlier filter never overwrites the list for the current one (also for Show more).
+  const generation = useRef(0);
 
   // Rejected and undone links list newest first.
   const direction = state === "SUGGESTED" ? sort.dir : "down";
@@ -105,13 +111,17 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
   );
 
   const refresh = useCallback(async () => {
+    const mine = ++generation.current;
     setLoad({ state: "loading" });
+    setMore(false);
+    setMoreFailure(undefined);
     const [list, waiting, rejected, undone] = await Promise.all([
       api.client.listReviewQueue(queryFor()),
       api.client.listReviewQueue({ state: "SUGGESTED", limit: 1 }),
       api.client.listReviewQueue({ state: "REJECTED", limit: 1 }),
       api.client.listReviewQueue({ state: "UNDONE", limit: 1 }),
     ]);
+    if (mine !== generation.current) return;
     for (const result of [list, waiting, rejected, undone]) {
       if (result.kind !== "ok") return setLoad({ state: "failed", result });
     }
@@ -122,6 +132,7 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
       state: "ready",
       items,
       next: list.kind === "ok" ? list.data.next_cursor : null,
+      total: list.kind === "ok" ? list.data.total : undefined,
       counts: { SUGGESTED: totalOf(waiting), REJECTED: totalOf(rejected), UNDONE: totalOf(undone) },
     });
   }, [api, queryFor]);
@@ -192,19 +203,21 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
 
   const filtered = Boolean(entityType || area || old);
   const loadMore = async (cursor: string) => {
+    const mine = generation.current;
     setMore(true);
+    setMoreFailure(undefined);
     const page = await api.client.listReviewQueue(queryFor(cursor));
-    if (page.kind !== "ok") {
-      setMore(false);
-      return setLoad({ state: "failed", result: page });
-    }
+    if (mine !== generation.current) return;
     setMore(false);
+    // The rows already loaded stay; the failure shows under them.
+    if (page.kind !== "ok") return setMoreFailure(page);
     setLoad((now) =>
       now.state === "ready"
         ? {
             ...now,
             items: [...now.items, ...page.data.items],
             next: page.data.next_cursor,
+            total: page.data.total ?? now.total,
           }
         : now,
     );
@@ -379,11 +392,29 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
                 more ? (
                   <Loading />
                 ) : (
-                  <Pager
-                    shown={load.items.length}
-                    total={Math.max(counts?.[state] ?? 0, load.items.length + 1)}
-                    onMore={() => void loadMore(load.next as string)}
-                  />
+                  <>
+                    {moreFailure ? (
+                      <FailureView
+                        result={moreFailure}
+                        lang={lang}
+                        onRetry={() => void loadMore(load.next as string)}
+                      />
+                    ) : null}
+                    {load.total !== undefined ? (
+                      <Pager
+                        shown={load.items.length}
+                        total={load.total}
+                        onMore={() => void loadMore(load.next as string)}
+                      />
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        onClick={() => void loadMore(load.next as string)}
+                      >
+                        {t("pager.more", lang)}
+                      </Button>
+                    )}
+                  </>
                 )
               ) : null}
             </>
