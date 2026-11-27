@@ -42,6 +42,8 @@ function setup(me: MeAnswer) {
       );
     }
     if (url.endsWith("/auth/logout")) return Promise.resolve(json(204));
+    if (url.endsWith("/auth/refresh"))
+      return Promise.resolve(json(401, { code: "UNAUTHENTICATED" }));
     if (url.endsWith("/jurisdictions")) {
       return Promise.resolve(
         json(200, {

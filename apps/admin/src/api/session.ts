@@ -9,7 +9,10 @@ export type SignInResult = ApiResult<User> | { kind: "badCredentials" };
 export type RefreshOutcome =
   | { kind: "refreshed"; token: string }
   | { kind: "signedOut" }
-  | { kind: "unavailable"; reason: "networkError" | "serverError" };
+  | {
+      kind: "unavailable";
+      reason: "networkError" | "serverError" | "safetyPause" | "tooManyAttempts";
+    };
 
 export interface SessionState {
   user: User;
@@ -79,11 +82,16 @@ export function createSession(options: SessionOptions): Session {
       adopt(result.data);
       return { kind: "refreshed", token: result.data.access_token };
     }
+    // Only a refused refresh token (401) ends the session. A pause, a rate limit or an outage keeps it.
+    if (result.kind === "unauthorized") {
+      clear();
+      return { kind: "signedOut" };
+    }
+    if (result.kind === "safetyPause" || result.kind === "tooManyAttempts") {
+      return { kind: "unavailable", reason: result.kind };
+    }
     if (result.kind === "networkError") return { kind: "unavailable", reason: "networkError" };
-    if (result.kind === "serverError") return { kind: "unavailable", reason: "serverError" };
-    // Any other answer means the server refused this refresh token: the session is over.
-    clear();
-    return { kind: "signedOut" };
+    return { kind: "unavailable", reason: "serverError" };
   }
 
   return {
