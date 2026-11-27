@@ -9,6 +9,7 @@ import { entryForPath, navFor, type PageId } from "./nav";
 import { usePath } from "./router";
 
 import { ApprovalsPage } from "./pages/ApprovalsPage";
+import { AuditPage } from "./pages/AuditPage";
 import { MatchingPage } from "./pages/MatchingPage";
 import { ReviewQueuePage } from "./pages/ReviewQueuePage";
 import { ThresholdsPage } from "./pages/ThresholdsPage";
@@ -18,7 +19,7 @@ import { UploadPage } from "./pages/UploadPage";
 type User = components["schemas"]["User"];
 
 /** Pages that are not built yet show the placeholder. */
-const PENDING_PAGES: PageId[] = ["audit", "graph"];
+const PENDING_PAGES: PageId[] = ["graph"];
 
 type Me =
   | { state: "loading" }
@@ -156,6 +157,7 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
             <ThresholdsPage api={api} lang={lang} role={me.user.role} />
           ) : null}
           {current.id === "users" ? <UsersPage api={api} lang={lang} role={me.user.role} /> : null}
+          {current.id === "audit" ? <AuditPage api={api} lang={lang} role={me.user.role} /> : null}
           {PENDING_PAGES.includes(current.id) ? (
             <Message kind="info">{t("shell.placeholder", lang)}</Message>
           ) : null}
