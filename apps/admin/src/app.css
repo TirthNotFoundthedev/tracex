@@ -231,3 +231,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A8: legend left, drawing in the middle, panel right; stacked on a phone. */
+.admin-graph {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr) minmax(14rem, 20rem);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.admin-graph__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+@media (max-width: 64rem) {
+  .admin-graph {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

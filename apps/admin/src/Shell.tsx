@@ -5,11 +5,12 @@ import type { AdminApi } from "./api";
 import { messageKeyFor, type FailureResult } from "./api/resultKeys";
 import type { components } from "./api/schema";
 import { t, type Language } from "./i18n";
-import { entryForPath, navFor, type PageId } from "./nav";
+import { entryForPath, graphEntryForPath, navFor } from "./nav";
 import { usePath } from "./router";
 
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AuditPage } from "./pages/AuditPage";
+import { GraphPage } from "./pages/GraphPage";
 import { MatchingPage } from "./pages/MatchingPage";
 import { ReviewQueuePage } from "./pages/ReviewQueuePage";
 import { ThresholdsPage } from "./pages/ThresholdsPage";
@@ -17,9 +18,6 @@ import { UsersPage } from "./pages/UsersPage";
 import { UploadPage } from "./pages/UploadPage";
 
 type User = components["schemas"]["User"];
-
-/** Pages that are not built yet show the placeholder. */
-const PENDING_PAGES: PageId[] = ["graph"];
 
 type Me =
   | { state: "loading" }
@@ -69,7 +67,10 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
 
   const user = me.state === "ready" ? me.user : undefined;
   const entries = user ? navFor(user.role) : [];
-  const current = user ? entryForPath(user.role, path) : undefined;
+  // An administrator who opens the graph address gets a plain "not available" page, not a silent redirect.
+  const current = user
+    ? (entryForPath(user.role, path) ?? graphEntryForPath(user.role, path))
+    : undefined;
   const first = entries[0];
 
   // A path this role has no menu item for goes to its first page.
@@ -158,9 +159,7 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
           ) : null}
           {current.id === "users" ? <UsersPage api={api} lang={lang} role={me.user.role} /> : null}
           {current.id === "audit" ? <AuditPage api={api} lang={lang} role={me.user.role} /> : null}
-          {PENDING_PAGES.includes(current.id) ? (
-            <Message kind="info">{t("shell.placeholder", lang)}</Message>
-          ) : null}
+          {current.id === "graph" ? <GraphPage api={api} lang={lang} role={me.user.role} /> : null}
         </main>
       </div>
     </>

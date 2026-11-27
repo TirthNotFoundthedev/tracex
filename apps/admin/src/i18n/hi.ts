@@ -15,7 +15,6 @@ export const hi: Record<keyof typeof en, string> = {
   "nav.graph": "लिंक का नेटवर्क",
   "shell.notForRole": "यह पैनल सुपरवाइज़र, वरिष्ठ अधिकारियों और एडमिन के लिए है।",
   "shell.loadingUser": "आपका ब्योरा लोड हो रहा है...",
-  "shell.placeholder": "यह पेज बन रहा है।",
   "shell.noArea": "सभी क्षेत्र",
 
   // Sign in
@@ -430,4 +429,9 @@ export const hi: Record<keyof typeof en, string> = {
   "graphPage.selected": "चुनी हुई वस्तु",
   "graphPage.nothingSelected": "यह देखने के लिए कि वह क्यों जुड़ी है, कोई वस्तु चुनें।",
   "graphPage.notAvailable": "नेटवर्क केवल मामले की पहुँच वाले अधिकारियों के लिए है।",
+  "graphPage.results": "मिले नतीजे",
+  "graphPage.links": "इस वस्तु के लिंक",
+  "graphPage.linkRow": "{name} से: {strength}",
+  "graphPage.seeWhy": "देखें कि ये क्यों जुड़े हैं",
+  "graphPage.noLinks": "इस वस्तु के लिए कोई लिंक नहीं दिखाया गया है।",
 };
