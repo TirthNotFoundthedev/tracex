@@ -246,8 +246,11 @@ test("the status choice is kept in the page address so Back returns to it", asyn
   expect(await screen.findByText("Waiting more than 7 days")).toBeTruthy();
 });
 
-test("the Rejected table shows who, when and why, with no strength badge", async () => {
-  open(
+const linkCalls = (calls: { method: string; path: string }[]) =>
+  calls.filter((c) => c.path.startsWith("/links/") || c.path.startsWith("/users/"));
+
+test("the Rejected table reads only the queue: no link or user call, no who or why, a Last change date", async () => {
+  const { calls } = open(
     {
       ...queue({ SUGGESTED: [], REJECTED: [rejectedRow()] }),
       [`GET /links/${LINK}`]: json(200, detail({ state: "REJECTED", history: rejectedHistory })),
@@ -256,63 +259,63 @@ test("the Rejected table shows who, when and why, with no strength badge", async
     "en",
     "/review?show=rejected",
   );
-  expect(await screen.findByText("Meena Rao (Investigating officer)")).toBeTruthy();
-  expect(screen.getByText("12 Mar 2026")).toBeTruthy();
-  expect(screen.getByText("Different people. Ages differ by 12 years.")).toBeTruthy();
-  for (const header of ["Rejected by", "Rejected on", "Reason"]) {
+  expect((await screen.findAllByText("24/118")).length).toBeGreaterThan(0);
+  for (const header of ["Item", "Case A", "Case B", "Last change"]) {
     expect(screen.getByRole("columnheader", { name: new RegExp(header) })).toBeTruthy();
   }
-  expect(screen.queryByText(/Score:/)).toBeNull();
-  expect(screen.queryByText("Waiting more than 7 days")).toBeNull();
+  for (const header of ["Rejected by", "Rejected on", "Reason", "Strength"]) {
+    expect(screen.queryByRole("columnheader", { name: new RegExp(header) })).toBeNull();
+  }
+  expect(screen.getByText("12 Mar 2026")).toBeTruthy();
+  expect(screen.queryByText("Meena Rao (Investigating officer)")).toBeNull();
+  expect(screen.queryByText("Different people. Ages differ by 12 years.")).toBeNull();
+  expect(linkCalls(calls)).toEqual([]);
 });
 
-test("when a supervisor cannot read the person's details, the row still shows the date", async () => {
-  open(
-    {
-      ...queue({ REJECTED: [rejectedRow()] }),
-      [`GET /links/${LINK}`]: json(200, detail({ state: "REJECTED", history: rejectedHistory })),
-      [`GET /users/${MEENA}`]: json(403),
-    },
-    "en",
-    "/review?show=rejected",
+test("many rejected rows still make no per-row call", async () => {
+  const rows = Array.from({ length: 50 }, (_, i) =>
+    rejectedRow({ link_id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}` }),
   );
-  expect(await screen.findByText("12 Mar 2026")).toBeTruthy();
-  expect(screen.getByText("Different people. Ages differ by 12 years.")).toBeTruthy();
+  const { calls } = open(queue({ REJECTED: rows }), "en", "/review?show=rejected");
+  await waitFor(() => expect(screen.getAllByRole("button", { name: "Open" }).length).toBe(50));
+  expect(linkCalls(calls)).toEqual([]);
 });
 
-test("the Undone filter lists undone links with its own columns", async () => {
-  open(
-    {
-      ...queue({ UNDONE: [item({ state: "UNDONE", allowed_actions: ["REOPEN"] })] }),
-      [`GET /links/${LINK}`]: json(
-        200,
-        detail({
-          state: "UNDONE",
-          history: [
-            {
-              from: "AUTO",
-              to: "UNDONE",
-              at: "2026-03-12T10:00:00Z",
-              actor_kind: "USER",
-              actor_user_id: CHARU,
-              reason_code: "UNDONE",
-              reason_text: "Number was reused.",
-            },
-          ],
-        }),
-      ),
-      [`GET /users/${CHARU}`]: user(CHARU, "Charu Singh", "SUPERVISOR"),
-    },
+test("the Undone filter lists undone links with its own intro and no per-row call", async () => {
+  const { calls } = open(
+    queue({ UNDONE: [item({ state: "UNDONE", allowed_actions: ["REOPEN"] })] }),
     "en",
     "/review?show=undone",
   );
   expect(
     await screen.findByText("These links were undone. A supervisor can reopen them."),
   ).toBeTruthy();
-  expect(await screen.findByText("Charu Singh (Supervisor)")).toBeTruthy();
-  expect(screen.getByRole("columnheader", { name: /Undone by/ })).toBeTruthy();
-  expect(screen.getByRole("columnheader", { name: /Undone on/ })).toBeTruthy();
-  expect(screen.getByText("Number was reused.")).toBeTruthy();
+  expect(screen.getByRole("columnheader", { name: /Last change/ })).toBeTruthy();
+  expect(screen.queryByRole("columnheader", { name: /Undone by/ })).toBeNull();
+  expect(linkCalls(calls)).toEqual([]);
+});
+
+test("opening a rejected link makes one link call and shows who, when and why in the panel", async () => {
+  const { calls } = open(
+    {
+      ...queue({ REJECTED: [rejectedRow()] }),
+      [`GET /links/${LINK}`]: json(
+        200,
+        detail({ state: "REJECTED", allowed_actions: ["REOPEN"], history: rejectedHistory }),
+      ),
+      [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
+      [`GET /users/${MEENA}`]: user(MEENA, "Meena Rao", "INVESTIGATOR"),
+    },
+    "en",
+    "/review?show=rejected",
+  );
+  await screen.findAllByText("24/118");
+  fireEvent.click(button("Open"));
+  expect(
+    await screen.findByText("Rejected by Meena Rao (Investigating officer) on 12 Mar 2026"),
+  ).toBeTruthy();
+  expect(screen.getByText("Reason: Different people. Ages differ by 12 years.")).toBeTruthy();
+  expect(calls.filter((c) => c.path === `/links/${LINK}`).length).toBe(1);
 });
 
 test("empty states say what will appear, and filters that hide everything offer Clear filters", async () => {

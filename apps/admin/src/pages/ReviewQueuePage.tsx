@@ -17,7 +17,6 @@ import { FailureView } from "../components/FailureView";
 import { renderTemplate, groupPhone } from "../explain";
 import { dateOnly } from "../format";
 import { t, type AnyMessageKey, type Language } from "../i18n";
-import { lastDecision, roleLabel, useActors, type Decision } from "../linkHistory";
 import { LinkPanel } from "./LinkPanel";
 
 type Item = components["schemas"]["ReviewQueueItem"];
@@ -64,7 +63,6 @@ type Load =
       items: Item[];
       next: string | null;
       counts: Counts;
-      decisions: Record<string, Decision | undefined>;
     };
 
 /**
@@ -106,20 +104,6 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
     [state, entityType, area, old, sort.id, direction],
   );
 
-  const decisionsFor = useCallback(
-    async (items: Item[]) => {
-      const found: Record<string, Decision | undefined> = {};
-      if (state === "SUGGESTED") return found;
-      const details = await Promise.all(items.map((item) => api.client.getLink(item.link_id)));
-      details.forEach((detail, index) => {
-        const id = items[index]?.link_id;
-        if (id && detail.kind === "ok") found[id] = lastDecision(detail.data.history);
-      });
-      return found;
-    },
-    [api, state],
-  );
-
   const refresh = useCallback(async () => {
     setLoad({ state: "loading" });
     const [list, waiting, rejected, undone] = await Promise.all([
@@ -134,15 +118,13 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
     const totalOf = (page: typeof waiting) =>
       page.kind === "ok" ? (page.data.total ?? page.data.items.length) : 0;
     const items = list.kind === "ok" ? list.data.items : [];
-    const decisions = await decisionsFor(items);
     setLoad({
       state: "ready",
       items,
       next: list.kind === "ok" ? list.data.next_cursor : null,
       counts: { SUGGESTED: totalOf(waiting), REJECTED: totalOf(rejected), UNDONE: totalOf(undone) },
-      decisions,
     });
-  }, [api, queryFor, decisionsFor]);
+  }, [api, queryFor]);
 
   useEffect(() => {
     if (!linkId) void refresh();
@@ -158,10 +140,6 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
       );
     });
   }, [api]);
-
-  const actorIds =
-    load.state === "ready" ? Object.values(load.decisions).map((d) => d?.actorId) : [];
-  const actors = useActors(api, actorIds);
 
   const go = (next: { show?: State; type?: string; area?: string; old?: boolean }) => {
     const q = new URLSearchParams();
@@ -220,7 +198,6 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
       setMore(false);
       return setLoad({ state: "failed", result: page });
     }
-    const decisions = await decisionsFor(page.data.items);
     setMore(false);
     setLoad((now) =>
       now.state === "ready"
@@ -228,18 +205,9 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
             ...now,
             items: [...now.items, ...page.data.items],
             next: page.data.next_cursor,
-            decisions: { ...now.decisions, ...decisions },
           }
         : now,
     );
-  };
-
-  const who = (id: string): string => {
-    const decision = load.state === "ready" ? load.decisions[id] : undefined;
-    if (!decision?.actorId) return "";
-    if (!(decision.actorId in actors)) return "";
-    const actor = actors[decision.actorId];
-    return actor ? `${actor.name} (${roleLabel(actor.role, lang)})` : "-";
   };
 
   const itemText = (item: Item) => {
@@ -254,7 +222,7 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
   };
 
   const decided = state !== "SUGGESTED";
-  const columnsFor = (rows: Item[], decisions: Record<string, Decision | undefined>) => {
+  const columnsFor = () => {
     const caseColumns = [
       {
         id: "caseA",
@@ -303,23 +271,16 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
         },
       ];
     }
-    const by = state === "REJECTED" ? "queue.col.rejectedBy" : "queue.col.undoneBy";
-    const on = state === "REJECTED" ? "queue.col.rejectedOn" : "queue.col.undoneOn";
-    void rows;
+    // The queue does not say who decided or why; that is in the opened link. `updated_at` is the last change
+    // of any kind, so the column says so and is never called a decision date.
     return [
       item,
       ...caseColumns,
-      { id: "by", header: t(by, lang), cell: (r: Item) => who(r.link_id) },
       {
-        id: "on",
-        header: t(on, lang),
+        id: "changed",
+        header: t("queue.col.lastChange", lang),
         numeric: true,
-        cell: (r: Item) => dateOnly(decisions[r.link_id]?.at ?? r.updated_at, lang),
-      },
-      {
-        id: "why",
-        header: t("queue.col.reason", lang),
-        cell: (r: Item) => decisions[r.link_id]?.reason ?? "",
+        cell: (r: Item) => dateOnly(r.updated_at, lang),
       },
     ];
   };
@@ -400,7 +361,7 @@ export function ReviewQueuePage({ api, lang, path, search, navigate }: ReviewQue
                 caption={t("queue.title", lang)}
                 rows={load.items}
                 rowKey={(row) => row.link_id}
-                columns={columnsFor(load.items, load.decisions)}
+                columns={columnsFor()}
                 onOpenRow={(row) => openLink(row.link_id)}
                 {...(state === "SUGGESTED"
                   ? { sort: { columnId: sort.id, direction: sort.dir } }
