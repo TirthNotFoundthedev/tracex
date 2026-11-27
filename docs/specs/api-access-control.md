@@ -114,6 +114,18 @@ Names and vehicles are not masked in the MVP. **PHONE and ACCOUNT values** (and 
 | Formats (fixed) | Phone: first 2 and last 4 digits, the rest `x` (`98xxxx1234`). Account: last 4 digits behind exactly 8 `x`, whatever its length. |
 | Test | For each masked view (entity, list, explanation, graph, cluster, path, queue, stub-adjacent) scan the response body for every seeded full value; none may appear. |
 
+### 4.2 Actor names and reasons on queue items (TIR-85)
+**Actor names.** `actor` on a history entry or on `last_decision` is a `UserRef` (name and role) only when the viewer may already know that person. The API checks this in the policy layer from the database at read time, never from the token, using the actor's current user record:
+- the viewer is the actor; or
+- the viewer is a SUPERVISOR, the actor is a JUNIOR, INVESTIGATOR or SUPERVISOR, and the actor's district is the viewer's district (chain of command, audit spec section 7 (b)); or
+- the viewer is a SENIOR and `GET /users/{actor}` would return 200 for that viewer (actor inside coverage).
+
+In every other case `actor` is `null`. This covers a JUNIOR or INVESTIGATOR viewing anyone else's decision, a SUPERVISOR viewing a SENIOR's decision, an actor outside the viewer's scope or coverage, and a SYSTEM or ADMIN actor. A null `actor` carries no role, district or partial name. `actor_user_id` stays as it is today. Resolving `actor` writes no audit row of its own, neither a user read nor an ACCESS_DENIED.
+
+**Reason on queue items.** `last_decision.reason_text` follows the same rule as `reason_text` in link history: it is returned only when both ends of the link are ALLOW for the viewer by their own scope, never under a grant. It is built by the same policy function as the history entry (R5). Queue items are ALLOW-only by own scope (section 4), so every viewer who receives the queue item may receive its reason. `last_decision` is null for SUGGESTED items.
+
+**Counts.** `total` on every page counts only the items the viewer may see (ALLOW), with the page's filters applied. It never includes stubs, grant-only links or hidden items.
+
 ## 5. Access-request lifecycle
 | Item | Rule |
 |---|---|
@@ -197,6 +209,11 @@ Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 RE
 | A47 | test | Walk the route table | Every route has a policy and an audit event |
 | A52 | bharat | `GET /links/{id}`, its explanation and a stub of a WITHDRAWN link | Same 404 as a random id; not listed anywhere |
 | A53 | hari | Start a run scoped to one batch, then read the run | Matched against all loaded cases; response has totals of AUTO and SUGGESTED created only: no LOW count, no per-case or per-pair counts |
+| A54 | charu | Review queue, REJECTED, after bharat (INVESTIGATOR, Rivergate) rejected a Rivergate-only link; and after deepak (SENIOR) did | `last_decision.actor` is bharat's `UserRef`; `null` for deepak. Same on `GET /links/{id}` history |
+| A55 | asha | Queue, UNDONE, after charu undid a link; and a link whose stored decider is asha | `actor` null; asha's own `UserRef` for her own decision |
+| A56 | deepak | Queue, after meena (all-state SENIOR) rejected a Rivergate-only link | `actor` null: `GET /users/{meena}` would be 404 for deepak |
+| A57 | charu | One review-queue page with `last_decision` | Exactly one REVIEW_QUEUE_VIEWED row; no LINK_VIEWED, user-read or ACCESS_DENIED row; no name or reason text in the log |
+| A58 | bharat / deepak | Review queue `total` with and without filters | Equals the number of ALLOW items matching the filters (bharat 1, deepak 3 of the three SUGGESTED person links) |
 | A49 | deepak | Approve an ASSIGNMENT_ADD naming C-301 for a Northvale officer; approve a USER_CREATE of a SENIOR covering Eastmark | 404 (case district outside coverage); 404 (new coverage not a subset) |
 | A50 | asha, isha, bharat | Fetch entity, list, explanation of a phone in C-102 (asha: own case) and in C-201 under a grant held by isha (JUNIOR) | asha sees it in full; the other masked (`98xxxx1234`); the full value is in no field of the body |
 | A51 | hari | `GET /stats/links` | One object of totals; no parameters, no breakdown; any officer role 404; `/review-queue` 404 for hari |

@@ -9,7 +9,15 @@ from tracex_api.context import OFFICER, Ctx, authed_ctx, endpoint, iso
 from tracex_api.db import many
 from tracex_api.errors import invalid
 from tracex_api.policy import LinkAccess, allowed_actions
-from tracex_api.views import as_uuid, link_cases, link_facts, link_summaries, page_slice
+from tracex_api.views import (
+    actor_refs,
+    as_uuid,
+    last_decision,
+    link_cases,
+    link_facts,
+    link_summaries,
+    page_slice,
+)
 
 router = APIRouter()
 
@@ -43,13 +51,15 @@ def list_review_queue(
     if district_id is not None and as_uuid(district_id) is None:
         raise invalid("district_id", "invalid_uuid")
     rows = many(ctx.conn, "SELECT * FROM links WHERE state = %s", (state,))
-    since: dict[str, Any] = {}
-    for r in many(
-        ctx.conn,
-        "SELECT link_id, max(at) AS at FROM link_history WHERE to_state = %s GROUP BY link_id",
-        (state,),
-    ):
-        since[str(r["link_id"])] = r["at"]
+    latest = {
+        str(r["link_id"]): r
+        for r in many(
+            ctx.conn,
+            "SELECT DISTINCT ON (link_id) * FROM link_history WHERE to_state = %s "
+            "ORDER BY link_id, id DESC",
+            (state,),
+        )
+    }
     items = []
     now = ctx.now()
     for f in link_facts(ctx, rows):
@@ -59,7 +69,8 @@ def list_review_queue(
             continue
         if district_id and district_id.lower() not in (f.a.district_id, f.b.district_id):
             continue
-        waiting = since.get(f.link_id) or f.row["created_at"]
+        entered = latest.get(f.link_id)
+        waiting = entered["at"] if entered else f.row["created_at"]
         if waiting_days_min and now - waiting < timedelta(days=waiting_days_min):
             continue
         items.append((f, waiting))
@@ -75,13 +86,23 @@ def list_review_queue(
     }  # fmt: skip
     chunk, token = page_slice(ctx, items, limit, cursor, filters, "queue")
     summaries = link_summaries(ctx, [f for f, _ in chunk])
+    decided = state != "SUGGESTED"
+    actors = (
+        actor_refs(
+            ctx, (latest[f.link_id]["actor_user_id"] for f, _ in chunk if f.link_id in latest)
+        )
+        if decided
+        else {}
+    )
     out = []
     for (f, waiting), summary in zip(chunk, summaries, strict=True):
+        entry = latest.get(f.link_id)
         out.append(
             {
                 **summary,
                 "waiting_since": iso(waiting),
                 "allowed_actions": allowed_actions(ctx.me, f.row["state"], f.a, f.b, False),
+                "last_decision": last_decision(f, entry, actors) if decided and entry else None,
             }
         )
     ctx.audit(

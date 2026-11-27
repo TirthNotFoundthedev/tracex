@@ -163,6 +163,34 @@ def allowed_actions(
     ]
 
 
+def can_read_user(principal: Principal, role: str, district_id: str | None) -> bool:
+    """`GET /users/{id}` answers 200 for a SENIOR (coverage) or ADMIN (everyone)."""
+    if principal.role == "ADMIN":
+        return True
+    if role in ("SENIOR", "ADMIN"):
+        return principal.coverage_all
+    return district_id is not None and principal.covers_district(district_id)
+
+
+def may_name_actor(principal: Principal, actor_id: str, role: str, district_id: str | None) -> bool:
+    """Access spec 4.2: a deciding person is named only to the person themselves, to the
+    SUPERVISOR of their district (JUNIOR, INVESTIGATOR or SUPERVISOR actors), or to a SENIOR who
+    could read them through `GET /users/{id}`. Everyone else, and any ADMIN actor, gets null."""
+    if actor_id == principal.user_id:
+        return True
+    if role == "ADMIN":
+        return False
+    if principal.role == "SUPERVISOR":
+        return (
+            role in ("JUNIOR", "INVESTIGATOR", "SUPERVISOR")
+            and district_id is not None
+            and district_id == principal.district_id
+        )
+    if principal.role == "SENIOR":
+        return can_read_user(principal, role, district_id)
+    return False
+
+
 def final_block(state: str) -> str | None:
     return "STATE_FINAL" if state == "WITHDRAWN" else None
 

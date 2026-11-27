@@ -27,6 +27,7 @@ from tracex_api.policy import (
     final_block,
     link_access,
     mask_value,
+    may_name_actor,
 )
 from tracex_api.security import CursorError, open_cursor, seal_cursor
 
@@ -546,11 +547,49 @@ def decision_view(ctx: Ctx, f: LinkFacts) -> tuple[list[str], str | None]:
     return [], final_block(f.row["state"]) or "STATE_FINAL"
 
 
+def actor_refs(ctx: Ctx, user_ids: Iterable[Any]) -> dict[str, dict[str, Any] | None]:
+    """The `UserRef` of each deciding person the caller may know (access spec 4.2), else None.
+    Read from the current user record in one query; writes no audit row."""
+    ids = {u for u in user_ids if u}
+    refs: dict[str, dict[str, Any] | None] = {str(u): None for u in ids}
+    if not ids:
+        return refs
+    for u in many(
+        ctx.conn,
+        "SELECT id, display_name, role, district_id FROM users WHERE id = ANY(%s)",
+        (list(ids),),
+    ):
+        district = str(u["district_id"]) if u["district_id"] else None
+        if may_name_actor(ctx.me, str(u["id"]), u["role"], district):
+            refs[str(u["id"])] = {
+                "user_id": str(u["id"]),
+                "display_name": u["display_name"],
+                "role": u["role"],
+            }
+    return refs
+
+
+def decision_reason(f: LinkFacts, h: Row) -> str | None:
+    """The deciding officer's free text: never under a grant (one rule for history and queue)."""
+    return None if f.via_grant else h["reason_text"]
+
+
+def last_decision(f: LinkFacts, h: Row, actors: dict[str, dict[str, Any] | None]) -> dict[str, Any]:
+    return {
+        "to": h["to_state"],
+        "at": iso(h["at"]),
+        "actor": actors.get(str(h["actor_user_id"])) if h["actor_user_id"] else None,
+        "reason_text": decision_reason(f, h),
+    }
+
+
 def link_detail(ctx: Ctx, f: LinkFacts) -> dict[str, Any]:
     summary = link_summaries(ctx, [f])[0]
     actions, block = decision_view(ctx, f)
+    rows = overlay_history(ctx, f.row["link_id"])
+    actors = {} if f.via_grant else actor_refs(ctx, (h["actor_user_id"] for h in rows))
     history = []
-    for h in overlay_history(ctx, f.row["link_id"]):
+    for h in rows:
         entry: dict[str, Any] = {"from": h["from_state"], "to": h["to_state"], "at": iso(h["at"])}
         if f.via_grant:
             entry["reason_code"] = h["reason_code"]
@@ -558,8 +597,9 @@ def link_detail(ctx: Ctx, f: LinkFacts) -> dict[str, Any]:
             entry.update(
                 actor_kind=h["actor_kind"],
                 actor_user_id=str(h["actor_user_id"]) if h["actor_user_id"] else None,
+                actor=actors.get(str(h["actor_user_id"])) if h["actor_user_id"] else None,
                 reason_code=h["reason_code"],
-                reason_text=h["reason_text"],
+                reason_text=decision_reason(f, h),
             )
         history.append(entry)
     return {
