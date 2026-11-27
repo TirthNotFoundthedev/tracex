@@ -188,3 +188,12 @@
   align-items: flex-end;
   gap: var(--space-3);
 }
+
+/* One line with an ellipsis; the full text is in the opened link and in the title. */
+.admin-cell-clip {
+  display: block;
+  max-inline-size: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

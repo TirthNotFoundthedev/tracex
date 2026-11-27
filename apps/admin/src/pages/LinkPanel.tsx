@@ -19,7 +19,7 @@ import { FailureView } from "../components/FailureView";
 import { panelContent, groupPhone } from "../explain";
 import { dateOnly } from "../format";
 import { t, type Language, type MessageKey } from "../i18n";
-import { lastDecision, reopeningOf, roleLabel, useActors } from "../linkHistory";
+import { lastDecision, reopeningOf, roleLabel, type Actor } from "../linkHistory";
 
 type LinkDetail = components["schemas"]["LinkDetail"];
 type Explanation = components["schemas"]["Explanation"];
@@ -101,11 +101,6 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
   const history = load.state === "ready" ? load.detail.history : [];
   const reopening = reopeningOf(history);
   const decision = lastDecision(history);
-  const actors = useActors(api, [
-    decision?.actorId,
-    reopening?.actorId,
-    reopening?.earlier?.actorId,
-  ]);
 
   if (load.state === "loading") return <Loading label={t("loading.default", lang)} />;
   if (load.state === "failed") {
@@ -127,11 +122,6 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
   }
 
   const { detail, explanation } = load;
-  const waitingForNames = [decision?.actorId, reopening?.actorId, reopening?.earlier?.actorId].some(
-    (id) => id !== undefined && !(id in actors),
-  );
-  if (waitingForNames) return <Loading label={t("loading.default", lang)} />;
-
   async function decide(
     outcome: Outcome,
     run: () => Promise<ApiResult<LinkDetail>>,
@@ -144,10 +134,8 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
     else setFailure(result);
   }
 
-  const nameOf = (id: string | undefined): string => {
-    const actor = id ? actors[id] : undefined;
-    return actor ? actor.name : t("queue.someone", lang);
-  };
+  const nameOf = (actor: Actor | null | undefined): string =>
+    actor ? actor.name : t("queue.someone", lang);
 
   const problem = failure ? (
     <div className="admin-page">
@@ -271,7 +259,7 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
         <Message kind="info">
           <span className="admin-block">
             {(() => {
-              const actor = decision.actorId ? actors[decision.actorId] : undefined;
+              const actor = decision.actor;
               const date = dateOnly(decision.at, lang);
               const key = decision.state === "REJECTED" ? "queue.rejected" : "queue.undone";
               return actor
@@ -300,9 +288,9 @@ export function LinkPanel({ api, lang, linkId, position, onBack, onOpen }: LinkP
         <>
           <p className="admin-body">
             {t("queue.reopened.history", lang, {
-              name: nameOf(reopening.actorId),
+              name: nameOf(reopening.actor),
               date: dateOnly(reopening.at, lang),
-              name2: nameOf(reopening.earlier?.actorId),
+              name2: nameOf(reopening.earlier?.actor),
               date2: reopening.earlier ? dateOnly(reopening.earlier.at, lang) : "",
             })}
           </p>
