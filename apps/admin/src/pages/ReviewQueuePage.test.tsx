@@ -1,12 +1,10 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { useEffect, useState } from "react";
 import { afterEach, beforeEach, expect, test } from "vitest";
 
 import { createApi, type AdminApi } from "../api";
 import { t } from "../i18n";
-import type { Role } from "../nav";
 import { usePath } from "../router";
-import { DISTRICT, fakeApi, json, renderPage, type Answer, type Routes } from "../testing";
+import { DISTRICT, fakeApi, json, renderPage, type Routes } from "../testing";
 import { ReviewQueuePage } from "./ReviewQueuePage";
 
 afterEach(cleanup);
@@ -155,18 +153,6 @@ const rejectedHistory = [
     reason_text: "Different people. Ages differ by 12 years.",
   },
 ];
-
-function user(id: string, name: string, role: Role) {
-  return json(200, {
-    user_id: id,
-    user_name: name.toLowerCase(),
-    display_name: name,
-    role,
-    district_id: DISTRICT,
-    active: true,
-    created_at: "2026-01-01T00:00:00Z",
-  });
-}
 
 /** Queue answers by `state`; each total is the number of items listed for it. */
 function queue(by: { SUGGESTED?: unknown[]; REJECTED?: unknown[]; UNDONE?: unknown[] }): Routes {
@@ -743,7 +729,7 @@ test("a rejected link the viewer cannot reopen shows the role line, never a grey
           state: "REJECTED",
           allowed_actions: [],
           decision_block: "ROLE_VIEW_ONLY",
-          history: rejectedHistory,
+          history: rejectedHistory.map((e) => ("actor" in e ? { ...e, actor: null } : e)),
         }),
       ),
       [`GET /links/${LINK}/explanation`]: json(200, explanation({ state: "REJECTED" })),
