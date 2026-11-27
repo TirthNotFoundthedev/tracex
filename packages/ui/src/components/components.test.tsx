@@ -390,6 +390,43 @@ describe("explanation", () => {
 });
 
 describe("RestrictedCard (section 10)", () => {
+  test("emphasis: primary by default, secondary when asked (section 5, one primary per screen)", () => {
+    const { rerender } = ui(
+      <RestrictedCard itemType="phone" itemValue="98xxxx1234" onAskForAccess={() => {}} />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Ask for access" }).getAttribute("data-variant"),
+    ).toBe("primary");
+    rerender(
+      <UiProvider lang="en">
+        <RestrictedCard
+          itemType="phone"
+          itemValue="98xxxx1234"
+          emphasis="secondary"
+          onAskForAccess={() => {}}
+        />
+      </UiProvider>,
+    );
+    expect(
+      screen.getByRole("button", { name: "Ask for access" }).getAttribute("data-variant"),
+    ).toBe("secondary");
+  });
+
+  test("emphasis also applies to Ask again after a refusal", () => {
+    ui(
+      <RestrictedCard
+        itemType="phone"
+        itemValue="98xxxx1234"
+        refused={{}}
+        emphasis="secondary"
+        onAskAgain={() => {}}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: en["restricted.askAgain"] }).getAttribute("data-variant"),
+    ).toBe("secondary");
+  });
+
   test("shows lock, Another police area, the officer's own item and Ask for access", () => {
     const onAsk = vi.fn();
     const { container } = ui(
@@ -542,6 +579,16 @@ describe("feedback", () => {
     ui(<EmptyState title="No cases yet." hint="Ask your supervisor to add your cases." />);
     expect(screen.getByText("No cases yet.")).toBeTruthy();
     expect(screen.getByText("Ask your supervisor to add your cases.")).toBeTruthy();
+  });
+
+  test('EmptyState with hint="" draws no hint line and no empty element', () => {
+    const { container } = ui(<EmptyState title="We could not find that." hint="" />);
+    expect(screen.getByText("We could not find that.")).toBeTruthy();
+    expect(screen.queryByText(en["empty.hint"])).toBeNull();
+    expect(container.querySelector(".tx-empty .tx-body")).toBeNull();
+    expect(Array.from(container.querySelectorAll(".tx-empty p")).every((e) => e.textContent)).toBe(
+      true,
+    );
   });
 
   test("Loading adds the slow line after 10 seconds and uses no motion", () => {

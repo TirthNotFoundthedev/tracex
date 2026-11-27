@@ -175,7 +175,10 @@ export function ConfirmStep({
 export interface EmptyStateProps {
   /** Why it is empty: "No cases yet." */
   title: string;
-  /** What next: "Ask your supervisor to add your cases." Defaults to a plain line. */
+  /**
+   * What next: "Ask your supervisor to add your cases." Defaults to a plain line.
+   * An empty string draws no hint line, for a state whose action already says what next.
+   */
   hint?: string;
   action?: ReactNode;
 }
@@ -188,7 +191,7 @@ export function EmptyState({ title, hint, action }: EmptyStateProps) {
         <Icon name="info" />
         <span>{title}</span>
       </p>
-      <p className="tx-body">{hint ?? t("empty.hint")}</p>
+      {hint === "" ? null : <p className="tx-body">{hint ?? t("empty.hint")}</p>}
       {action ? <div className="tx-actions">{action}</div> : null}
     </div>
   );
