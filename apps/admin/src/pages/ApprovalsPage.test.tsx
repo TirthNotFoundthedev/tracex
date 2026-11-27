@@ -628,3 +628,10 @@ test("for turning a user on or off, Now shows the value the server recorded", as
   expect(screen.getAllByText("Turned off")).toHaveLength(2);
   expect(screen.queryByText("Active")).toBeNull();
 });
+
+test("clicking the tab that is already open keeps its count", async () => {
+  setup("SENIOR", { "GET /access-requests": page([request()], 7) });
+  const tab = await screen.findByRole("button", { name: "Access requests (7)" });
+  fireEvent.click(tab);
+  expect(screen.getByRole("button", { name: "Access requests (7)" })).toBeTruthy();
+});

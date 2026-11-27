@@ -840,6 +840,8 @@ export function ApprovalsPage({ api, lang, role, userId }: ApprovalsPageProps) {
         {...(open ? { icon: "confirm" as const } : {})}
         aria-pressed={open}
         onClick={() => {
+          // The open tab does not reload, so its number must stay.
+          if (open) return;
           setTotal(undefined);
           setTab(which);
         }}
