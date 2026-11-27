@@ -285,7 +285,8 @@ def test_tir85_history_and_queue_items_name_the_decider_only_through_user_ref() 
     assert "actor_user_id" in schemas["HistoryEntry"]["properties"]
     assert "actor" not in schemas["HistoryEntryGranted"]["properties"]
     queue_item = schemas["ReviewQueueItem"]["allOf"][1]
-    assert "last_decision" not in queue_item["required"]
+    assert "last_decision" in queue_item["required"]
+    assert "actor" in schemas["HistoryEntry"]["required"]
     decision = schemas["LastDecision"]
     assert decision["additionalProperties"] is False
     assert set(decision["required"]) == {"to", "at", "actor", "reason_text"}

@@ -2755,6 +2755,7 @@ components:
         - to
         - at
         - actor_kind
+        - actor
         - reason_code
       properties:
         from:
@@ -2866,6 +2867,7 @@ components:
           required:
             - waiting_since
             - allowed_actions
+            - last_decision
           properties:
             waiting_since:
               type: string

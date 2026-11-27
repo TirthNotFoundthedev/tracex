@@ -1240,7 +1240,7 @@ export interface components {
       actor_kind: "ENGINE" | "USER";
       actor_user_id?: components["schemas"]["Uuid"] | null;
       /** @description The deciding person, only when the caller may already know them (access spec 4.2 - the caller is the actor, a SUPERVISOR in the chain of command, or a SENIOR who could read them through `GET /users/{user_id}`). Null otherwise, with no role, district or partial name; always null for an engine entry. */
-      actor?: components["schemas"]["UserRef"] | null;
+      actor: components["schemas"]["UserRef"] | null;
       reason_code: string | null;
       /** @description Free text from the deciding officer. Shown only to callers with ALLOW on both ends by their own scope; never under a grant. */
       reason_text?: string | null;
@@ -1268,7 +1268,7 @@ export interface components {
       waiting_since: string;
       allowed_actions: components["schemas"]["AllowedAction"][];
       /** @description The last human decision on a REJECTED or UNDONE item. Null for a SUGGESTED item. */
-      last_decision?: components["schemas"]["LastDecision"] | null;
+      last_decision: components["schemas"]["LastDecision"] | null;
     };
     /** @description The last human decision on a queue item. `reason_text` follows the link history rule (access spec 4.2); queue items are ALLOW by own scope only, so every caller who gets the item gets the reason. */
     LastDecision: {
