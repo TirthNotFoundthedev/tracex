@@ -1,6 +1,6 @@
 # STATE
 
-Last updated: 2026-11-27, session S4 (P4 apps), third checkpoint: officer app complete, admin parts a-c merged.
+Last updated: 2026-11-27, session S4 (P4 apps), fourth checkpoint: safe stop at the owner's request; open PRs #59, #60, #61.
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
@@ -12,16 +12,31 @@ Last updated: 2026-11-27, session S4 (P4 apps), third checkpoint: officer app co
 - Later in S2, merged with the owner's OK by number (PRs #22, #24, #23, #20, #26, #25, #21), `main` green: Neo4j service in backend CI with Neo4j pinned to `5.26.12-community` and root devDependencies exact-pinned (Rao); extractor fix for role word + `M/s` and the raw_text rule (Naidu); reference scorer `python -m datakit score`, `engine-result/1` schema, G-09 isolation, ground-truth bare-name `raw_text` (Bose); noise persons in one case have distinct names, G-17 (Bose); spec errata 2/3 (Iyer); per-case graphs, order-independent within-case dedupe, Neo4j store and `docs/specs/engine-graph.md` (Bose, 2.3). The 9 Neo4j tests run in GitHub CI (822 backend tests, none skipped). Decisions D55-D56.
 - PR #28 merged with the owner's OK, tag `m2-slice`: Tier 1 matching, scoring skeleton (composite score, bands, gates), SAME_AS link stores (in-memory and Neo4j), runs with the D37 rerun rules, human decisions as engine calls, explanation payload builder, `engine-result/1` adapter and the end-to-end kit gate (Iyer, 2.4; Khan approved after one fix round). 1006 backend tests in CI, Neo4j path included. Decisions D57.
 
-## In progress (S4, D63-D70), checkpoint 2026-11-27 (third)
-- Linear project TraceX tracks P4 in detail (D66): TIR-17 to TIR-20, TIR-27 to TIR-43, TIR-84 to TIR-86. Update it at each checkpoint (CLAUDE.md).
-- Merged into `main` in S4 with the owner's OKs (D67, D68), each with clean reviews and CI green on current main: #43, #41, #44, #47, #50, #51, #45 (security carry items), #42 (demo seed), #48 (admin client and shell), #52, #53 (admin uploads, runs, thresholds), #54 (`--page-width-wide`), #49 (officer screens O1-O12, Sen screenshot review APPROVE: the officer app is complete), #56 (design docs A1/A2, D69), #55 (admin review queue; per-row link reads removed, D69).
-- PR #57 (Khan, TIR-85): `actor` and `last_decision` on queue items and history, `total` required (D70). Mehta consumer review APPROVE with two notes (make `last_decision` required and nullable; a later `reopened` flag). Dutta's security gate pending. Then Pillai adds the "By"/"Reason" columns (TIR-86).
-- Pillai (fresh hire): P4.3d approvals (TIR-33), branch `feat/admin-approvals`. Then P4.3e users + audit log (TIR-34), P4.3f graph view (TIR-35).
-- Then: admin screenshots on the seeded stack and Sen's review (TIR-20), tag `m4-apps` (TIR-39).
+## In progress (S4, D63-D71), safe checkpoint 2026-11-27 (fourth, owner asked to stop)
+- Stopped at the owner's request. No agent is running. Nothing was merged, deleted or force-pushed in this stop.
+- Linear project TraceX tracks P4 in detail (D66): TIR-17 to TIR-20, TIR-27 to TIR-43, TIR-84 to TIR-87. Update it at each checkpoint (CLAUDE.md).
+- Merged into `main` in S4 (owner OKs D67, D68; clean reviews; CI green on current main): #41-#45, #47-#58 (officer app complete in #49; admin parts a-c in #48, #53, #55; #57 queue `actor`/`last_decision` per D70).
 - The owner's standing OK (D68) covers every remaining P4 PR once its reviews are clean and CI is green on current main.
-- Non-blocking follow-ups: TIR-41 (audit anchor reader, Khan), TIR-43 (upload failure reason codes, Khan), empty "Seed data" heading in the runbook (Rao).
-- S4 stalls: many agents stalled ("no progress for 600s"), mostly during long test or docker waits; each had pushed its work. Check the branch and PR comments before re-running; resume with SendMessage; tell agents to push after each step and never wait on one command more than 5 minutes. Remove a stalled agent's own leftover container by its name prefix.
-- Stale worktrees hold old branch names, and agent worktrees sit under `.claude/worktrees/`; do not reuse branch names. Branch `opus-5.5-phase-2-attempt-1` is kept as history.
+
+### Open PRs at this checkpoint
+- **#60** `feat/api-far-case-number`, head b79334d, CI green (4/4), Linear TIR-87. Adds `far_case_number` on the decider's access-request view only; refuses a user change with both district and coverage; closed allow-list of keys per pending-change type (fixes a pre-existing four-eyes hole in `main`: hidden `coverage_rows`/`case_id` were applied on approval). Mehta consumer review APPROVE. **Dutta re-gate CHANGES, 3 items** (comments 7219497832, 7222159287): (1) `coverage.all_states: "false"` is read as true: strict types for `all_states`, `state_ids`, `district_ids`; (2) USER_ROLE to SENIOR must carry `coverage` and from SENIOR must carry `district_id` (422 otherwise); today SUPERVISOR->SENIOR without coverage is accepted, then approval gives 500, and a test run hung about 2 hours: cause not found; approval routing must not treat a SENIOR's old district as authority; (3) USER_CREATE must normalise `district_id`. Khan's 56 allow-list tests were written after the code.
+  - **Unfinished, uncommitted, untested:** Khan's second fix round sits in worktree `.claude/worktrees/agent-a4aac5e424acc76c4` (branch `fix/api-60-allowlist`): edits to `routers/changes.py`, `context.py`, `contracts/openapi.yaml`, `api-access-control.md`, both apps' `schema.d.ts`, new `backend/tests/api/test_change_boundaries.py`, new migration `0005_role_boundary.sql`. Not pushed. Next: a Khan hire reviews that diff, runs the tests (tests first, see them fail on b79334d), pushes to `feat/api-far-case-number`, then Dutta re-gates.
+- **#59** `feat/admin-approvals`, head f48f2b4, CI green (4/4), Linear TIR-33. Admin Approvals (access requests and pending changes). Khan CLEAN; Dutta security re-check APPROVE (11c7b6e), clear once #60 merges; Mehta: one same-tab count bug, fixed in ce4eb03, Fable APPROVE; empty-note finding was not live, defensive fix in f48f2b4. **Remaining:** after #60 merges, merge main, show `far_case_number` instead of `far_case_id` (ApprovalsPage.tsx lines about 228, 278, 357, fixtures in the test file), then merge under D68.
+- **#61** `feat/admin-queue-last-decision`, head b611e7c, CI green (4/4), Linear TIR-86. "By", "Reason", decision date columns from `last_decision`; the link panel reads `actor` from GET /links/{id}, no GET /users calls, name cache removed. **Remaining:** Mehta's app-lead review (was stopped before it posted).
+
+### Next after the open PRs
+- P4.3e users + audit log (TIR-34): the users form must send exactly one of `district_id` or `coverage` (the TS type does not enforce the contract's oneOf). P4.3f graph view (TIR-35). Then admin screenshots on the seeded stack and Sen's review (TIR-20), tag `m4-apps` (TIR-39).
+- Small doc fix for Sen: design-flows A4 says Administrators see both tabs; D44/D71 limit them to Changes.
+- Later items: TIR-41 (audit anchor reader), TIR-43 (upload failure reason codes), a `reopened` flag on queue items (Mehta's note on #57), empty "Seed data" heading in the runbook (Rao).
+
+### Tests at this checkpoint
+- `main` (a2ce6b1 plus #57 at 6e4ecc7): CI green on all four jobs at each merge.
+- #59, #60, #61: CI green on their heads. #60 full backend suite locally 1475 passed, 19 skipped at b79334d; Dutta's probes show the 3 open items above.
+
+### Leftovers
+- Docker containers left by stopped agents: `khan60c-pg` (from the stopped #60 round), `khan-pg`, `khan-tracex-pg` (older). Safe to remove once nobody uses them.
+- Agent worktrees under `.claude/worktrees/` hold branch names; do not reuse names. Branch `opus-5.5-phase-2-attempt-1` is kept as history.
+- S4 lesson: agents stalled often ("no progress for 600s") during long test or docker waits; each had pushed its work except the last Khan round. Check branches and PR comments before re-running; brief agents to push after each step and never wait on one command more than 5 minutes.
 ## Session S3 (2026-11-21), on branch `opus-5.5-phase-2-attempt-1`
 - Merged into the branch after review and green CI (D58): #31 Tier 2 (Naidu; Iyer review, phonetic floor rejected, D59), #32 Tier 3 + scorer `--defer` + kit 1.1 (Bose; Iyer approved, kit fixes K1-K3, D60), #33 case district from the FIR header (Bose, D61), #35 rarity needs a spelling match (Naidu, into #34), #34 P3.3 run context for providers, PER_NEAR_PHONE, MULTI_USER by `name_sim`, every AC with engine tests (Iyer; Fable reviewed), #36 scorer ignores refused steps + Neo4j district test (Bose), #30 FastAPI backend: Postgres model + migrations, DB roles, scrypt + JWT with refresh rotation, policy on all 57 routes, hash-chained append-only audit log, engine bridge with outbox and reconcile, compose with `migrate` service (Khan; Dutta APPROVE after one fix round, D62).
 - Last CI on the full branch (PR #30 head after update): backend, data-kit, frontend, smoke all green.
