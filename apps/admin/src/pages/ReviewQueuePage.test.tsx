@@ -250,10 +250,18 @@ test("the status choice is kept in the page address so Back returns to it", asyn
 const linkCalls = (calls: { method: string; path: string }[]) =>
   calls.filter((c) => c.path.startsWith("/links/") || c.path.startsWith("/users/"));
 
-test("the Rejected table reads only the queue: no link or user call, no who or why, a Last change date", async () => {
+const decision = (over: Record<string, unknown> = {}) => ({
+  to: "REJECTED",
+  at: "2026-03-12T10:00:00Z",
+  actor: { user_id: MEENA, display_name: "Meena Rao", role: "INVESTIGATOR" },
+  reason_text: "Different people. Ages differ by 12 years.",
+  ...over,
+});
+
+test("the Rejected table shows By, Reason and the decision date from last_decision, with no per-row call", async () => {
   const { calls } = open(
     {
-      ...queue({ SUGGESTED: [], REJECTED: [rejectedRow()] }),
+      ...queue({ SUGGESTED: [], REJECTED: [rejectedRow({ last_decision: decision() })] }),
       [`GET /links/${LINK}`]: json(200, detail({ state: "REJECTED", history: rejectedHistory })),
       [`GET /users/${MEENA}`]: user(MEENA, "Meena Rao", "INVESTIGATOR"),
     },
@@ -261,38 +269,120 @@ test("the Rejected table reads only the queue: no link or user call, no who or w
     "/review?show=rejected",
   );
   expect((await screen.findAllByText("24/118")).length).toBeGreaterThan(0);
-  for (const header of ["Item", "Case A", "Case B", "Last change"]) {
-    expect(screen.getByRole("columnheader", { name: new RegExp(header) })).toBeTruthy();
+  for (const header of ["Item", "Case A", "Case B", "By", "Reason", "Rejected on"]) {
+    expect(screen.getByRole("columnheader", { name: new RegExp(`^${header}`) })).toBeTruthy();
   }
-  for (const header of ["Rejected by", "Rejected on", "Reason", "Strength"]) {
+  for (const header of ["Last change", "Strength"]) {
     expect(screen.queryByRole("columnheader", { name: new RegExp(header) })).toBeNull();
   }
+  expect(screen.getByText("Meena Rao")).toBeTruthy();
+  expect(screen.getByText("Different people. Ages differ by 12 years.")).toBeTruthy();
   expect(screen.getByText("12 Mar 2026")).toBeTruthy();
-  expect(screen.queryByText("Meena Rao (Investigating officer)")).toBeNull();
-  expect(screen.queryByText("Different people. Ages differ by 12 years.")).toBeNull();
   expect(linkCalls(calls)).toEqual([]);
 });
 
-test("many rejected rows still make no per-row call", async () => {
-  const rows = Array.from({ length: 50 }, (_, i) =>
-    rejectedRow({ link_id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}` }),
+test("exactly one list request is made for the view; the other three only count", async () => {
+  const { fetchImpl } = open(
+    queue({ REJECTED: [rejectedRow({ last_decision: decision() })] }),
+    "en",
+    "/review?show=rejected",
   );
-  const { calls } = open(queue({ REJECTED: rows }), "en", "/review?show=rejected");
-  await waitFor(() => expect(screen.getAllByRole("button", { name: "Open" }).length).toBe(50));
-  expect(linkCalls(calls)).toEqual([]);
+  await screen.findByText("Meena Rao");
+  const urls = (fetchImpl as unknown as { mock: { calls: [string][] } }).mock.calls
+    .map(([url]) => new URL(String(url)))
+    .filter((url) => url.pathname === "/review-queue");
+  expect(urls.filter((url) => url.searchParams.get("limit") === "50").length).toBe(1);
+  expect(urls.filter((url) => url.searchParams.get("limit") === "1").length).toBe(3);
 });
 
-test("the Undone filter lists undone links with its own intro and no per-row call", async () => {
+test("when the actor is null the By cell says A person, never blank and never an id", async () => {
+  open(
+    queue({ REJECTED: [rejectedRow({ last_decision: decision({ actor: null }) })] }),
+    "en",
+    "/review?show=rejected",
+  );
+  expect(await screen.findByText("A person")).toBeTruthy();
+  expect(document.body.textContent).not.toContain(MEENA);
+});
+
+test("when the actor is null the By cell reads in Hindi", async () => {
+  open(
+    queue({
+      UNDONE: [
+        rejectedRow({ state: "UNDONE", last_decision: decision({ to: "UNDONE", actor: null }) }),
+      ],
+    }),
+    "hi",
+    "/review?show=undone",
+  );
+  expect(await screen.findByText("कोई व्यक्ति")).toBeTruthy();
+});
+
+test("a long reason stays on one line with an ellipsis; the full text is in the cell title", async () => {
+  const long = "Different people. ".repeat(40).trim();
+  open(
+    queue({ REJECTED: [rejectedRow({ last_decision: decision({ reason_text: long }) })] }),
+    "en",
+    "/review?show=rejected",
+  );
+  const cell = await screen.findByText(long);
+  expect(cell.className).toContain("admin-cell-clip");
+  expect(cell.getAttribute("title")).toBe(long);
+});
+
+test("a missing reason shows plain wording, not an empty cell", async () => {
+  open(
+    queue({ REJECTED: [rejectedRow({ last_decision: decision({ reason_text: null }) })] }),
+    "en",
+    "/review?show=rejected",
+  );
+  expect(await screen.findByText("No reason given")).toBeTruthy();
+});
+
+test("the Undone table has By, Reason and Undone on", async () => {
   const { calls } = open(
-    queue({ UNDONE: [item({ state: "UNDONE", allowed_actions: ["REOPEN"] })] }),
+    queue({
+      UNDONE: [
+        item({
+          state: "UNDONE",
+          allowed_actions: ["REOPEN"],
+          last_decision: decision({ to: "UNDONE", reason_text: "Wrong match." }),
+        }),
+      ],
+    }),
     "en",
     "/review?show=undone",
   );
   expect(
     await screen.findByText("These links were undone. A supervisor can reopen them."),
   ).toBeTruthy();
-  expect(screen.getByRole("columnheader", { name: /Last change/ })).toBeTruthy();
-  expect(screen.queryByRole("columnheader", { name: /Undone by/ })).toBeNull();
+  for (const header of ["By", "Reason", "Undone on"]) {
+    expect(screen.getByRole("columnheader", { name: new RegExp(`^${header}`) })).toBeTruthy();
+  }
+  expect(screen.getByText("Wrong match.")).toBeTruthy();
+  expect(linkCalls(calls)).toEqual([]);
+});
+
+test("the Waiting table is unchanged: no By or Reason columns", async () => {
+  open(queue({ SUGGESTED: [item({ last_decision: null })] }));
+  await screen.findAllByText("24/118");
+  for (const header of ["Strength", "Item", "Case A", "Case B", "Main reason", "Waiting since"]) {
+    expect(screen.getByRole("columnheader", { name: new RegExp(header) })).toBeTruthy();
+  }
+  for (const header of ["By", "Rejected on", "Undone on", "Last change"]) {
+    expect(screen.queryByRole("columnheader", { name: new RegExp(`^${header}`) })).toBeNull();
+  }
+});
+
+test("many rejected rows still make no per-row call", async () => {
+  const rows = Array.from({ length: 50 }, (_, i) =>
+    rejectedRow({
+      link_id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+      last_decision: decision(),
+    }),
+  );
+  const { calls } = open(queue({ REJECTED: rows }), "en", "/review?show=rejected");
+  await waitFor(() => expect(screen.getAllByRole("button", { name: "Open" }).length).toBe(50));
   expect(linkCalls(calls)).toEqual([]);
 });
 
