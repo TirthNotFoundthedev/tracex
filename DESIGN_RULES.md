@@ -154,7 +154,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - Loading: a text line "Loading your cases..." with a spinner icon; no skeleton animation. Waiting over 10 seconds adds "This is taking long. Please wait or try again."
 - Errors say what happened, whether data is safe, and what to do: "We could not save. Nothing was changed. [Try again]". Never codes, never blame ("you entered an invalid value"), never a dead end; always a button.
 - Empty states say why and what next: "No cases yet. Ask your supervisor to add your cases."
-- Session timeout warns 2 minutes before, with a button "Stay signed in".
+- Session limit: the session lasts 8 hours and cannot be extended, so the notice 2 minutes before the end has no "Stay signed in" button. It says what will happen and that decisions are already saved: "You will be signed out in 2 minutes. Your decisions are already saved. Please sign in again after." Reason: a button that cannot do what it says would lie. If the API later allows a refresh, the button returns.
 - Destructive admin actions state the effect in the button ("Delete this user") and need a second confirm. Every Administrator change to users, roles, areas, assignments or match settings is a proposal: after Save the page says "Sent for approval. Nothing changes until a senior officer approves it." and the item shows a tag with icon and words until a Senior officer decides (D35). Reason: the Administrator cannot change access alone, and the screen must not look as if the change already happened.
 
 ## 12. Graph view (admin only)
@@ -164,6 +164,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 - Keyboard: Tab moves between nodes, Enter opens, and a "List view" toggle presents every node and edge as a table. Reason: graphs are inaccessible without a list alternative.
 - Cap 150 nodes on screen with the message "Showing the 150 closest. Narrow the search to see others." Reason: unreadable above that, and slow on admin PCs.
 - Layout is stable: moving the view never rearranges nodes. No physics bounce animation.
+- Decision (P4.2): the network shows entities, not cases, so the hexagon is used for **organisation** (the graph's fifth entity type); a case is not a node. A "connected" relation (person and their phone, account or vehicle) is a thin dotted line with no strength, and a link to another police area is a dashed line to the restricted card. The layout is computed to the end before drawing (fixed seed, fixed steps), so nothing moves on screen and the same input always gives the same picture. Reason: the API has no case nodes, and a fixed layout lets a reviewer compare two screenshots.
 
 ## 13. Hindi and language rules
 - The language switch is on the first screen and every screen header, label "हिंदी" in English mode and "English" in Hindi mode, written in the target language so it can be found by someone who cannot read the current one. Choice persists per device.
@@ -176,6 +177,7 @@ Two strengths are ever shown (a low-band pair is not a link and is never stored,
 
 ## 14. Components (the complete list; add only with a written reason)
 Button (primary, secondary, danger), TextField, SearchField, Select (admin only), Checkbox, FileDrop (admin), Tabs (admin only), TopBar, SideNav (admin), Breadcrumb, ListRow, Table (admin), Badge/StrengthBadge, ReasonList, EvidenceSource, MoreDetail (disclosure), RestrictedCard, Message (info/success/error, in-page), ConfirmStep, EmptyState, LanguageSwitch, GraphCanvas + GraphLegend (admin), Pager ("Show more").
+Also built, with a written reason: **Loading** (the text line with a still spinner icon required by section 11, so every app draws it the same way and none uses a spinning or skeleton version) and **Icon** and **UiProvider** (not screens: the first holds the fixed icon vocabulary of section 6 so no app picks a second icon for one meaning; the second carries language and app variant so size, text size and line height switch from tokens in one place). Admin-only components (Select, FileDrop, Tabs, SideNav, Table) render nothing in the officer app. Reason: section 4 forbids dropdowns, tabs, tables and side navigation there, and a component that renders anyway lets the rule be broken silently.
 Not in v1: toasts that vanish, tooltips (information hidden in hover is invisible on touch), carousels, modals other than ConfirmStep, drag and drop as the only way.
 
 ## 14a. Follow-up requirements (owner: Rao, Release Manager; not part of the design PR)
