@@ -284,7 +284,10 @@ test("the menu has a visible 'Menu' button that opens and closes the section lis
 });
 
 test("the menu button reads in Hindi", async () => {
-  await signIn(setup(() => json(200, person("ADMIN", null))), "hi");
+  await signIn(
+    setup(() => json(200, person("ADMIN", null))),
+    "hi",
+  );
   await screen.findByRole("navigation", { name: /Main sections|मुख्य/i });
   expect(screen.getByRole("button", { name: "मेन्यू" })).toBeTruthy();
 });

@@ -39,6 +39,8 @@ interface ShellProps {
 export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellProps) {
   const { path, search, navigate, replace } = usePath();
   const [me, setMe] = useState<Me>({ state: "loading" });
+  // Only a phone uses this: below 40em the section list sits behind a "Menu" button.
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async () => {
     setMe({ state: "loading" });
@@ -131,18 +133,31 @@ export function Shell({ api, lang, onLanguageChange, onSignOutChosen }: ShellPro
         {...header}
       />
       <div className="admin-frame">
-        <SideNav
-          items={entries.map((entry) => ({
-            id: entry.id,
-            label: t(entry.labelKey, lang),
-            icon: entry.icon,
-          }))}
-          currentId={current.id}
-          onSelect={(id) => {
-            const target = entries.find((entry) => entry.id === id);
-            if (target) navigate(target.path);
-          }}
-        />
+        <div className="admin-menu" id="admin-menu" data-open={menuOpen ? "true" : "false"}>
+          <div className="admin-menu__toggle">
+            <Button
+              icon="list"
+              aria-expanded={menuOpen}
+              aria-controls="admin-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {t("shell.menu", lang)}
+            </Button>
+          </div>
+          <SideNav
+            items={entries.map((entry) => ({
+              id: entry.id,
+              label: t(entry.labelKey, lang),
+              icon: entry.icon,
+            }))}
+            currentId={current.id}
+            onSelect={(id) => {
+              const target = entries.find((entry) => entry.id === id);
+              setMenuOpen(false);
+              if (target) navigate(target.path);
+            }}
+          />
+        </div>
         <main className="admin-main" data-page={current.id}>
           {current.id === "upload" ? <UploadPage api={api} lang={lang} /> : null}
           {current.id === "matching" ? <MatchingPage api={api} lang={lang} /> : null}

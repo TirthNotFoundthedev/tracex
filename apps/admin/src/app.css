@@ -10,6 +10,53 @@
   }
 }
 
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-paper);
+}
+
+/* The menu is the side navigation; on a phone it folds behind one "Menu" button (DESIGN_RULES section 4). */
+.admin-menu {
+  flex: none;
+}
+
+.admin-menu__toggle {
+  display: none;
+}
+
+@media (max-width: 40em) {
+  .admin-menu {
+    inline-size: 100%;
+  }
+
+  .admin-menu__toggle {
+    display: block;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-sunken);
+  }
+
+  .admin-menu[data-open="false"] .tx-sidenav {
+    display: none;
+  }
+}
+
+/* The page title is already the heading above the table, so the caption is for screen readers only. */
+.admin-main .tx-table__caption {
+  position: absolute;
+  inline-size: 0.0625rem;
+  block-size: 0.0625rem;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Case numbers and dates stay on one line; the reason column takes the rest of the width. */
+.admin-nowrap {
+  white-space: nowrap;
+}
+
 .admin-main {
   flex: 1;
   min-inline-size: 0;
@@ -45,7 +92,20 @@
 
 .admin-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* On a phone every decision gets its own full-width row, primary first (DOM order), so no label is squeezed. */
+@media (max-width: 40em) {
+  .admin-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-actions .tx-button {
+    inline-size: 100%;
+  }
 }
 
 .admin-hint {
@@ -79,6 +139,7 @@
 /* Three score zones, told apart by pattern and by words (never colour alone). */
 .admin-zones {
   display: flex;
+  flex-wrap: wrap;
   border: var(--border-2) solid var(--color-ink);
   min-block-size: var(--tap-min);
 }
@@ -111,6 +172,18 @@
 .admin-zone[data-zone="auto"] {
   background: var(--color-strong-bg);
   color: var(--color-strong-fg);
+}
+
+/* On a phone the three zones stack, so none is cut off at the right edge. */
+@media (max-width: 40em) {
+  .admin-zone {
+    flex: 1 1 100%;
+  }
+
+  .admin-zone + .admin-zone {
+    border-inline-start: 0;
+    border-block-start: var(--border-2) solid var(--color-ink);
+  }
 }
 
 .admin-files {

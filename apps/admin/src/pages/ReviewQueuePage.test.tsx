@@ -1193,7 +1193,7 @@ test("the filter buttons show no count while the list loads, and none after a fa
 test("the filter buttons show no count in Hindi while the list loads or has failed", async () => {
   open({ "GET /review-queue": () => json(503), "GET /jurisdictions": places }, "hi");
   expect(button("प्रतीक्षा में")).toBeTruthy();
-  await waitFor(() => expect(document.body.textContent).toMatch(/Try again|फिर से/));
+  await waitFor(() => expect(document.body.textContent).toContain(t("state.tryAgain", "hi")));
   expect(document.body.textContent).not.toMatch(/\(\d+\)/);
 });
 
@@ -1206,25 +1206,28 @@ test("counts appear once the data has arrived, including a true zero", async () 
 test.each([
   ["REJECTED", "Rejected link", "अस्वीकृत लिंक"],
   ["UNDONE", "Undone link", "वापस लिया गया लिंक"],
-] as const)("a %s link is headed by its state, not 'Please check this link'", async (state, en, hi) => {
-  for (const [lang, title] of [
-    ["en", en],
-    ["hi", hi],
-  ] as const) {
-    cleanup();
-    open(
-      {
-        ...queue({ REJECTED: [rejectedRow()] }),
-        [`GET /links/${LINK}`]: json(
-          200,
-          detail({ state, allowed_actions: ["REOPEN"], history: rejectedHistory }),
-        ),
-        [`GET /links/${LINK}/explanation`]: json(200, explanation({ state })),
-      },
-      lang,
-      `/review/${LINK}?show=rejected`,
-    );
-    expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
-    expect(screen.queryByText(t("queue.panel.possible", lang))).toBeNull();
-  }
-});
+] as const)(
+  "a %s link is headed by its state, not 'Please check this link'",
+  async (state, en, hi) => {
+    for (const [lang, title] of [
+      ["en", en],
+      ["hi", hi],
+    ] as const) {
+      cleanup();
+      open(
+        {
+          ...queue({ REJECTED: [rejectedRow()] }),
+          [`GET /links/${LINK}`]: json(
+            200,
+            detail({ state, allowed_actions: ["REOPEN"], history: rejectedHistory }),
+          ),
+          [`GET /links/${LINK}/explanation`]: json(200, explanation({ state })),
+        },
+        lang,
+        `/review/${LINK}?show=rejected`,
+      );
+      expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
+      expect(screen.queryByText(t("queue.panel.possible", lang))).toBeNull();
+    }
+  },
+);

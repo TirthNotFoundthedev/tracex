@@ -15,6 +15,7 @@ export const hi: Record<keyof typeof en, string> = {
   "nav.graph": "लिंक का नेटवर्क",
   "shell.notForRole": "यह पैनल सुपरवाइज़र, वरिष्ठ अधिकारियों और एडमिन के लिए है।",
   "shell.loadingUser": "आपका ब्योरा लोड हो रहा है...",
+  "shell.menu": "मेन्यू",
   "shell.noArea": "सभी क्षेत्र",
 
   // Sign in
@@ -97,6 +98,9 @@ export const hi: Record<keyof typeof en, string> = {
   "queue.filter.waiting": "प्रतीक्षा में ({n})",
   "queue.filter.rejected": "अस्वीकृत ({n})",
   "queue.filter.undone": "वापस लिए गए ({n})",
+  "queue.filter.waiting.plain": "प्रतीक्षा में",
+  "queue.filter.rejected.plain": "अस्वीकृत",
+  "queue.filter.undone.plain": "वापस लिए गए",
   "queue.filter.type": "प्रकार",
   "queue.filter.area": "क्षेत्र",
   "queue.filter.waitingLong": "7 दिन से ज़्यादा प्रतीक्षा में",
@@ -158,6 +162,8 @@ export const hi: Record<keyof typeof en, string> = {
   "queue.detail.open": "एडमिन ब्योरा",
   "queue.panel.strong": "ये लिंक क्यों हैं",
   "queue.panel.possible": "कृपया इस लिंक को जाँचें",
+  "queue.panel.rejected": "अस्वीकृत लिंक",
+  "queue.panel.undone": "वापस लिया गया लिंक",
   "queue.autoNote": "यह अपने-आप जुड़ा था। ग़लत हो तो इसे वापस ले सकते हैं।",
   "queue.more.score": "मिलान अंक: {score} (100 में से)",
   "queue.more.levels":
