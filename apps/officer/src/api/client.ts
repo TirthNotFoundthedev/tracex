@@ -68,7 +68,7 @@ export function createClient(options: ClientOptions) {
       if (attempt === 1) break;
       const outcome = await session.refreshAfter(token);
       if (outcome.kind === "signedOut") return { kind: "sessionExpired" };
-      if (outcome.kind === "unavailable") return { kind: outcome.reason };
+      if (outcome.kind === "unavailable") return outcome.result;
       token = outcome.token;
     }
     return { kind: "sessionExpired" };
