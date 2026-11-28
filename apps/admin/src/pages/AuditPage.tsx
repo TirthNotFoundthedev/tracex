@@ -9,7 +9,7 @@ import { dateTime } from "../format";
 import { t, type AnyMessageKey, type Language } from "../i18n";
 import type { Role } from "../nav";
 import { PagedView, usePagedList } from "../usePagedList";
-import { EVENT_TYPES, EVENT_WORDS, TARGET_WORDS } from "./auditWords";
+import { EVENT_WORDS, GROUPS, GROUP_WORDS, TARGET_WORDS } from "./auditWords";
 
 type Row = components["schemas"]["AuditRow"];
 type User = components["schemas"]["User"];
@@ -113,7 +113,7 @@ export function AuditPage({ api, lang, role }: AuditPageProps) {
         ...(applied.from ? { occurred_from: startOf(applied.from) } : {}),
         ...(applied.to ? { occurred_to: endOf(applied.to) } : {}),
         ...(applied.person ? { actor_user_id: applied.person } : {}),
-        ...(applied.action ? { event_type: applied.action as Row["event_type"] } : {}),
+        ...(applied.action ? { event_group: applied.action as (typeof GROUPS)[number] } : {}),
         ...(cursor ? { cursor } : {}),
       }),
     [api, applied],
@@ -182,7 +182,7 @@ export function AuditPage({ api, lang, role }: AuditPageProps) {
             id: "case",
             header: t("audit.col.case", lang),
             cell: (r: Row) =>
-              r.refs.length > 0 ? r.refs.map((ref) => ref.case_id).join(", ") : NO_VALUE,
+              r.refs.length > 0 ? r.refs.map((ref) => ref.case_number).join(", ") : NO_VALUE,
           },
         ]),
     {
@@ -241,7 +241,7 @@ export function AuditPage({ api, lang, role }: AuditPageProps) {
           value={draft.action}
           options={[
             { value: "", label: t("audit.filter.any", lang) },
-            ...EVENT_TYPES.map((type) => ({ value: type, label: t(EVENT_WORDS[type], lang) })),
+            ...GROUPS.map((group) => ({ value: group, label: t(GROUP_WORDS[group], lang) })),
           ]}
           onChange={(action) => setDraft((d) => ({ ...d, action }))}
         />

@@ -326,6 +326,7 @@ export const hi: Record<keyof typeof en, string> = {
   "audit.filter.to": "इस तारीख तक",
   "audit.filter.person": "व्यक्ति",
   "audit.filter.action": "उन्होंने क्या किया",
+  "audit.group.viewed": "देखा",
   "audit.action.viewed": "लिंक खोला",
   "audit.action.confirmed": "पक्का किया",
   "audit.action.rejected": "अस्वीकार किया",

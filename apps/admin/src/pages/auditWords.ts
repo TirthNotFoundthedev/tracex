@@ -63,7 +63,22 @@ export const EVENT_WORDS: Record<EventType, MessageKey> = {
   ENGINE_DIVERGENCE_REVERTED: "audit.event.ENGINE_DIVERGENCE_REVERTED",
 };
 
-export const EVENT_TYPES = Object.keys(EVENT_WORDS) as EventType[];
+type Group = components["schemas"]["AuditEventGroup"];
+
+/**
+ * The six action words of the Activity log filter (design flows A6), each sent as `event_group`. The record is
+ * complete on purpose: a new group in the contract will not compile until it has words.
+ */
+export const GROUP_WORDS: Record<Group, MessageKey> = {
+  VIEWED: "audit.group.viewed",
+  CONFIRMED: "audit.action.confirmed",
+  REJECTED: "audit.action.rejected",
+  REQUESTED: "audit.action.requested",
+  APPROVED: "audit.action.approved",
+  UPLOADED: "audit.action.uploaded",
+};
+
+export const GROUPS = Object.keys(GROUP_WORDS) as Group[];
 
 /** The thing an event is about, in words. Ids are never shown. */
 export const TARGET_WORDS: Record<TargetType, MessageKey> = {

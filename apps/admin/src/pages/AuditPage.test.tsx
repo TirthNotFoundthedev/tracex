@@ -35,7 +35,7 @@ function row(over: Record<string, unknown> = {}) {
     event_type: "LINK_CONFIRMED",
     outcome: "SUCCESS",
     actor: { kind: "USER", user_id: ASHA, role: "JUNIOR", district_id: D1 },
-    refs: [{ case_id: "C-101", district_id: D1 }],
+    refs: [{ case_id: "k9f3a-opaque-case-id", district_id: D1, case_number: "C-101" }],
     target_type: "LINK",
     target_id: "e0000000-0000-4000-8000-0000000000aa",
     ...over,
@@ -201,13 +201,14 @@ test("filters: date range, person and action in words; nothing is read until Sho
   fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-03-01" } });
   fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-03-31" } });
   fireEvent.change(screen.getByLabelText("Person"), { target: { value: ASHA } });
-  fireEvent.change(screen.getByLabelText("What they did"), { target: { value: "LINK_CONFIRMED" } });
+  fireEvent.change(screen.getByLabelText("What they did"), { target: { value: "CONFIRMED" } });
   expect(urls).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Show" }));
   await waitFor(() => expect(urls).toHaveLength(2));
   const q = query(urls[1] as string);
   expect(q.get("actor_user_id")).toBe(ASHA);
-  expect(q.get("event_type")).toBe("LINK_CONFIRMED");
+  expect(q.get("event_group")).toBe("CONFIRMED");
+  expect(q.has("event_type")).toBe(false);
   expect(new Date(q.get("occurred_from") as string).getTime()).toBe(
     new Date("2026-03-01T00:00:00").getTime(),
   );
@@ -218,27 +219,26 @@ test("filters: date range, person and action in words; nothing is read until Sho
   expect(fake.calls.filter((c) => c.path === "/users")).toHaveLength(1);
 });
 
-test("the action filter speaks in words and holds the six the design names", async () => {
+test("the action filter holds exactly the six group words of the design, in words, and Any", async () => {
   setup("SENIOR");
   await inTable("Asha Devi");
   const select = screen.getByLabelText("What they did");
   const labels = within(select)
     .getAllByRole("option")
     .map((o) => o.textContent);
-  for (const word of [
-    "Opened a link",
+  expect(labels).toEqual([
+    "Anything",
+    "Looked at",
     "Confirmed",
     "Rejected",
     "Asked for access",
     "Approved access",
     "Uploaded",
-  ]) {
-    expect(labels).toContain(word);
-  }
-  expect(labels.join(" ")).not.toMatch(/[A-Z]{3,}_[A-Z]+/);
+  ]);
+  expect(labels.join(" ")).not.toMatch(/[A-Z]{3,}/);
 });
 
-test("each action option sends exactly the one event type its words name, and no option promises a group", async () => {
+test("each action option sends its group word as event_group and never an event type", async () => {
   const urls: string[] = [];
   setup("SENIOR", {
     "GET /audit": ({ url }) => {
@@ -248,29 +248,81 @@ test("each action option sends exactly the one event type its words name, and no
   });
   await inTable("Asha Devi");
   const select = screen.getByLabelText("What they did") as HTMLSelectElement;
-  const options = within(select).getAllByRole("option") as HTMLOptionElement[];
-  const labels = options.map((o) => o.textContent);
-  expect(new Set(labels).size).toBe(labels.length);
-  expect(labels).not.toContain("Looked at");
-  // Words and event types are fixed in the test, not read back from the page's own table.
   const expected: Record<string, string> = {
-    "Opened a link": "LINK_VIEWED",
-    Confirmed: "LINK_CONFIRMED",
-    Rejected: "LINK_REJECTED",
-    "Asked for access": "ACCESS_REQUEST_CREATED",
-    "Approved access": "ACCESS_REQUEST_APPROVED",
-    Uploaded: "DATA_UPLOADED",
-    "Looked at the network": "GRAPH_VIEWED",
+    "Looked at": "VIEWED",
+    Confirmed: "CONFIRMED",
+    Rejected: "REJECTED",
+    "Asked for access": "REQUESTED",
+    "Approved access": "APPROVED",
+    Uploaded: "UPLOADED",
   };
-  for (const [words, type] of Object.entries(expected)) {
-    const option = options.find((o) => o.textContent === words);
-    expect(option?.value, words).toBe(type);
-    fireEvent.change(select, { target: { value: option?.value } });
+  for (const [words, group] of Object.entries(expected)) {
+    const option = within(select)
+      .getAllByRole("option")
+      .find((o) => o.textContent === words) as HTMLOptionElement;
+    expect(option.value, words).toBe(group);
+    fireEvent.change(select, { target: { value: group } });
     fireEvent.click(screen.getByRole("button", { name: "Show" }));
     await waitFor(() =>
-      expect(query(urls[urls.length - 1] as string).get("event_type")).toBe(type),
+      expect(query(urls[urls.length - 1] as string).get("event_group")).toBe(group),
     );
+    expect(query(urls[urls.length - 1] as string).has("event_type")).toBe(false);
   }
+  // Back to Anything: no group at all.
+  fireEvent.change(select, { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Show" }));
+  await waitFor(() =>
+    expect(query(urls[urls.length - 1] as string).has("event_group")).toBe(false),
+  );
+});
+
+test("a group filter pages on the server: the next page keeps the group and the cursor", async () => {
+  const urls: string[] = [];
+  setup("SENIOR", {
+    "GET /audit": ({ url }) => {
+      urls.push(url);
+      return query(url).get("cursor")
+        ? auditPage([row({ row_ref: "p2" })])
+        : auditPage([row()], "CUR2");
+    },
+  });
+  await inTable("Asha Devi");
+  fireEvent.change(screen.getByLabelText("What they did"), { target: { value: "VIEWED" } });
+  fireEvent.click(screen.getByRole("button", { name: "Show" }));
+  await waitFor(() =>
+    expect(urls.some((u) => query(u).get("event_group") === "VIEWED")).toBe(true),
+  );
+  fireEvent.click(await screen.findByRole("button", { name: /Show more|More/ }));
+  await waitFor(() => expect(urls.some((u) => query(u).get("cursor") === "CUR2")).toBe(true));
+  const next = urls.find((u) => query(u).get("cursor") === "CUR2") as string;
+  expect(query(next).get("event_group")).toBe("VIEWED");
+});
+
+test("an unknown group answers 422: the shared message shows and the filter stays", async () => {
+  setup("SENIOR", {
+    "GET /audit": ({ url }) =>
+      query(url).get("event_group") ? json(422, { code: "VALIDATION_FAILED" }) : auditPage([row()]),
+  });
+  await inTable("Asha Devi");
+  fireEvent.change(screen.getByLabelText("What they did"), { target: { value: "VIEWED" } });
+  fireEvent.click(screen.getByRole("button", { name: "Show" }));
+  expect(await screen.findByText(t("state.somethingMissing", "en"))).toBeTruthy();
+  expect((screen.getByLabelText("What they did") as HTMLSelectElement).value).toBe("VIEWED");
+});
+
+test("the Case column shows the case number, never the case id; several cases are joined", async () => {
+  setup("SENIOR", {
+    "GET /audit": auditPage([
+      row({
+        refs: [
+          { case_id: "k9f3a-opaque-case-id", district_id: D1, case_number: "C-101" },
+          { case_id: "z77-other-opaque-id", district_id: D1, case_number: "C-205" },
+        ],
+      }),
+    ]),
+  });
+  expect(await inTable("C-101, C-205")).toBeTruthy();
+  expect(document.body.textContent).not.toContain("opaque");
 });
 
 test("a supervisor has no person filter (the user list is for senior officers and administrators)", async () => {
