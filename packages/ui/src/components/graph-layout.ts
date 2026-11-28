@@ -111,19 +111,21 @@ export function layoutGraph(
 
   // On a phone the picture grows downward instead of sideways, so labels stay apart.
   const narrow = width < 600;
+  // Above 30 nodes the shapes sit closer; labels are thinned by graph-labels instead.
+  const dense = nodes.length > 30;
   const sim = forceSimulation(simNodes)
     .randomSource(seeded(20260101))
     .force(
       "link",
       forceLink<SimNode, SimulationLinkDatum<SimNode>>(links)
         .id((n) => n.id)
-        .distance(170)
+        .distance(dense ? 90 : narrow ? 140 : 170)
         .strength(0.7),
     )
-    .force("charge", forceManyBody().strength(-1400))
-    .force("collide", forceCollide(72))
+    .force("charge", forceManyBody().strength(dense ? -120 : -1400))
+    .force("collide", forceCollide(dense ? 42 : 72))
     .force("center", forceCenter(width / 2, height / 2))
-    .force("x", forceX(width / 2).strength(narrow ? 0.12 : 0.04))
+    .force("x", forceX(width / 2).strength(narrow ? 0.12 : dense ? 0.08 : 0.04))
     .force("y", forceY(height / 2).strength(narrow ? 0.01 : 0.06))
     .stop();
   sim.tick(LAYOUT_TICKS);

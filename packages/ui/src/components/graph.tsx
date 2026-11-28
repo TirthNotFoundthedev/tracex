@@ -24,7 +24,15 @@ const DEFAULT_WIDTH = 900;
 const WIDE_HEIGHT = 560;
 /** A phone is narrow, so the picture is taller to keep labels apart. */
 const NARROW_HEIGHT = 820;
-const NARROW_PER_NODE = 120;
+const NARROW_PER_NODE = 150;
+
+/** The picture grows with the node count, so shapes keep apart (zoom handles the rest). */
+function pictureHeight(width: number, count: number): number {
+  const extra = Math.max(0, count - 30);
+  if (width < 600)
+    return Math.max(NARROW_HEIGHT, Math.min(count, 30) * NARROW_PER_NODE + extra * 40);
+  return WIDE_HEIGHT + extra * 8;
+}
 
 type ShapeName = GraphNodeType | "restricted";
 
@@ -172,8 +180,7 @@ function GraphCanvasInner({
     return () => observer.disconnect();
   }, [view]);
 
-  const height =
-    width < 600 ? Math.max(NARROW_HEIGHT, nodes.length * NARROW_PER_NODE) : WIDE_HEIGHT;
+  const height = pictureHeight(width, nodes.length);
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const labelText = (node: GraphNode): string =>
     node.restricted === true ? t("restricted.title") : node.label;
