@@ -279,12 +279,12 @@ def test_the_index_refuses_a_second_waiting_row_in_the_database(world: World) ->
     ids = Ids(api)
     body = {"kind": "USER_DISABLE", "subject_user_id": ids.users["bharat"]}
     assert api.post("hari", "/pending-changes", body).status_code == 201
-    with api.superuser() as conn:
-        with pytest.raises(Exception, match="pending_changes_one_waiting"):
-            conn.execute(
-                "INSERT INTO pending_changes (kind, subject_user_id, old_value, new_value, "
-                "proposer_id, change_hash, state, proposed_at, subject_district_ids, "
-                "needs_all_states) SELECT kind, subject_user_id, old_value, new_value, "
-                "proposer_id, decode(repeat('00', 32), 'hex'), 'PENDING', now(), subject_district_ids, "
-                "needs_all_states FROM pending_changes LIMIT 1"
-            )
+    with api.superuser() as conn, pytest.raises(Exception, match="pending_changes_one_waiting"):
+        conn.execute(
+            "INSERT INTO pending_changes (kind, subject_user_id, old_value, new_value, "
+            "proposer_id, change_hash, state, proposed_at, subject_district_ids, "
+            "needs_all_states) SELECT kind, subject_user_id, old_value, new_value, "
+            "proposer_id, decode(repeat('00', 32), 'hex'), 'PENDING', now(), "
+            "subject_district_ids, "
+            "needs_all_states FROM pending_changes LIMIT 1"
+        )

@@ -3,10 +3,12 @@
 import hashlib
 import json
 import re
+import unicodedata
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+from psycopg import errors as pg_errors
 from psycopg.types.json import Jsonb
 
 from tracex_api import audit
@@ -64,6 +66,19 @@ NEW_VALUE_KEYS_BY_KIND: dict[str, frozenset[str]] = {
 COVERAGE_KEYS = frozenset({"all_states", "state_ids", "district_ids"})
 USERNAME_RE = re.compile(r"[a-z0-9._-]{3,64}")
 DISPLAY_NAME_MAX = 120
+ONE_WAITING_INDEX = "pending_changes_one_waiting"
+# Control, format (zero-width, bidi override) and line or paragraph separator characters let a
+# name pose as another one in the approver's view.
+HIDDEN_CATEGORIES = frozenset({"Cc", "Cf", "Zl", "Zp"})
+
+
+def _bad_display_name(name: Any) -> bool:
+    return (
+        not isinstance(name, str)
+        or not name.strip()
+        or len(name) > DISPLAY_NAME_MAX
+        or any(unicodedata.category(ch) in HIDDEN_CATEGORIES for ch in name)
+    )
 
 
 def _unknown(key: str, where: str) -> ApiError:
@@ -341,11 +356,7 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
             raise invalid("username", "invalid")
         role = new.get("role")
         display_name = new.get("display_name")
-        if (
-            not isinstance(display_name, str)
-            or not display_name.strip()
-            or len(display_name) > DISPLAY_NAME_MAX
-        ):
+        if _bad_display_name(display_name):
             raise invalid("display_name", "invalid")
         if role not in ROLES:
             raise invalid("role", "invalid_enum")
@@ -467,18 +478,25 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
     old = _current_value(ctx, kind, subject, new)
     _one_waiting(ctx, kind, subject, new)
     digest = canonical_hash(kind, str(subject["id"]) if subject else None, old, new)
-    row = one(
-        ctx.conn,
-        "INSERT INTO pending_changes (kind, subject_user_id, old_value, new_value, proposer_id, "
-        "change_hash, state, proposed_at, subject_district_ids, needs_all_states) "
-        "VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', %s, %s, %s) RETURNING *",
-        (
-            kind, subject["id"] if subject else None,
-            Jsonb(old) if old is not None else None, Jsonb(new),
-            uuid.UUID(ctx.me.user_id), digest, ctx.now(),
-            [uuid.UUID(d) for d in districts], needs_all,
-        ),
-    )  # fmt: skip
+    try:
+        row = one(
+            ctx.conn,
+            "INSERT INTO pending_changes (kind, subject_user_id, old_value, new_value, "
+            "proposer_id, change_hash, state, proposed_at, subject_district_ids, "
+            "needs_all_states) VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', %s, %s, %s) "
+            "RETURNING *",
+            (
+                kind, subject["id"] if subject else None,
+                Jsonb(old) if old is not None else None, Jsonb(new),
+                uuid.UUID(ctx.me.user_id), digest, ctx.now(),
+                [uuid.UUID(d) for d in districts], needs_all,
+            ),
+        )  # fmt: skip
+    except pg_errors.UniqueViolation as exc:
+        # A proposal that arrived at the same moment won the race: the index enforces the rule.
+        if exc.diag.constraint_name != ONE_WAITING_INDEX:
+            raise
+        raise ApiError("PENDING_EXISTS") from None
     row = need(row)
     case_ref_id = _case_of(row)
     detail: dict[str, Any] = {
