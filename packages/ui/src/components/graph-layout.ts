@@ -98,6 +98,8 @@ export function layoutGraph(
   edges: readonly { id: string; from: string; to: string }[],
   width: number,
   height: number,
+  /** Half the width of a node's label, so the label box never crosses the left or right edge. */
+  halfLabelWidth: (id: string) => number = () => 0,
 ): Map<string, GraphPoint> {
   const simNodes: SimNode[] = nodes.map((n) => ({ id: n.id })).sort((a, b) => cmp(a.id, b.id));
   const known = new Set(simNodes.map((n) => n.id));
@@ -128,8 +130,9 @@ export function layoutGraph(
 
   const out = new Map<string, GraphPoint>();
   for (const n of simNodes) {
+    const mx = Math.min(Math.max(LAYOUT_MARGIN, halfLabelWidth(n.id) + 4), width / 2);
     out.set(n.id, {
-      x: clamp(n.x ?? width / 2, LAYOUT_MARGIN, width - LAYOUT_MARGIN),
+      x: clamp(n.x ?? width / 2, mx, width - mx),
       y: clamp(n.y ?? height / 2, LAYOUT_MARGIN, height - LAYOUT_MARGIN),
     });
   }
