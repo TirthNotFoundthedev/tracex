@@ -28,7 +28,7 @@ type StateRow = components["schemas"]["State"];
 type Proposal = components["schemas"]["ProposeChangeRequest"];
 
 const PAGE = 50;
-/** Changes waiting for approval are read once, at the contract's largest page. */
+/** The change list is read at the contract's largest page. */
 const PENDING_LIMIT = 100;
 /** A stop for a list that never ends. */
 const PENDING_MAX_PAGES = 100;
@@ -52,13 +52,15 @@ type RefLoad =
   | { state: "failed"; result: FailureResult }
   | { state: "ready"; ref: Reference };
 
-/** Every waiting change. The list is read to its last page, so no tag is missing and no second proposal slips through. */
+/**
+ * Every change, waiting or decided (no state filter). The list is read to its last page, so no tag is missing and no second
+ * proposal slips through.
+ */
 async function readAllPending(api: AdminApi): Promise<ApiResult<Change[]>> {
   const all: Change[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < PENDING_MAX_PAGES; page++) {
     const result = await api.client.listPendingChanges({
-      state: "PENDING",
       limit: PENDING_LIMIT,
       ...(cursor ? { cursor } : {}),
     });
@@ -141,6 +143,15 @@ const sameCoverage = (a: AreaDraft, b: AreaDraft) =>
 
 function PendingTag({ lang }: { lang: Language }) {
   return <Badge icon="pending">{t("approvals.tag.waiting", lang)}</Badge>;
+}
+
+/** The contract keeps no refusal reason (the deny route takes no body, D71), so the tag has words only. */
+function RefusedTag({ lang }: { lang: Language }) {
+  return (
+    <Badge icon="reject" kind="danger">
+      {t("approvals.tag.refused", lang)}
+    </Badge>
+  );
 }
 
 // ---------------------------------------------------------------- the area pickers
@@ -324,11 +335,22 @@ interface FormProps {
   canEdit: boolean;
   reference: Reference;
   waiting: Change | undefined;
+  refused: boolean;
   onSent: (change: Change) => void;
   onBack: () => void;
 }
 
-function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack }: FormProps) {
+function UserForm({
+  api,
+  lang,
+  mode,
+  canEdit,
+  reference,
+  waiting,
+  refused,
+  onSent,
+  onBack,
+}: FormProps) {
   const user = mode.kind === "user" ? mode.user : undefined;
   const scopeOf = useCallback(
     (role: Role): Scope => reference.scopes.get(role) ?? "NONE",
@@ -510,6 +532,7 @@ function UserForm({ api, lang, mode, canEdit, reference, waiting, onSent, onBack
       ) : null}
       {showSent ? <Message kind="info">{t("approvals.sent", lang)}</Message> : null}
       {pendingNow || sentNow ? <PendingTag lang={lang} /> : null}
+      {refused && !pendingNow && !sentNow ? <RefusedTag lang={lang} /> : null}
       {failure ? <FailureView result={failure} lang={lang} /> : null}
       {canEdit ? (
         <form
@@ -656,18 +679,31 @@ export function UsersPage({ api, lang, role }: UsersPageProps) {
     fetchPage as (cursor?: string) => Promise<ApiResult<PageShape<User>>>,
   );
 
-  const waitingChanges = useMemo(
+  const knownChanges = useMemo(
     () => (refLoad.state === "ready" ? [...refLoad.ref.pending, ...sent] : sent),
     [refLoad, sent],
   );
   const bySubject = useMemo(() => {
     const map = new Map<string, Change>();
-    for (const change of waitingChanges) {
+    for (const change of knownChanges) {
       if (change.state === "PENDING" && change.subject) map.set(change.subject.user_id, change);
     }
     return map;
-  }, [waitingChanges]);
-  const newUsers = waitingChanges.filter((c) => c.kind === "USER_CREATE" && c.state === "PENDING");
+  }, [knownChanges]);
+  // A user shows "Change refused" when the newest change about them (by proposal time) was refused.
+  const refusedSubjects = useMemo(() => {
+    const latest = new Map<string, Change>();
+    for (const change of knownChanges) {
+      const id = change.subject?.user_id;
+      if (!id) continue;
+      const seen = latest.get(id);
+      if (!seen || Date.parse(change.proposed_at) >= Date.parse(seen.proposed_at)) {
+        latest.set(id, change);
+      }
+    }
+    return new Set([...latest].filter(([, c]) => c.state === "DENIED").map(([id]) => id));
+  }, [knownChanges]);
+  const newUsers = knownChanges.filter((c) => c.kind === "USER_CREATE" && c.state === "PENDING");
 
   if (refLoad.state === "loading") return <Loading label={t("loading.default", lang)} />;
   if (refLoad.state === "failed") {
@@ -697,6 +733,7 @@ export function UsersPage({ api, lang, role }: UsersPageProps) {
               canEdit={canEdit}
               reference={reference}
               waiting={fresh.kind === "user" ? bySubject.get(fresh.user.user_id) : undefined}
+              refused={fresh.kind === "user" && refusedSubjects.has(fresh.user.user_id)}
               onSent={(change) => setSent((now) => [...now, change])}
               onBack={() => setMode(undefined)}
             />
@@ -755,7 +792,11 @@ export function UsersPage({ api, lang, role }: UsersPageProps) {
                 cell: (u) => (
                   <>
                     <span>{t(u.active ? "users.status.active" : "users.status.off", lang)}</span>{" "}
-                    {bySubject.has(u.user_id) ? <PendingTag lang={lang} /> : null}
+                    {bySubject.has(u.user_id) ? (
+                      <PendingTag lang={lang} />
+                    ) : refusedSubjects.has(u.user_id) ? (
+                      <RefusedTag lang={lang} />
+                    ) : null}
                   </>
                 ),
               },

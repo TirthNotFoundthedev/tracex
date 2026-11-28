@@ -340,8 +340,95 @@ test("pending tags come from one list of waiting changes, not from reads per row
   const other = (await screen.findByText("Asha Devi")).closest("tr") as HTMLElement;
   expect(within(other).queryByText("Change waiting for approval")).toBeNull();
   expect(urls).toHaveLength(1);
-  expect(new URL(urls[0] as string).searchParams.get("state")).toBe("PENDING");
+  expect(new URL(urls[0] as string).searchParams.has("state")).toBe(false);
   expect(calls.filter((c) => c.path.startsWith("/users/"))).toEqual([]);
+});
+
+const denied = (over: Record<string, unknown> = {}) =>
+  change({
+    change_id: "d0000000-0000-4000-8000-0000000000a1",
+    state: "DENIED",
+    decider: { user_id: MEENA, display_name: "Meena Rao", role: "SENIOR" },
+    decided_at: "2026-03-13T09:00:00Z",
+    ...over,
+  });
+
+test("a user whose latest change was refused shows the Change refused tag on the row, from one list", async () => {
+  const urls: string[] = [];
+  const { calls } = setup("ADMIN", {
+    "GET /pending-changes": ({ url }) => {
+      urls.push(url);
+      return page([denied()]);
+    },
+  });
+  const row = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
+  expect(within(row).getByText("Change refused")).toBeTruthy();
+  expect(within(row).queryByText("Change waiting for approval")).toBeNull();
+  const other = (await screen.findByText("Asha Devi")).closest("tr") as HTMLElement;
+  expect(within(other).queryByText("Change refused")).toBeNull();
+  expect(urls).toHaveLength(1);
+  expect(calls.filter((c) => c.path.startsWith("/users/"))).toEqual([]);
+});
+
+test("a newer waiting change replaces an older refusal", async () => {
+  setup("ADMIN", {
+    "GET /pending-changes": page([
+      denied({ proposed_at: "2026-03-10T10:00:00Z" }),
+      change({ change_id: "d0000000-0000-4000-8000-0000000000a2" }),
+    ]),
+  });
+  const row = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
+  expect(within(row).getByText("Change waiting for approval")).toBeTruthy();
+  expect(within(row).queryByText("Change refused")).toBeNull();
+});
+
+test("a refusal followed by an approved change shows no tag, whatever the list order", async () => {
+  setup("ADMIN", {
+    "GET /pending-changes": page([
+      change({ state: "APPROVED", proposed_at: "2026-03-14T10:00:00Z" }),
+      denied({ proposed_at: "2026-03-12T10:00:00Z" }),
+    ]),
+  });
+  const row = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
+  expect(within(row).queryByText("Change refused")).toBeNull();
+  expect(within(row).queryByText("Change waiting for approval")).toBeNull();
+});
+
+test("a refusal on a later page and for another user is found", async () => {
+  setup("ADMIN", {
+    "GET /pending-changes": ({ url }) =>
+      new URL(url).searchParams.get("cursor")
+        ? json(200, {
+            items: [
+              denied({ subject: { user_id: ASHA, display_name: "Asha Devi", role: "JUNIOR" } }),
+            ],
+            next_cursor: null,
+            total: 2,
+          })
+        : json(200, { items: [change({ state: "APPROVED" })], next_cursor: "P2", total: 2 }),
+  });
+  const asha = (await screen.findByText("Asha Devi")).closest("tr") as HTMLElement;
+  await waitFor(() => expect(within(asha).getByText("Change refused")).toBeTruthy());
+  const ravi = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
+  expect(within(ravi).queryByText("Change refused")).toBeNull();
+});
+
+test("a refused new user has no row, so no tag is shown for it", async () => {
+  setup("ADMIN", {
+    "GET /pending-changes": page([
+      denied({ kind: "USER_CREATE", subject: null, new_value: { display_name: "New Person" } }),
+    ]),
+  });
+  await screen.findByText("Ravi Kumar");
+  expect(screen.queryByText("Change refused")).toBeNull();
+});
+
+test("a refused user opens with the tag, no waiting message and no reason", async () => {
+  setup("ADMIN", { "GET /pending-changes": page([denied()]) });
+  await openRow("Ravi Kumar");
+  expect(await screen.findByText("Change refused")).toBeTruthy();
+  expect(screen.queryByText("Change waiting for approval")).toBeNull();
+  expect(screen.queryByText(/Sent for approval/)).toBeNull();
 });
 
 test("the table shows name, user ID, role in words, area and status; no role codes anywhere", async () => {
