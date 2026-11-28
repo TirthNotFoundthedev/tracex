@@ -829,8 +829,8 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Pending changes the caller proposed or may decide
-     * @description ADMIN sees changes they proposed. A SENIOR sees changes whose every touched jurisdiction (the subject's old and new district, the district of an assignment's case) lies in their coverage; threshold changes, ADMIN subjects and role changes to or from SENIOR or ADMIN only to an all-state SENIOR. Others do not exist for the caller.
+     * Changes the caller proposed or may decide, in every state unless filtered
+     * @description Lists changes in every state (PENDING, APPROVED and DENIED) unless `state` filters the list. ADMIN sees changes they proposed. A SENIOR sees changes whose every touched jurisdiction (the subject's old and new district, the district of an assignment's case) lies in their coverage; threshold changes, ADMIN subjects and role changes to or from SENIOR or ADMIN only to an all-state SENIOR. Others do not exist for the caller.
      */
     get: operations["listPendingChanges"];
     put?: never;
