@@ -4,7 +4,7 @@ Last updated: 2026-11-28, session S4 (P4 apps), eighth checkpoint: admin screens
 
 ## Done
 - PLAN.md approved by the owner (2026-11-11). Governance files in place.
-- Private repo github.com/TirthNotFoundthedev/tracex. `main` protected (PR + CI checks backend, frontend).
+- Private repo github.com/TirthNotFoundthedev/tracex. `main` protected (PR + required CI checks backend, frontend, smoke, data-kit; smoke and data-kit added 2026-11-28 with the owner's OK, D76).
 - P0 foundation merged (PR #4), tag `m0-foundation`. PR #7 merged: self-hosted Noto fonts, Lucide, shared i18n with Hindi parity check, compose smoke job.
 - P1 specs merged, tag `m1-specs`: `docs/specs/engine-matching.md` (Iyer), `api-access-control.md` + `api-audit-log.md` (Khan, gated by Dutta), `DESIGN_RULES.md`, `design-flows.md`, tokens, specimen (Sen).
 - S1 merged with the owner's OK (PRs #12, #10, #11, #9, #13), `main` green, tag `m1-contracts` pushed: matching-spec errata (Iyer), `docs/specs/data-kit.md` (Bose, hired), `contracts/` + `docs/architecture.md` + access/audit spec amendments (Khan; Iyer approved, Dutta's security gate passed on the third round), review-queue filter Waiting / Rejected / Undone with Reopen, Approvals page and real-font specimen (Sen). Decisions D43-D49.
@@ -49,7 +49,7 @@ Last updated: 2026-11-28, session S4 (P4 apps), eighth checkpoint: admin screens
 
 ## Carried forward (not blocking)
 - Sen: Hindi strings need a native-speaker review; checklist item 16 must be repeated on the real app screens; queue and approval i18n keys are listed in design-flows for the screen builders to add in both languages. A string for "a matching run is in progress, try again shortly" (409 RUN_IN_PROGRESS, D49) is needed in both apps.
-- Rao: `smoke` and `data-kit` as required checks (ask the owner first). Workspace packages under `apps/*` and `packages/*` were not audited for range pins.
+- Rao: workspace packages under `apps/*` and `packages/*` were not audited for range pins.
 - Naidu follow-ups (safe-side misses): family-note owners in parentheses, the Devanagari pronoun "उसका नंबर", a Devanagari name swallowing a following verb, a name directly after a locality with no comma, `M/s.` at a sentence end turning the next sentence's name into an ORG, landlines in CDR rows, `OrgMention` has no aliases field, a bare two-word suffix name without `M/s` ("Om Traders") reads as a PERSON. PR #23's final suffix-rule tightening was merged without a second look by Iyer (output on the small tier was identical).
 - Bose: G-10 public-figure name check before demo readiness; replacing an uploaded case is a later Backend + Graph slice (files are immutable until then).
 - Bose: G-10 public-figure name check before the demo-readiness checklist.
@@ -64,7 +64,6 @@ Last updated: 2026-11-28, session S4 (P4 apps), eighth checkpoint: admin screens
 - Agents do not persist across sessions: re-hire each role with its ROSTER card and pointers to its merged spec.
 - Local port 8000 is in use on this machine; use `API_PORT=18000` for local compose runs.
 - A stray `python -m http.server` on 127.0.0.1:8765 may still be running from the design specimen check.
-- `smoke` is not yet a required check on `main`; ask the owner before changing branch protection, then have Rao add it.
 - Prettier is declared as `^3.3.3` in package.json (the lockfile pins it); CODEBASE_RULES wants exact pins. Give to Rao with his next task.
 - Reviews: resume the same agent with SendMessage for re-reviews and fix rounds; it keeps its context and is much cheaper than a new hire.
 - Do not `cd` into an agent worktree from the main session; use `git show origin/<branch>:<path>`.
@@ -82,7 +81,7 @@ Last updated: 2026-11-28, session S4 (P4 apps), eighth checkpoint: admin screens
 - S3: an agent that keeps re-sending the same hand-back while "waiting on its own background work" can be stopped with TaskStop once its work is pushed.
 
 ## Open questions for the owner
-- OK to make `smoke` and `data-kit` required checks on `main`?
+- None.
 
 ## Resume prompt (paste into a new session in this folder)
 > You are Fable, CEO / Project Lead / CTO of TraceX. Read STATE.md, then PLAN.md §4–5, ROSTER.md and PROTOCOLS.md. Do not re-read the source document or PPT unless a task needs a section. Check usage, then continue from "Next" in STATE.md, delegating to the roles in ROSTER.md. Keep updates to me brief; checkpoint STATE.md, commit and push before limits run out.
