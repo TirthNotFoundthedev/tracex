@@ -20,6 +20,8 @@ How the apps reach the API: each app is built inside Docker with `VITE_API_URL=/
 
 Port overrides: set any of `API_PORT`, `OFFICER_PORT`, `ADMIN_PORT`, `POSTGRES_PORT`, `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT` in `.env`. To run a second copy side by side, also set `COMPOSE_PROJECT_NAME` and use different ports for all six. On Windows with Git Bash, port 8000 is often busy: use `API_PORT=18000`.
 
+A page refresh signs the user out. This is by design (D64): the refresh token is kept in memory only, never in browser storage.
+
 After a change in `apps/` or `packages/`, rebuild the app images: `docker compose up --build -d --wait officer admin`.
 
 ## Seed data

@@ -116,6 +116,9 @@ jobs:
           curl --fail -s http://localhost:4174/ | grep -q "<div id=\"root\">"
           curl --fail http://localhost:4173/api/health
           curl --fail http://localhost:4174/api/health
+          for port in 4173 4174; do
+            curl --fail -s -X POST -H "Content-Type: application/json" -d "{\"username\":\"hari\",\"password\":\"dev-only-seed-hari\"}" "http://localhost:$port/api/auth/login" | grep -q access_token
+          done
       - if: failure()
         run: docker compose logs --no-color
       - if: always()
