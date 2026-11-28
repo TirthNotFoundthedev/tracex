@@ -82,9 +82,9 @@ def test_an_unknown_group_is_a_422(world: World, value: str) -> None:
 
 def test_a_group_and_an_event_type_must_both_match(world: World) -> None:
     activity(world)
-    both = read_all(world.api, "deepak", event_group="VIEWED", event_type="LINK_VIEWED")
-    assert both and all(r["event_type"] == "LINK_VIEWED" for r in both)
-    clash = read_all(world.api, "deepak", event_group="CONFIRMED", event_type="LINK_VIEWED")
+    both = read_all(world.api, "deepak", event_group="VIEWED", event_type="ENTITY_VIEWED")
+    assert both and all(r["event_type"] == "ENTITY_VIEWED" for r in both)
+    clash = read_all(world.api, "deepak", event_group="CONFIRMED", event_type="ENTITY_VIEWED")
     assert clash == []
 
 

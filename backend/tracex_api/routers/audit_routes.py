@@ -212,7 +212,8 @@ def list_audit(
     if outcome is not None and outcome not in ("SUCCESS", "DENIED", "FAILED"):
         raise invalid("outcome", "invalid_enum")
     filters = {
-        "event_type": event_type, "event_group": event_group, "outcome": outcome, "actor_user_id": actor_user_id,
+        "event_type": event_type, "event_group": event_group, "outcome": outcome,
+        "actor_user_id": actor_user_id,
         "case_id": case_id, "target_id": target_id,
         "occurred_from": occurred_from.isoformat() if occurred_from else None,
         "occurred_to": occurred_to.isoformat() if occurred_to else None,

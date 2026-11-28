@@ -1619,6 +1619,8 @@ export interface components {
       | "GRANT_VIEWED"
       | "CHANGE_VIEWED"
       | "ENGINE_DIVERGENCE_REVERTED";
+    /** @enum {string} */
+    AuditEventGroup: "VIEWED" | "CONFIRMED" | "REJECTED" | "REQUESTED" | "APPROVED" | "UPLOADED";
     AuditActor: {
       /** @enum {string} */
       kind: "USER" | "SYSTEM" | "ANONYMOUS";
@@ -1626,9 +1628,12 @@ export interface components {
       role?: components["schemas"]["Role"];
       district_id?: components["schemas"]["Uuid"];
     };
+    /** @description A case the reader may see. A case the reader cannot see is dropped whole, number included. */
     AuditCaseRef: {
       case_id: components["schemas"]["Id"];
       district_id: components["schemas"]["Uuid"];
+      /** @description The number of the case `case_id` names, read when the row is served; never stored in the log. */
+      case_number: string;
     };
     /**
      * @description Never contains a sequence number, event id, hash, nonce, session id, request id or client address. Keys the
@@ -4212,6 +4217,13 @@ export interface operations {
     parameters: {
       query?: {
         event_type?: components["schemas"]["AuditEventType"];
+        /**
+         * @description One of the six action words of the Activity log. VIEWED: CASE_LISTED, LINKS_LISTED, SEARCH_RUN and every
+         *     event named `*_VIEWED`. CONFIRMED: LINK_CONFIRMED. REJECTED: LINK_REJECTED. REQUESTED: ACCESS_REQUEST_CREATED.
+         *     APPROVED: ACCESS_REQUEST_APPROVED. UPLOADED: DATA_UPLOADED. A filter like the others: it runs over the rows the
+         *     reader can see; with `event_type` too, both must match. An unknown value is 422.
+         */
+        event_group?: components["schemas"]["AuditEventGroup"];
         outcome?: "SUCCESS" | "DENIED" | "FAILED";
         actor_user_id?: components["schemas"]["Uuid"];
         case_id?: string;
