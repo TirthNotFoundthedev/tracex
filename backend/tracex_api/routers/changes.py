@@ -3,10 +3,12 @@
 import hashlib
 import json
 import re
+import unicodedata
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+from psycopg import errors as pg_errors
 from psycopg.types.json import Jsonb
 
 from tracex_api import audit
@@ -62,6 +64,21 @@ NEW_VALUE_KEYS_BY_KIND: dict[str, frozenset[str]] = {
     "THRESHOLDS": frozenset({"high_min", "medium_min"}),
 }
 COVERAGE_KEYS = frozenset({"all_states", "state_ids", "district_ids"})
+USERNAME_RE = re.compile(r"[a-z0-9._-]{3,64}")
+DISPLAY_NAME_MAX = 120
+ONE_WAITING_INDEX = "pending_changes_one_waiting"
+# Control, format (zero-width, bidi override) and line or paragraph separator characters let a
+# name pose as another one in the approver's view.
+HIDDEN_CATEGORIES = frozenset({"Cc", "Cf", "Zl", "Zp"})
+
+
+def _bad_display_name(name: Any) -> bool:
+    return (
+        not isinstance(name, str)
+        or not name.strip()
+        or len(name) > DISPLAY_NAME_MAX
+        or any(unicodedata.category(ch) in HIDDEN_CATEGORIES for ch in name)
+    )
 
 
 def _unknown(key: str, where: str) -> ApiError:
@@ -173,6 +190,18 @@ def _user_all_states(ctx: Ctx, user: Row) -> bool:
     )
 
 
+def _current_coverage(ctx: Ctx, user: Row) -> dict[str, Any]:
+    """The user's stored coverage in one canonical form (sorted ids), for old-value checks."""
+    rows = many(ctx.conn, "SELECT * FROM user_coverage WHERE user_id = %s", (user["id"],))
+    if any(r["all_states"] for r in rows):
+        return {"all_states": True, "state_ids": [], "district_ids": []}
+    return {
+        "all_states": False,
+        "state_ids": sorted(str(r["state_id"]) for r in rows if r["state_id"]),
+        "district_ids": sorted(str(r["district_id"]) for r in rows if r["district_id"]),
+    }
+
+
 def _current_value(ctx: Ctx, kind: str, subject: Row | None, new: dict[str, Any]) -> Any:
     if kind == "THRESHOLDS":
         row = one(
@@ -187,6 +216,8 @@ def _current_value(ctx: Ctx, kind: str, subject: Row | None, new: dict[str, Any]
     if kind == "USER_ROLE":
         return {"role": subject["role"]}
     if kind == "USER_JURISDICTION":
+        if subject["role"] == "SENIOR":
+            return {"coverage": _current_coverage(ctx, subject)}
         return {"district_id": str(subject["district_id"]) if subject["district_id"] else None}
     if kind in ("ASSIGNMENT_ADD", "ASSIGNMENT_REMOVE"):
         row = one(
@@ -254,6 +285,28 @@ def _audit_view(ctx: Ctx, rows: list[Row]) -> None:
     )
 
 
+def _one_waiting(ctx: Ctx, kind: str, subject: Row | None, new: dict[str, Any]) -> None:
+    """409 when a change of the same kind is already waiting for the same target: the subject
+    user, plus the case of an assignment change, or the username of an account to create."""
+    if kind == "THRESHOLDS":
+        return
+    waiting = many(
+        ctx.conn,
+        "SELECT new_value FROM pending_changes WHERE state = 'PENDING' AND kind = %s "
+        "AND subject_user_id IS NOT DISTINCT FROM %s",
+        (kind, subject["id"] if subject else None),
+    )
+    for w in waiting:
+        if kind == "USER_CREATE":
+            same = w["new_value"].get("username") == new.get("username")
+        elif kind in ("ASSIGNMENT_ADD", "ASSIGNMENT_REMOVE"):
+            same = w["new_value"].get("case_id") == new.get("case_id")
+        else:
+            same = True
+        if same:
+            raise ApiError("PENDING_EXISTS")
+
+
 @endpoint(
     router,
     "POST",
@@ -293,15 +346,19 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
     needs_all = False
     if kind == "USER_CREATE":
         username = new.get("username")
+        # The users table accepts only lower-case names; the same rule is checked here so a
+        # bad name never reaches an approver (TIR-91).
         if (
             not isinstance(username, str)
-            or not username
-            or one(ctx.conn, "SELECT 1 AS x FROM users WHERE username = %s", (username.lower(),))
+            or USERNAME_RE.fullmatch(username) is None
+            or one(ctx.conn, "SELECT 1 AS x FROM users WHERE username = %s", (username,))
         ):
             raise invalid("username", "invalid")
         role = new.get("role")
         display_name = new.get("display_name")
-        if role not in ROLES or not isinstance(display_name, str) or not display_name:
+        if _bad_display_name(display_name):
+            raise invalid("display_name", "invalid")
+        if role not in ROLES:
             raise invalid("role", "invalid_enum")
         base = {"username": username, "display_name": display_name, "role": role}
         if role in DISTRICT_ROLES:
@@ -419,19 +476,27 @@ def propose_change(ctx: Ctx = Depends(authed_ctx)) -> dict[str, Any]:
         new = {"high_min": float(high), "medium_min": float(medium)}
         needs_all = True
     old = _current_value(ctx, kind, subject, new)
+    _one_waiting(ctx, kind, subject, new)
     digest = canonical_hash(kind, str(subject["id"]) if subject else None, old, new)
-    row = one(
-        ctx.conn,
-        "INSERT INTO pending_changes (kind, subject_user_id, old_value, new_value, proposer_id, "
-        "change_hash, state, proposed_at, subject_district_ids, needs_all_states) "
-        "VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', %s, %s, %s) RETURNING *",
-        (
-            kind, subject["id"] if subject else None,
-            Jsonb(old) if old is not None else None, Jsonb(new),
-            uuid.UUID(ctx.me.user_id), digest, ctx.now(),
-            [uuid.UUID(d) for d in districts], needs_all,
-        ),
-    )  # fmt: skip
+    try:
+        row = one(
+            ctx.conn,
+            "INSERT INTO pending_changes (kind, subject_user_id, old_value, new_value, "
+            "proposer_id, change_hash, state, proposed_at, subject_district_ids, "
+            "needs_all_states) VALUES (%s, %s, %s, %s, %s, %s, 'PENDING', %s, %s, %s) "
+            "RETURNING *",
+            (
+                kind, subject["id"] if subject else None,
+                Jsonb(old) if old is not None else None, Jsonb(new),
+                uuid.UUID(ctx.me.user_id), digest, ctx.now(),
+                [uuid.UUID(d) for d in districts], needs_all,
+            ),
+        )  # fmt: skip
+    except pg_errors.UniqueViolation as exc:
+        # A proposal that arrived at the same moment won the race: the index enforces the rule.
+        if exc.diag.constraint_name != ONE_WAITING_INDEX:
+            raise
+        raise ApiError("PENDING_EXISTS") from None
     row = need(row)
     case_ref_id = _case_of(row)
     detail: dict[str, Any] = {

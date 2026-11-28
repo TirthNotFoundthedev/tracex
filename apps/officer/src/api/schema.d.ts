@@ -840,6 +840,11 @@ export interface paths {
      *     (SHA-256 of the canonical content). Thresholds: 70 <= high_min <= 100 and 30 <= medium_min <= high_min - 10.
      *     Case assignments name the case by `case_number`; an unknown number answers the same 422 as an invalid one.
      *     USER_CREATE makes an account with no usable password; a login for it fails exactly like a wrong password. No route sets or resets a password.
+     *     The change is checked now, not only when approved. USER_CREATE: `username` must match `^[a-z0-9._-]+$` (3 to 64
+     *     characters) and be unused, and `display_name` must be 1 to 120 characters (422 on that field). A USER_JURISDICTION
+     *     change for a SENIOR records the current coverage as `old_value`. If a change of the same kind is already PENDING for
+     *     the same subject user (for an assignment change, the same case; for USER_CREATE, the same username), the answer is
+     *     409 `PENDING_EXISTS` and nothing is stored.
      */
     post: operations["proposeChange"];
     delete?: never;
@@ -877,7 +882,7 @@ export interface paths {
     /**
      * Approve a pending change and apply it
      * @description The approver presents the `change_hash` they saw. A changed proposal is a new record needing new approval
-     *     (409 `CHANGE_HASH_STALE`). If the current value no longer equals `old_value`, 409 `OLD_VALUE_CHANGED`.
+     *     (409 `CHANGE_HASH_STALE`). If the current value no longer equals `old_value`, 409 `OLD_VALUE_CHANGED`; for a coverage change the current value is the user's whole coverage.
      *     Disabling or moving the last SENIOR able to approve a jurisdiction is refused (409 `LAST_APPROVER`). Not the
      *     proposer and not the subject (403). Applying a change that alters a user's role, jurisdiction, assignment or
      *     active flag bumps that user's `authz_version`: old tokens 401, refresh tokens revoked, grants closed.
@@ -1015,6 +1020,7 @@ export interface components {
       | "NOT_PENDING"
       | "CHANGE_HASH_STALE"
       | "OLD_VALUE_CHANGED"
+      | "PENDING_EXISTS"
       | "LAST_APPROVER"
       | "RUN_IN_PROGRESS"
       | "VALIDATION_FAILED"
