@@ -6,6 +6,7 @@ import { Button } from "./Button";
 import { useUi } from "./context";
 import { Message } from "./feedback";
 import { Icon, type IconName } from "./Icon";
+import { labelHalfWidth, placeEdgeWords, shortLabel, visibleLabels } from "./graph-labels";
 import {
   GRAPH_NODE_TYPES,
   layoutGraph,
@@ -23,7 +24,15 @@ const DEFAULT_WIDTH = 900;
 const WIDE_HEIGHT = 560;
 /** A phone is narrow, so the picture is taller to keep labels apart. */
 const NARROW_HEIGHT = 820;
-const NARROW_PER_NODE = 120;
+const NARROW_PER_NODE = 150;
+
+/** The picture grows with the node count, so shapes keep apart (zoom handles the rest). */
+function pictureHeight(width: number, count: number): number {
+  const extra = Math.max(0, count - 30);
+  if (width < 600)
+    return Math.max(NARROW_HEIGHT, Math.min(count, 30) * NARROW_PER_NODE + extra * 40);
+  return WIDE_HEIGHT + extra * 8;
+}
 
 type ShapeName = GraphNodeType | "restricted";
 
@@ -143,7 +152,7 @@ function GraphCanvasInner({
   view: controlledView,
   onViewChange,
 }: GraphCanvasProps) {
-  const { t } = useUi();
+  const { t, lang } = useUi();
   const [ownView, setOwnView] = useState<GraphView>("picture");
   const view = controlledView ?? ownView;
   const setView = (next: GraphView) => {
@@ -171,13 +180,36 @@ function GraphCanvasInner({
     return () => observer.disconnect();
   }, [view]);
 
-  const height =
-    width < 600 ? Math.max(NARROW_HEIGHT, nodes.length * NARROW_PER_NODE) : WIDE_HEIGHT;
-  const positions = useMemo(
-    () => layoutGraph(nodes, edges, width, height),
-    [nodes, edges, width, height],
-  );
+  const height = pictureHeight(width, nodes.length);
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const labelText = (node: GraphNode): string =>
+    node.restricted === true ? t("restricted.title") : node.label;
+  const positions = useMemo(
+    () =>
+      layoutGraph(nodes, edges, width, height, (id) => {
+        const node = byId.get(id);
+        return node
+          ? labelHalfWidth(node.restricted === true ? t("restricted.title") : node.label)
+          : 0;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t only changes with the language
+    [nodes, edges, width, height, byId, lang],
+  );
+  const shownLabels = useMemo(
+    () => visibleLabels(nodes, edges, positions, selectedId),
+    [nodes, edges, positions, selectedId],
+  );
+  const [focusedId, setFocusedId] = useState<string | undefined>();
+  const edgeWordOf = (edge: GraphEdge): string =>
+    edge.kind !== "same_as"
+      ? ""
+      : t(edge.strength === "strong" ? "graph.edge.strongShort" : "graph.edge.possibleShort");
+  const edgeWords = useMemo(
+    () => placeEdgeWords(edges, nodes, positions, shownLabels, edgeWordOf),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- edgeWordOf depends only on the language
+    [edges, nodes, positions, shownLabels, lang],
+  );
+  const hiddenLabelCount = nodes.length - shownLabels.size;
 
   const svgRef = useRef<SVGSVGElement>(null);
   const viewRef = useRef<SVGGElement>(null);
@@ -295,6 +327,10 @@ function GraphCanvasInner({
 
       {truncated || capped ? <Message kind="info">{t("graph.truncated")}</Message> : null}
 
+      {view === "picture" && hiddenLabelCount > 0 ? (
+        <Message kind="info">{t("graph.labelsHidden", { count: hiddenLabelCount })}</Message>
+      ) : null}
+
       {nodes.length === 0 ? (
         <p className="tx-body">{t("graph.empty")}</p>
       ) : view === "list" ? (
@@ -358,8 +394,7 @@ function GraphCanvasInner({
                 const b = positions.get(edge.to);
                 if (!a || !b) return null;
                 const look = edgeLook(edge);
-                const mx = (a.x + b.x) / 2;
-                const my = (a.y + b.y) / 2;
+                const word = edgeWords.get(edge.id);
                 return (
                   <g
                     key={edge.id}
@@ -377,19 +412,15 @@ function GraphCanvasInner({
                       strokeWidth={look.width}
                       strokeDasharray={look.dash}
                     />
-                    {edge.kind === "same_as" ? (
+                    {word ? (
                       <text
                         className="tx-graph__edge-label"
-                        x={mx}
-                        y={my}
+                        x={word.x}
+                        y={word.y}
                         textAnchor="middle"
                         dy="0.35em"
                       >
-                        {t(
-                          edge.strength === "strong"
-                            ? "graph.edge.strongShort"
-                            : "graph.edge.possibleShort",
-                        )}
+                        {edgeWordOf(edge)}
                       </text>
                     ) : null}
                   </g>
@@ -421,17 +452,26 @@ function GraphCanvasInner({
                     aria-label={name}
                     onClick={() => onSelect(node.id)}
                     onKeyDown={(e) => onKey(e, node.id)}
-                    onFocus={() => bringIntoView(p.x, p.y)}
+                    onFocus={() => {
+                      setFocusedId(node.id);
+                      bringIntoView(p.x, p.y);
+                    }}
+                    onBlur={() => setFocusedId(undefined)}
                   >
+                    {shownLabels.has(node.id) && shortLabel(label) === label ? null : (
+                      <title>{label}</title>
+                    )}
                     <NodeBody shape={shape} selected={selected} />
-                    <text
-                      className="tx-graph__label"
-                      y={restricted ? 42 : 46}
-                      textAnchor="middle"
-                      data-selected={selected ? "true" : undefined}
-                    >
-                      {label}
-                    </text>
+                    {shownLabels.has(node.id) || focusedId === node.id ? (
+                      <text
+                        className="tx-graph__label"
+                        y={restricted ? 42 : 46}
+                        textAnchor="middle"
+                        data-selected={selected ? "true" : undefined}
+                      >
+                        {shortLabel(labelText(node))}
+                      </text>
+                    ) : null}
                   </g>
                 );
               })}
