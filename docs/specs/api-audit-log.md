@@ -165,6 +165,7 @@ Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a sup
 | U28 | Request, approve, read under grant, revoke | One event per step; reads have `via_grant` true and `reason_code` GRANT_ACTIVE |
 | U29 | Entity search; graph view; review queue | SEARCH_RUN with `entity_ids`; GRAPH_VIEWED; REVIEW_QUEUE_VIEWED with ids shown |
 | U30 | hari proposes a change; deepak approves | CHANGE_PROPOSED then CHANGE_APPROVED with equal `change_hash`; then ASSIGNMENT_CHANGED or USER_* when applied |
+| U30b | hari proposes a change that fails at propose time (422 username, 409 `PENDING_EXISTS`) | No CHANGE_PROPOSED row (refusals are not business events); nothing stored |
 | U31 | Force `audit.append` to fail during a view | 500; no case data |
 | U32 | `detail` key not in section 3; `refs` missing a case named in `detail` | Insert rejected (W7) |
 | U33 | After the seeded scenario, scan all columns | No seeded phone number, name or line text |

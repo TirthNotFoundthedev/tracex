@@ -77,6 +77,8 @@ The MVP has seeded users and no password feature: no route sets or resets creden
 |---|---|
 | Approver | SENIOR whose coverage includes **every** jurisdiction the change touches, old and new: the subject's district; for an assignment change also the **district of the case**; for USER_CREATE and USER_JURISDICTION the new coverage must be a subset of the approver's coverage. Changes whose subject has no district (an ADMIN), changes of role to or from SENIOR or ADMIN, and thresholds need a SENIOR with all-state coverage. Not the proposer, not the subject. A caller outside that set gets 404 (a pending change and the case number inside it do not exist for them). |
 | Binding | Approval presents the `change_hash`. A changed proposal is a new record needing new approval. If the current value no longer equals `old_value`, approval fails (409). |
+| Checks at propose time (TIR-91) | A change is checked when it is proposed, not only when it is approved. USER_CREATE: `username` must match `^[a-z0-9._-]+$` and be 3 to 64 characters, and `display_name` must be 1 to 120 characters; otherwise 422 on that field (`username`, `display_name`, code `invalid`), nothing stored. A name already used by an account or by a waiting USER_CREATE is also refused. **One waiting change per target:** if a PENDING change of the same kind exists for the same subject user (for an assignment change, the same case as well; for USER_CREATE, the same username), a new proposal is refused with 409 `PENDING_EXISTS` and nothing is stored. The check runs after the input checks (a bad proposal gets 422 first). The existing change is decided or denied first. |
+| Coverage old value | USER_JURISDICTION for a SENIOR records the current coverage as `old_value` (`all_states`, `state_ids`, `district_ids`, ids sorted), because a coverage change replaces the whole coverage. Approval compares the current coverage with `old_value` and fails with 409 `OLD_VALUE_CHANGED` if it differs (for example, another change approved in between). |
 | New accounts | USER_CREATE makes an account with no usable password; a login for it fails exactly like a wrong password. No route sets one. |
 | Last approver | Disabling or moving the last SENIOR able to approve a jurisdiction is refused (409). |
 
@@ -199,6 +201,9 @@ Links: L-1 E-1~E-2 AUTO; L-2 E-1~E-3 AUTO; L-3 E-4~E-5 CONFIRMED; L-4 E-1~E-7 RE
 | A35 | deepak / hari | deepak approves a change whose subject is deepak; deepak approves a change for a Lakeside user; hari approves any change | 403; 404 (outside coverage); 403 |
 | A36 | deepak | Approve a threshold change | 404 (needs all-state coverage); meena approves, value changes |
 | A37 | meena | Approve with a stale `change_hash`; approve after `old_value` changed | 409; new proposal needed |
+| A41 | hari | Propose USER_CREATE with username `Bad Name`, `ab`, 65 characters, or a display name of 121 characters | 422 on `username` or `display_name`; nothing stored |
+| A42 | hari | Propose a USER_JURISDICTION for deepak; propose the same again | First 201, with the current coverage as `old_value`; second 409 `PENDING_EXISTS`. After the first is denied, a new one is accepted |
+| A43 | hari, meena | Propose a coverage change for deepak; meena approves another coverage change for deepak first; approve the first | 409 `OLD_VALUE_CHANGED` |
 | A38 | hari | In a test with a second all-state SENIOR who is then the only other approver: propose disabling the SENIOR who is the last able to approve Lakeside; approve | 409 `LAST_APPROVER` refused |
 | A39 | Any | Token with edited `role`, bad signature; `alg: none`; expired; none | 401 each, audited |
 | A40 | isha | Valid token plus `role: SENIOR`, `district: Hillcrest` claims | Ignored; JUNIOR Rivergate |
