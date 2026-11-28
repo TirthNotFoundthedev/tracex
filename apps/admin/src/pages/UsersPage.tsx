@@ -67,9 +67,23 @@ async function readAllPending(api: AdminApi): Promise<ApiResult<Change[]>> {
     if (result.kind !== "ok") return result;
     all.push(...result.data.items);
     cursor = result.data.next_cursor ?? undefined;
-    if (!cursor) break;
+    if (!cursor) return { kind: "ok", data: all };
   }
-  return { kind: "ok", data: all };
+  // The cap is reached with pages left: a tag could be missing or wrong, so the page fails instead of guessing.
+  return { kind: "serverError" };
+}
+
+/**
+ * Which of two changes about one user is the newer. By proposal time; at the same time a waiting change
+ * wins (a waiting tag is never hidden by a decided change), then the higher change id, so the result does not
+ * depend on the order of the list. The backend sorts `proposed_at DESC, id`.
+ */
+function isNewer(a: Change, b: Change): boolean {
+  const byTime = Date.parse(a.proposed_at) - Date.parse(b.proposed_at);
+  if (byTime !== 0) return byTime > 0;
+  const aWaiting = a.state === "PENDING";
+  if (aWaiting !== (b.state === "PENDING")) return aWaiting;
+  return a.change_id > b.change_id;
 }
 
 /**
@@ -697,7 +711,7 @@ export function UsersPage({ api, lang, role }: UsersPageProps) {
       const id = change.subject?.user_id;
       if (!id) continue;
       const seen = latest.get(id);
-      if (!seen || Date.parse(change.proposed_at) >= Date.parse(seen.proposed_at)) {
+      if (!seen || isNewer(change, seen)) {
         latest.set(id, change);
       }
     }
@@ -790,14 +804,14 @@ export function UsersPage({ api, lang, role }: UsersPageProps) {
                 id: "status",
                 header: t("users.col.status", lang),
                 cell: (u) => (
-                  <>
-                    <span>{t(u.active ? "users.status.active" : "users.status.off", lang)}</span>{" "}
+                  <span className="admin-status">
+                    <span>{t(u.active ? "users.status.active" : "users.status.off", lang)}</span>
                     {bySubject.has(u.user_id) ? (
                       <PendingTag lang={lang} />
                     ) : refusedSubjects.has(u.user_id) ? (
                       <RefusedTag lang={lang} />
                     ) : null}
-                  </>
+                  </span>
                 ),
               },
             ]}

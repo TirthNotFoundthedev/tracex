@@ -413,6 +413,82 @@ test("a refusal on a later page and for another user is found", async () => {
   expect(within(ravi).queryByText("Change refused")).toBeNull();
 });
 
+test("equal proposal times: a waiting change wins over a refusal, then the higher change id, in any list order", async () => {
+  const at = "2026-03-12T14:05:00Z";
+  const waiting = change({ change_id: "d0000000-0000-4000-8000-0000000000b1", proposed_at: at });
+  const refusedLow = denied({
+    change_id: "d0000000-0000-4000-8000-0000000000b9",
+    proposed_at: at,
+  });
+  const ashaSubject = { user_id: ASHA, display_name: "Asha Devi", role: "JUNIOR" };
+  const refusedA = denied({
+    change_id: "d0000000-0000-4000-8000-0000000000c1",
+    proposed_at: at,
+    subject: ashaSubject,
+  });
+  const approvedB = change({
+    change_id: "d0000000-0000-4000-8000-0000000000c2",
+    state: "APPROVED",
+    proposed_at: at,
+    subject: ashaSubject,
+  });
+  for (const items of [
+    [waiting, refusedLow, refusedA, approvedB],
+    [approvedB, refusedA, refusedLow, waiting],
+  ]) {
+    setup("ADMIN", { "GET /pending-changes": page(items) });
+    const ravi = (await screen.findByText("Ravi Kumar")).closest("tr") as HTMLElement;
+    expect(within(ravi).getByText("Change waiting for approval")).toBeTruthy();
+    expect(within(ravi).queryByText("Change refused")).toBeNull();
+    // Asha: the refusal has the lower id, the approval the higher id, so the approval is the latest.
+    const asha = (await screen.findByText("Asha Devi")).closest("tr") as HTMLElement;
+    expect(within(asha).queryByText("Change refused")).toBeNull();
+    cleanup();
+  }
+});
+
+test("a refusal with the higher change id beats an approval at the same time", async () => {
+  const at = "2026-03-12T14:05:00Z";
+  const subject = { user_id: ASHA, display_name: "Asha Devi", role: "JUNIOR" };
+  setup("ADMIN", {
+    "GET /pending-changes": page([
+      change({
+        change_id: "d0000000-0000-4000-8000-0000000000d2",
+        state: "APPROVED",
+        proposed_at: at,
+        subject,
+      }),
+      denied({ change_id: "d0000000-0000-4000-8000-0000000000d9", proposed_at: at, subject }),
+    ]),
+  });
+  const asha = (await screen.findByText("Asha Devi")).closest("tr") as HTMLElement;
+  expect(within(asha).getByText("Change refused")).toBeTruthy();
+});
+
+test("when the change list cannot be read, the page shows the shared message and Try again, no tag, no count", async () => {
+  setup("ADMIN", { "GET /pending-changes": json(500, { code: "X" }) });
+  expect(await screen.findByText(t(messageKeyFor({ kind: "serverError" }), "en"))).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  expect(screen.queryByText("Change refused")).toBeNull();
+  expect(screen.queryByText("Change waiting for approval")).toBeNull();
+  expect(screen.queryByText("Ravi Kumar")).toBeNull();
+  expect(screen.queryByText(/\(0\)/)).toBeNull();
+});
+
+test("a change list that never ends fails at the page cap instead of showing a possibly wrong tag", async () => {
+  let reads = 0;
+  setup("ADMIN", {
+    "GET /pending-changes": () => {
+      reads += 1;
+      return json(200, { items: [], next_cursor: `P${reads}`, total: 99999 });
+    },
+  });
+  expect(await screen.findByText(t(messageKeyFor({ kind: "serverError" }), "en"))).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  expect(reads).toBe(100);
+  expect(screen.queryByText("Ravi Kumar")).toBeNull();
+});
+
 test("a refused new user has no row, so no tag is shown for it", async () => {
   setup("ADMIN", {
     "GET /pending-changes": page([
