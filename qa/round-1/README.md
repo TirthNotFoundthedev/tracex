@@ -8,13 +8,13 @@ For the QA Lead and Fable only. Never give this file to a tester.
 
 ## Ports (this machine)
 
-| Part | Port |
-|---|---|
-| API | 18000 |
-| Postgres | 5432 (default) |
+| Part              | Port                  |
+| ----------------- | --------------------- |
+| API               | 18000                 |
+| Postgres          | 5432 (default)        |
 | Neo4j HTTP / Bolt | 7474 / 7687 (default) |
-| Officer app | 4173 |
-| Admin app | 4174 |
+| Officer app       | 4173                  |
+| Admin app         | 4174                  |
 
 Port 8000 is taken here, so `.env` sets `API_PORT=18000`. The other ports are the defaults and were free when checked. `.env` is ignored by git.
 
@@ -26,13 +26,13 @@ Port 8000 is taken here, so `.env` sets `API_PORT=18000`. The other ports are th
 
 ## Logins (synthetic; password is `dev-only-seed-<user>`)
 
-| Persona | App | User |
-|---|---|---|
-| Low-literacy junior officer | Officer | `asha` |
-| Average investigator | Officer | `bharat` |
-| Time-pressed senior officer | Admin | `deepak` |
-| Admin | Admin | `hari` |
-| Careless or hostile user | Officer, then Admin | `jatin` |
+| Persona                     | App                 | User     |
+| --------------------------- | ------------------- | -------- |
+| Low-literacy junior officer | Officer             | `asha`   |
+| Average investigator        | Officer             | `bharat` |
+| Time-pressed senior officer | Admin               | `deepak` |
+| Admin                       | Admin               | `hari`   |
+| Careless or hostile user    | Officer, then Admin | `jatin`  |
 
 Other seeded users for checks: `charu` (supervisor, opens the admin app), `meena` (senior).
 
