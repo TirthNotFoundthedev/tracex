@@ -102,11 +102,11 @@
   color: var(--color-on-action);
 }
 
-.tx-button[data-variant="primary"]:hover {
+.tx-button[data-variant="primary"]:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-action-hover);
 }
 
-.tx-button[data-variant="secondary"]:hover {
+.tx-button[data-variant="secondary"]:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-sunken);
 }
 
@@ -301,7 +301,7 @@
   color: var(--color-on-header);
 }
 
-.tx-topbar .tx-button:hover {
+.tx-topbar .tx-button:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-action-hover);
 }
 
