@@ -2,6 +2,26 @@
 
 ## Setup from a fresh clone
 
+```
+cp .env.example .env
+docker compose up --build -d --wait
+```
+
+The first build takes a few minutes. When it ends, these are running:
+
+- Officer app: http://localhost:4173 (`OFFICER_PORT`). Sign in as `asha`.
+- Admin app: http://localhost:4174 (`ADMIN_PORT`). Sign in as `hari`.
+- API: http://localhost:8000 (`API_PORT`), for example `/health`.
+- Neo4j Browser: http://localhost:7474 (`NEO4J_HTTP_PORT`).
+
+Passwords for the seeded users are the `TRACEX_SEED_PASSWORD_<NAME>` values in `.env` (dev default `dev-only-seed-<name>`).
+
+How the apps reach the API: each app is built inside Docker with `VITE_API_URL=/api` and served by nginx (`docker/app-nginx.conf`). nginx forwards `/api/...` to `http://api:8000/...`. The browser sees one origin per app, so the API sends and needs no CORS header. Do not open an app on any other origin (for example `vite dev` on another port) without a proxy: sign-in will show "No connection".
+
+Port overrides: set any of `API_PORT`, `OFFICER_PORT`, `ADMIN_PORT`, `POSTGRES_PORT`, `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT` in `.env`. To run a second copy side by side, also set `COMPOSE_PROJECT_NAME` and use different ports for all six. On Windows with Git Bash, port 8000 is often busy: use `API_PORT=18000`.
+
+After a change in `apps/` or `packages/`, rebuild the app images: `docker compose up --build -d --wait officer admin`.
+
 ## Seed data
 
 ## Demo seed

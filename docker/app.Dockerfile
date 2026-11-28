@@ -3,7 +3,7 @@
 FROM node:22.12-alpine AS build
 ARG APP
 WORKDIR /repo
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps ./apps
 COPY packages ./packages
 RUN npm ci
