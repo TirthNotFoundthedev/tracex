@@ -105,6 +105,42 @@ services:
       retries: 12
       start_period: 10s
 
+  # Browser apps (TIR-97): each is built in Docker with VITE_API_URL=/api and served by nginx,
+  # which proxies /api to the api service. One origin per app, so the API needs no CORS header.
+  officer:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      args:
+        APP: officer
+    ports:
+      - "${OFFICER_PORT:-4173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      args:
+        APP: admin
+    ports:
+      - "${ADMIN_PORT:-4174}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   # One-shot demo seed (D63): loads the synthetic data-kit cases through the API upload path,
   # runs matching and assigns cases. Run it on demand: docker compose run --rm seed
   # It is behind a profile so `docker compose up` does not start it. It never gets a database URL.
