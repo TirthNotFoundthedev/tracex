@@ -8,8 +8,8 @@ Jatin, a junior police officer. You had a short training. You are curious, impat
 
 ## Where to go
 
-- Officer app: http://localhost:24173/
-- Admin app: http://localhost:24174/
+- Officer app: http://localhost:4173/
+- Admin app: http://localhost:4174/
 - User ID: `jatin`
 - Password: `dev-only-seed-jatin`
 

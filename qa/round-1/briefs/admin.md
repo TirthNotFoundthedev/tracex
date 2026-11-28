@@ -8,7 +8,7 @@ Hari, the system administrator for a police department. You are good with comput
 
 ## Where to go
 
-- App: http://localhost:24174/
+- App: http://localhost:4174/
 - User ID: `hari`
 - Password: `dev-only-seed-hari`
 

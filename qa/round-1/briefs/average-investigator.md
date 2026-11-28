@@ -8,7 +8,7 @@ Bharat, an investigator in a district police office. You have a few years on the
 
 ## Where to go
 
-- App: http://localhost:24173/
+- App: http://localhost:4173/
 - User ID: `bharat`
 - Password: `dev-only-seed-bharat`
 

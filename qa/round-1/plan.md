@@ -28,6 +28,13 @@ Logins are synthetic dev users. Run details (URLs, ports, stop steps) are in `RE
 | Audit log | Not asked | Not asked | Looks for his own actions after deciding | Goal 4: reads it as the main task | Tries to open it |
 | Access control | Notices items marked as in a case she cannot see | Notices the same, may ask for access | Sees all areas | Sees users and roles | Goal 5: main task |
 
+## Order: two waves
+
+Testers share one stack, and Deepak and Hari change data. So:
+
+- **Wave A:** Asha, Bharat, Jatin (mostly read). Run first.
+- **Wave B:** Deepak, Hari. Start only after all wave A reports are in.
+
 ## Notes
 
 - Round 1 runs on the main build named in `README.md`. A clean seed is confirmed before testers start.

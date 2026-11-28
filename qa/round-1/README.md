@@ -11,17 +11,17 @@ For the QA Lead and Fable only. Never give this file to a tester.
 | Part | Port |
 |---|---|
 | API | 18000 |
-| Postgres | 15432 |
-| Neo4j HTTP / Bolt | 17474 / 17687 |
-| Officer app | 24173 |
-| Admin app | 24174 |
+| Postgres | 5432 (default) |
+| Neo4j HTTP / Bolt | 7474 / 7687 (default) |
+| Officer app | 4173 |
+| Admin app | 4174 |
 
-Port 8000 is taken here, so `.env` sets `API_PORT=18000` and the other ports above. `.env` is ignored by git.
+Port 8000 is taken here, so `.env` sets `API_PORT=18000`. The other ports are the defaults and were free when checked. `.env` is ignored by git.
 
 ## URLs
 
-- Officer app: http://localhost:24173/
-- Admin app: http://localhost:24174/
+- Officer app: http://localhost:4173/
+- Admin app: http://localhost:4174/
 - API health: http://localhost:18000/health
 
 ## Logins (synthetic; password is `dev-only-seed-<user>`)
@@ -38,30 +38,23 @@ Other seeded users for checks: `charu` (supervisor, opens the admin app), `meena
 
 ## How the apps are served
 
-The API sends no cross-origin headers, so a browser app on another port cannot call it. The apps are built with `VITE_API_URL=/api` and served by a small static server that sends `/api/*` to the API. The server file is `serve.mjs` in a folder outside the repo (`~/.tracex-qa/`), not part of this PR. Build step (Git Bash needs `MSYS_NO_PATHCONV=1`, or `/api` turns into a file path):
-
-```
-npm ci
-cd apps/officer && VITE_API_URL=/api npx vite build   # copy dist to ~/.tracex-qa/officer
-cd apps/admin   && VITE_API_URL=/api npx vite build   # copy dist to ~/.tracex-qa/admin
-node serve.mjs officer 24173 18000
-node serve.mjs admin 24174 18000
-```
+Compose serves both apps (nginx containers) and forwards `/api` to the API. No extra server is needed. Details are in `docs/runbook.md`.
 
 ## Start from clean
 
 ```
-cp .env.example .env   # then set the ports above and COMPOSE_PROJECT_NAME=tracex-qa
+cp .env.example .env   # then set API_PORT=18000 and COMPOSE_PROJECT_NAME=tracex-qa
 docker compose down -v
-docker compose up -d --build --wait api
+docker compose up --build -d --wait
 docker compose run --rm seed
 ```
+
+A clean restart takes about 4 minutes (measured: down 11 s, up with build 79 s, seed 129 s, before the apps were added to compose).
 
 ## Stop
 
 ```
-docker compose down -v            # with COMPOSE_PROJECT_NAME=tracex-qa; removes only this project
-# stop the two `node serve.mjs` processes (ports 24173 and 24174)
+docker compose down -v   # with COMPOSE_PROJECT_NAME=tracex-qa; removes only this project
 ```
 
 Do not touch containers of other projects.

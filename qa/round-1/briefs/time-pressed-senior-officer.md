@@ -8,7 +8,7 @@ Deepak, a senior police officer who oversees several districts. You have no time
 
 ## Where to go
 
-- App: http://localhost:24174/
+- App: http://localhost:4174/
 - User ID: `deepak`
 - Password: `dev-only-seed-deepak`
 

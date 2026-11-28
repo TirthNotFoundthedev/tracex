@@ -10,7 +10,7 @@ Switch the screen to Hindi with the language button and keep it in Hindi.
 
 ## Where to go
 
-- App: http://localhost:24173/
+- App: http://localhost:4173/
 - User ID: `asha`
 - Password: `dev-only-seed-asha`
 
