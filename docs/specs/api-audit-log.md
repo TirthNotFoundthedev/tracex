@@ -128,6 +128,10 @@ Example: charu (SUPERVISOR, Rivergate). L-3 joins C-101 (Rivergate) to C-301 (La
 
 **Filters, sorting and paging** run only over the rows and fields the reader can see, after the rule above. A filter on a value the reader cannot see (a hidden case id, a guessed link id, an officer outside their scope) returns exactly what a filter on a non-existent value returns: same empty page, same `result_count`, same cursor. Sort keys are visible fields only.
 
+**Event groups (TIR-92).** `GET /audit` also takes `event_group`, one of six words that match the Activity log filter (design-flows A6): `VIEWED` (CASE_LISTED, LINKS_LISTED, SEARCH_RUN and every event named `*_VIEWED`), `CONFIRMED` (LINK_CONFIRMED), `REJECTED` (LINK_REJECTED), `REQUESTED` (ACCESS_REQUEST_CREATED), `APPROVED` (ACCESS_REQUEST_APPROVED), `UPLOADED` (DATA_UPLOADED). An unknown value is 422 `invalid_enum`. The group is a filter on the visible `event_type` and works like every other filter: it runs after the row-level rule, so it cannot show a row the reader may not see and a group with no visible rows gives the same empty page as any empty filter. With `event_type` too, both must match. `filter_keys` in AUDIT_VIEWED lists `event_group` (the name, never the value).
+
+**Case number (TIR-92).** Each entry of `refs` in a response carries `case_number` next to `case_id` and `district_id`. It is added only to entries the reader may see (rule (c) ALLOW, or the visible part of an (a) or (b) row). A hidden entry is dropped whole, as before, so a case number never appears for a case whose id is hidden. The stored `refs` column is unchanged (no number is written to the log); the number is read from `cases` when the row is served. Case numbers are not unique across districts, so the number always comes from the case the entry's `case_id` names.
+
 Pagination uses an opaque cursor; no export. The cursor is **encrypted** (authenticated encryption, server key), bound to the reader and the filters, and expires after 15 minutes; it carries the visible sort key and the `row_ref` as position, never `seq` or an id. A cursor of another reader, other filters, an expired or altered one is a 422 like a malformed one. Every page returned writes AUDIT_VIEWED first (W1) with filter names, `result_count` and whether any field was dropped, and is not part of the page it logs.
 
 ## 8. Acceptance cases
@@ -189,6 +193,9 @@ Users and seed as in `api-access-control.md` section 7. "Tamper" tests use a sup
 | U51 | Read grants, pending changes and access requests | GRANT_VIEWED, CHANGE_VIEWED, ACCESS_REQUEST_VIEWED with the ids shown |
 | U53 | A run is requested while an outbox row is unacknowledged; a decision while a run is RUNNING | 409 `RUN_IN_PROGRESS` each; no state change |
 | U54 | A transition record whose `from` differs from the Postgres state; a forged `decision_id` written straight to Neo4j | Record rejected and alerted; the forged change reverted, ENGINE_DIVERGENCE_REVERTED written, no LINK_* decision row |
+| U55 | charu reads with `event_group` VIEWED, CONFIRMED, REJECTED, REQUESTED, APPROVED, UPLOADED, and an unknown value | Only rows of the events in that group (section 7); 422 for the unknown value; pages and cursors work per group |
+| U56 | charu reads with `event_group` VIEWED and `event_type` LINK_CONFIRMED; deepak with a group whose only rows are in C-301 | Empty page for the mismatch; for deepak the same empty page as a non-existent value |
+| U57 | charu reads the rows of U35 and U38 | Every `refs` entry has `case_number`; no entry, number or key exists for C-301 or any case she cannot see; farid's dropped entry leaves no number anywhere in the row |
 | U52 | hari uploads to C-101 | DATA_UPLOADED has `refs` [C-101]; charu sees it under (c) |
 
 ## 8.1 Keys

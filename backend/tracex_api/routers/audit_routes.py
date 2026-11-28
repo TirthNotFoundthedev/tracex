@@ -25,6 +25,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 SORTS = ("occurred_at", "event_type", "outcome")
+# The six action words of the Activity log (design-flows A6). Every `*_VIEWED` event is VIEWED.
+EVENT_GROUPS: dict[str, frozenset[str]] = {
+    "VIEWED": frozenset(
+        {e for e in EVENTS if e.endswith("_VIEWED")} | {"CASE_LISTED", "LINKS_LISTED", "SEARCH_RUN"}
+    ),
+    "CONFIRMED": frozenset({"LINK_CONFIRMED"}),
+    "REJECTED": frozenset({"LINK_REJECTED"}),
+    "REQUESTED": frozenset({"ACCESS_REQUEST_CREATED"}),
+    "APPROVED": frozenset({"ACCESS_REQUEST_APPROVED"}),
+    "UPLOADED": frozenset({"DATA_UPLOADED"}),
+}
 
 
 def _row_cases(row: Row) -> list[str]:
@@ -109,6 +120,16 @@ def serialize(ctx: Ctx, row: Row) -> tuple[dict[str, Any], bool]:
         if r["case_id"] in facts and me.can_view_case(r["case_id"], facts[r["case_id"]].district_id)
     ]
     dropped = len(visible) != len(refs)
+    # The number is read only for entries the reader may see, so it is never given for a case
+    # whose id is hidden. It comes from the case the entry names (numbers repeat across districts).
+    numbers = {
+        str(c["id"]): c["case_number"]
+        for c in many(
+            ctx.conn,
+            "SELECT id, case_number FROM cases WHERE id = ANY(%s)",
+            ([uuid.UUID(r["case_id"]) for r in visible],),
+        )
+    }
     klass = EVENTS[row["event_type"]]
     detail: dict[str, Any] = {}
     for key, value in row["detail"].items():
@@ -133,7 +154,14 @@ def serialize(ctx: Ctx, row: Row) -> tuple[dict[str, Any], bool]:
         "event_type": row["event_type"],
         "outcome": row["outcome"],
         "actor": actor,
-        "refs": [{"case_id": r["case_id"], "district_id": r["district_id"]} for r in visible],
+        "refs": [
+            {
+                "case_id": r["case_id"],
+                "district_id": r["district_id"],
+                "case_number": numbers[r["case_id"]],
+            }
+            for r in visible
+        ],
         "detail": detail,
     }
     if row["reason_code"]:
@@ -163,6 +191,7 @@ def _sort_key(sort: str, out: dict[str, Any]) -> tuple[str, str]:
 def list_audit(
     ctx: Ctx = Depends(authed_ctx),
     event_type: str | None = Query(None),
+    event_group: str | None = Query(None),
     outcome: str | None = Query(None),
     actor_user_id: str | None = Query(None),
     case_id: str | None = Query(None),
@@ -178,10 +207,13 @@ def list_audit(
         raise invalid("sort", "invalid_enum")
     if order not in ("asc", "desc"):
         raise invalid("order", "invalid_enum")
+    if event_group is not None and event_group not in EVENT_GROUPS:
+        raise invalid("event_group", "invalid_enum")
     if outcome is not None and outcome not in ("SUCCESS", "DENIED", "FAILED"):
         raise invalid("outcome", "invalid_enum")
     filters = {
-        "event_type": event_type, "outcome": outcome, "actor_user_id": actor_user_id,
+        "event_type": event_type, "event_group": event_group, "outcome": outcome,
+        "actor_user_id": actor_user_id,
         "case_id": case_id, "target_id": target_id,
         "occurred_from": occurred_from.isoformat() if occurred_from else None,
         "occurred_to": occurred_to.isoformat() if occurred_to else None,
@@ -206,6 +238,8 @@ def list_audit(
             continue
         out, dropped = serialize(ctx, row)
         if event_type and out["event_type"] != event_type:
+            continue
+        if event_group and out["event_type"] not in EVENT_GROUPS[event_group]:
             continue
         if outcome and out["outcome"] != outcome:
             continue

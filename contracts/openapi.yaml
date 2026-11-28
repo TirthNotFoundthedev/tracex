@@ -1812,6 +1812,15 @@ paths:
           in: query
           schema:
             $ref: "#/components/schemas/AuditEventType"
+        - name: event_group
+          in: query
+          description: |
+            One of the six action words of the Activity log. VIEWED: CASE_LISTED, LINKS_LISTED, SEARCH_RUN and every
+            event named `*_VIEWED`. CONFIRMED: LINK_CONFIRMED. REJECTED: LINK_REJECTED. REQUESTED: ACCESS_REQUEST_CREATED.
+            APPROVED: ACCESS_REQUEST_APPROVED. UPLOADED: DATA_UPLOADED. A filter like the others: it runs over the rows the
+            reader can see; with `event_type` too, both must match. An unknown value is 422.
+          schema:
+            $ref: "#/components/schemas/AuditEventGroup"
         - name: outcome
           in: query
           schema:
@@ -3743,6 +3752,15 @@ components:
         - GRANT_VIEWED
         - CHANGE_VIEWED
         - ENGINE_DIVERGENCE_REVERTED
+    AuditEventGroup:
+      type: string
+      enum:
+        - VIEWED
+        - CONFIRMED
+        - REJECTED
+        - REQUESTED
+        - APPROVED
+        - UPLOADED
     AuditActor:
       type: object
       additionalProperties: false
@@ -3764,14 +3782,19 @@ components:
     AuditCaseRef:
       type: object
       additionalProperties: false
+      description: A case the reader may see. A case the reader cannot see is dropped whole, number included.
       required:
         - case_id
         - district_id
+        - case_number
       properties:
         case_id:
           $ref: "#/components/schemas/Id"
         district_id:
           $ref: "#/components/schemas/Uuid"
+        case_number:
+          type: string
+          description: The number of the case `case_id` names, read when the row is served; never stored in the log.
     AuditRow:
       type: object
       additionalProperties: false
