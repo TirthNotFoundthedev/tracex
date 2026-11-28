@@ -2,7 +2,7 @@
 
 For the QA Lead and Fable only. Never give this file to a tester.
 
-- Main SHA the stack runs: to be filled at round start (fixes TIR-91 to TIR-94 merge first).
+- Main SHA the stack runs: `d7fe75b` (includes TIR-91 to TIR-94 and TIR-97).
 - Compose project name: `tracex-qa`
 - Seed: demo seed, small tier (122 cases), from a clean state (`down -v` first).
 
@@ -49,7 +49,7 @@ docker compose up --build -d --wait
 docker compose run --rm seed
 ```
 
-A clean restart takes about 4 minutes (measured: down 11 s, up with build 79 s, seed 129 s, before the apps were added to compose).
+A clean restart takes about 5 minutes. Measured on `d7fe75b`: up with build 210 s, seed 74 s, total 285 s.
 
 ## Stop
 
