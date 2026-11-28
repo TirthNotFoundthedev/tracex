@@ -1,10 +1,12 @@
 """User changes are checked when proposed, not only when approved (TIR-91)."""
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
 
-from tests.api.conftest import World
+from tests.api.conftest import Api, World
 from tests.api.test_change_allowlist import Ids, pending_count
 from tracex_api.db import one
 
@@ -58,7 +60,24 @@ def test_a_bad_username_is_refused_when_proposed(world: World, username: str) ->
     assert pending_count(world.api) == 0
 
 
-@pytest.mark.parametrize("display_name", ["x" * 121, "", "   "])
+@pytest.mark.parametrize(
+    "display_name",
+    [
+        "x" * 121,
+        "",
+        "   ",
+        "two\nlines",
+        "tab\there",
+        "nul\x00byte",
+        "flip\u202eme",
+        "iso\u2066late",
+        "zero\u200bwidth",
+        "joiner\u200dhere",
+        "bom\ufeffname",
+        "line\u2028sep",
+        "para\u2029sep",
+    ],
+)
 def test_a_bad_display_name_is_refused_when_proposed(world: World, display_name: str) -> None:
     ids = Ids(world.api)
     response = world.api.post("hari", "/pending-changes", create(ids, display_name=display_name))
@@ -201,3 +220,71 @@ def test_assignment_changes_are_limited_per_case(world: World) -> None:
     assert same.status_code == 409, same.text
     assert same.json()["code"] == "PENDING_EXISTS"
     assert api.post("hari", "/pending-changes", assignment(ids, "C-102")).status_code == 201
+
+
+# Refused proposals leave no CHANGE_PROPOSED row.
+
+
+def test_a_refused_proposal_writes_no_audit_row(world: World) -> None:
+    api = world.api
+    ids = Ids(api)
+    base = len(api.audit_rows("CHANGE_PROPOSED"))
+    assert api.post("hari", "/pending-changes", create(ids, username="Bad!")).status_code == 422
+    assert len(api.audit_rows("CHANGE_PROPOSED")) == base
+    body = {"kind": "USER_DISABLE", "subject_user_id": ids.users["bharat"]}
+    assert api.post("hari", "/pending-changes", body).status_code == 201
+    assert len(api.audit_rows("CHANGE_PROPOSED")) == base + 1
+    assert api.post("hari", "/pending-changes", body).status_code == 409
+    assert len(api.audit_rows("CHANGE_PROPOSED")) == base + 1
+
+
+# The rule holds when proposals arrive at the same moment (a partial unique index enforces it).
+
+
+def race(api: Api, body: dict[str, Any], count: int = 4) -> list[Any]:
+    api.h("hari")  # sign in once, so the threads only propose
+    barrier = threading.Barrier(count)
+
+    def send() -> Any:
+        barrier.wait(timeout=30)
+        return api.post("hari", "/pending-changes", body)
+
+    with ThreadPoolExecutor(count) as pool:
+        return [f.result(timeout=60) for f in [pool.submit(send) for _ in range(count)]]
+
+
+def test_simultaneous_identical_changes_store_one(world: World) -> None:
+    api = world.api
+    ids = Ids(api)
+    body = {"kind": "USER_DISABLE", "subject_user_id": ids.users["bharat"]}
+    codes = sorted(r.status_code for r in race(api, body))
+    assert codes == [201, 409, 409, 409], codes
+    assert pending_count(api) == 1
+
+
+def test_simultaneous_creates_of_one_username_store_one(world: World) -> None:
+    api = world.api
+    ids = Ids(api)
+    responses = race(api, create(ids, username="race.user"), count=3)
+    codes = sorted(r.status_code for r in responses)
+    assert codes == [201, 409, 409], codes
+    assert {r.json()["code"] for r in responses if r.status_code == 409} == {"PENDING_EXISTS"}
+    assert pending_count(api) == 1
+    [made] = [r for r in responses if r.status_code == 201]
+    assert approve(world, made.json()["change_id"]).status_code == 200
+
+
+def test_the_index_refuses_a_second_waiting_row_in_the_database(world: World) -> None:
+    api = world.api
+    ids = Ids(api)
+    body = {"kind": "USER_DISABLE", "subject_user_id": ids.users["bharat"]}
+    assert api.post("hari", "/pending-changes", body).status_code == 201
+    with api.superuser() as conn:
+        with pytest.raises(Exception, match="pending_changes_one_waiting"):
+            conn.execute(
+                "INSERT INTO pending_changes (kind, subject_user_id, old_value, new_value, "
+                "proposer_id, change_hash, state, proposed_at, subject_district_ids, "
+                "needs_all_states) SELECT kind, subject_user_id, old_value, new_value, "
+                "proposer_id, decode(repeat('00', 32), 'hex'), 'PENDING', now(), subject_district_ids, "
+                "needs_all_states FROM pending_changes LIMIT 1"
+            )
