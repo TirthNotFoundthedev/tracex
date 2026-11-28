@@ -5,7 +5,6 @@ import {
   Loading,
   Message,
   RestrictedCard,
-  Icon,
   TextField,
   type GraphEdge,
   type GraphNode,
@@ -192,20 +191,9 @@ function GraphWork({ api, lang }: { api: AdminApi; lang: Language }) {
       // Only the restricted card, built from the viewer's own item. GET /stubs is not called (D69).
       const near = network.data.nodes.find((n) => n.entity.entity_id === stub.near_entity_id);
       if (!near) return null;
-      const shape = SHAPE_OF[near.entity.type];
-      // RestrictedCard has no organisation item type yet. Same words and the same lock, no item line.
-      return shape === "org" ? (
-        <section className="tx-restricted" aria-label={t("restricted.title", lang)}>
-          <p className="tx-restricted__title">
-            <Icon name="restricted" />
-            <span>{t("restricted.title", lang)}</span>
-          </p>
-          <p className="tx-body">{t("access.stub.connection_exists", lang)}</p>
-          <p className="tx-body">{t("restricted.cannotSee", lang)}</p>
-        </section>
-      ) : (
+      return (
         <RestrictedCard
-          itemType={shape}
+          itemType={SHAPE_OF[near.entity.type]}
           itemValue={near.entity.display_value}
           emphasis="secondary"
         />

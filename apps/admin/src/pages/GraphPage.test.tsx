@@ -446,7 +446,11 @@ test("every stub, an organisation stub too, shows the lock, in the picture and i
   fireEvent.click(nodeEl("stub-1"));
   const card = await screen.findByRole("region", { name: "Another police area" });
   expect(card.querySelector("svg.lucide-lock")).not.toBeNull();
-  expect(card.textContent).not.toContain("Rivergate Traders");
+  // The shared card names the viewer's own organisation, as it does for a person, phone, account or vehicle.
+  expect(card.textContent).toContain("Organisation");
+  expect(card.textContent).toContain("Rivergate Traders");
+  expect(card.querySelector("svg.lucide-building-2, svg.lucide-building2")).not.toBeNull();
+  expect(card.querySelector(".tx-restricted__item")).not.toBeNull();
 });
 
 test("150 nodes in a star are all drawn, with the cap message", async () => {
