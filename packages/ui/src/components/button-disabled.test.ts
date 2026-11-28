@@ -13,7 +13,7 @@ const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "ui.css")
 function selectors(): string[] {
   const out: string[] = [];
   for (const m of css.matchAll(/([^{}]+)\{/g)) {
-    for (const s of (m[1] ?? "").split(",")) out.push(s.trim());
+    for (const s of (m[1] ?? "").split(",")) out.push(s.replace(/\s+/g, " ").trim());
   }
   return out;
 }
@@ -30,5 +30,27 @@ describe("disabled buttons keep the disabled look (TIR-99)", () => {
   test.each(interactive)("%s skips disabled buttons", (selector) => {
     expect(selector).toContain(":not(:disabled)");
     expect(selector).toContain(':not([aria-disabled="true"])');
+  });
+
+  test("a disabled button gets the disabled look from the attribute or from aria-disabled", () => {
+    const rule = selectors().filter((x) => x.startsWith(".tx-button") && x.includes("disabled"));
+    expect(rule).toContain(".tx-button:disabled");
+    expect(rule).toContain('.tx-button[aria-disabled="true"]');
+  });
+
+  // These rules set a background or colour with more specificity than the disabled rule,
+  // so they must apply to enabled buttons only.
+  const overrides = [
+    ".tx-topbar .tx-button",
+    '.tx-restricted .tx-button[data-variant="secondary"]',
+    '.tx-message[data-kind="error"] .tx-button[data-variant="secondary"]',
+  ];
+  test.each(overrides)("%s applies to enabled buttons only", (base) => {
+    const found = selectors().filter((x) => x.startsWith(base) && !/:(hover|active)/.test(x));
+    expect(found.length).toBeGreaterThan(0);
+    for (const x of found) {
+      expect(x).toContain(":not(:disabled)");
+      expect(x).toContain(':not([aria-disabled="true"])');
+    }
   });
 });

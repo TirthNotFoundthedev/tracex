@@ -116,7 +116,8 @@
   color: var(--color-on-action);
 }
 
-.tx-button:disabled {
+.tx-button:disabled,
+.tx-button[aria-disabled="true"] {
   background: var(--color-sunken);
   border-color: var(--color-line);
   color: var(--color-ink-2);
@@ -294,7 +295,7 @@
   font-size: var(--text-secondary);
 }
 
-.tx-topbar .tx-button {
+.tx-topbar .tx-button:not(:disabled):not([aria-disabled="true"]) {
   font-size: var(--text-body);
   background: var(--color-header);
   border-color: var(--color-on-header);
@@ -770,7 +771,7 @@
   font-weight: var(--weight-semibold);
 }
 
-.tx-restricted .tx-button[data-variant="secondary"] {
+.tx-restricted .tx-button[data-variant="secondary"]:not(:disabled):not([aria-disabled="true"]) {
   align-self: flex-start;
   background: var(--color-paper);
   border-color: var(--color-restricted-edge);
@@ -811,7 +812,8 @@
   font-weight: var(--weight-semibold);
 }
 
-.tx-message[data-kind="error"] .tx-button[data-variant="secondary"] {
+.tx-message[data-kind="error"]
+  .tx-button[data-variant="secondary"]:not(:disabled):not([aria-disabled="true"]) {
   border-color: var(--color-danger);
   color: var(--color-danger);
 }
