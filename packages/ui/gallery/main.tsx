@@ -227,6 +227,71 @@ function GraphBlock({ title }: { title: string }) {
   );
 }
 
+/*
+ * Stress samples for TIR-94: long names at phone width, link words beside labels, and the
+ * 150-node cap. Opened with ?only=graph-stress. All names and numbers are invented.
+ */
+const longNodes: GraphNode[] = [
+  { id: "l1", type: "person", label: "Shri Mohammad Irfan Abdul Rahman Qureshi" },
+  { id: "l2", type: "person", label: "इरफ़ान मोहम्मद अब्दुल रहमान क़ुरैशी" },
+  { id: "l3", type: "org", label: "Irfan Traders and General Suppliers" },
+  { id: "l4", type: "phone", label: "9000051234" },
+  { id: "l5", type: "bank", label: "SBIN 4471" },
+  { id: "l6", type: "vehicle", label: "UP32 AB 1234" },
+  { id: "l7", restricted: true },
+];
+const longEdges: GraphEdge[] = [
+  { id: "x1", from: "l1", to: "l2", kind: "same_as", strength: "strong", state: "auto" },
+  { id: "x2", from: "l1", to: "l3", kind: "same_as", strength: "possible", state: "suggested" },
+  { id: "x3", from: "l2", to: "l4", kind: "connected" },
+  { id: "x4", from: "l3", to: "l5", kind: "connected" },
+  { id: "x5", from: "l1", to: "l6", kind: "connected" },
+  { id: "x6", from: "l4", to: "l7", kind: "restricted" },
+];
+const denseNodes: GraphNode[] = Array.from({ length: 150 }, (_, i) => ({
+  id: `d${i}`,
+  type: (["person", "phone", "bank", "vehicle", "org"] as const)[i % 5] ?? "person",
+  label: i % 5 === 0 ? `Person ${i}` : `90000${String(i).padStart(5, "0")}`,
+}));
+const denseEdges: GraphEdge[] = denseNodes.slice(1).map((n, i) => ({
+  id: `de${i}`,
+  from: i % 7 === 0 ? "d0" : `d${Math.max(0, i - (i % 7))}`,
+  to: n.id,
+  ...(i % 4 === 0
+    ? {
+        kind: "same_as" as const,
+        strength: i % 8 === 0 ? ("strong" as const) : ("possible" as const),
+        state: "auto" as const,
+      }
+    : { kind: "connected" as const }),
+}));
+
+function GraphStress({ part }: { part: string }) {
+  const [selected, setSelected] = useState<string>("l1");
+  return (
+    <>
+      {part === "dense" ? null : (
+        <Block title="Long names (TIR-94)">
+          <GraphCanvas
+            nodes={longNodes}
+            edges={longEdges}
+            selectedId={selected}
+            onSelect={setSelected}
+          />
+        </Block>
+      )}
+      {part === "long" ? null : (
+        <Block title="150 nodes (TIR-94)">
+          <GraphCanvas nodes={denseNodes} edges={denseEdges} onSelect={setSelected} />
+        </Block>
+      )}
+      <Block title="RestrictedCard, organisation (TIR-94)">
+        <RestrictedCard itemType="org" itemValue="Irfan Traders" onAskForAccess={() => {}} />
+      </Block>
+    </>
+  );
+}
+
 function Gallery({
   app,
   lang,
@@ -247,6 +312,8 @@ function Gallery({
   });
   const admin = app === "admin";
   const graphOnly = admin && new URLSearchParams(window.location.search).get("only") === "graph";
+  const stressPart = new URLSearchParams(window.location.search).get("only") ?? "";
+  const stressOnly = admin && stressPart.startsWith("graph-stress");
   const noop = () => {};
   const source = { caseNumber: "24/118", documentType: c.docType, page: 2, line: 14 };
 
@@ -297,7 +364,8 @@ function Gallery({
           }}
         >
           {graphOnly ? <GraphBlock title="GraphCanvas, GraphLegend (admin only)" /> : null}
-          {graphOnly ? null : (
+          {stressOnly ? <GraphStress part={stressPart.replace("graph-stress-", "")} /> : null}
+          {graphOnly || stressOnly ? null : (
             <>
               <Block title="Breadcrumb, Button">
                 <Breadcrumb

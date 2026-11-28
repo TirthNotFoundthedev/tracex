@@ -98,6 +98,8 @@ export function layoutGraph(
   edges: readonly { id: string; from: string; to: string }[],
   width: number,
   height: number,
+  /** Half the width of a node's label, so the label box never crosses the left or right edge. */
+  halfLabelWidth: (id: string) => number = () => 0,
 ): Map<string, GraphPoint> {
   const simNodes: SimNode[] = nodes.map((n) => ({ id: n.id })).sort((a, b) => cmp(a.id, b.id));
   const known = new Set(simNodes.map((n) => n.id));
@@ -109,27 +111,30 @@ export function layoutGraph(
 
   // On a phone the picture grows downward instead of sideways, so labels stay apart.
   const narrow = width < 600;
+  // Above 30 nodes the shapes sit closer; labels are thinned by graph-labels instead.
+  const dense = nodes.length > 30;
   const sim = forceSimulation(simNodes)
     .randomSource(seeded(20260101))
     .force(
       "link",
       forceLink<SimNode, SimulationLinkDatum<SimNode>>(links)
         .id((n) => n.id)
-        .distance(170)
+        .distance(dense ? 90 : narrow ? 140 : 170)
         .strength(0.7),
     )
-    .force("charge", forceManyBody().strength(-1400))
-    .force("collide", forceCollide(72))
+    .force("charge", forceManyBody().strength(dense ? -120 : -1400))
+    .force("collide", forceCollide(dense ? 42 : 72))
     .force("center", forceCenter(width / 2, height / 2))
-    .force("x", forceX(width / 2).strength(narrow ? 0.12 : 0.04))
+    .force("x", forceX(width / 2).strength(narrow ? 0.12 : dense ? 0.08 : 0.04))
     .force("y", forceY(height / 2).strength(narrow ? 0.01 : 0.06))
     .stop();
   sim.tick(LAYOUT_TICKS);
 
   const out = new Map<string, GraphPoint>();
   for (const n of simNodes) {
+    const mx = Math.min(Math.max(LAYOUT_MARGIN, halfLabelWidth(n.id) + 4), width / 2);
     out.set(n.id, {
-      x: clamp(n.x ?? width / 2, LAYOUT_MARGIN, width - LAYOUT_MARGIN),
+      x: clamp(n.x ?? width / 2, mx, width - mx),
       y: clamp(n.y ?? height / 2, LAYOUT_MARGIN, height - LAYOUT_MARGIN),
     });
   }

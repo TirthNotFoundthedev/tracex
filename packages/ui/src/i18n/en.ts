@@ -143,6 +143,8 @@ export const en = {
     "Network picture: {nodes} items and {links} links. Use Tab to move between items. Choose Show as list for a text version.",
   "graph.empty": "Nothing to show yet. Search for a person, phone number, account or vehicle.",
   "graph.truncated": "Showing the 150 closest. Narrow the search to see others.",
+  "graph.labelsHidden":
+    "Some names are hidden so the picture stays readable ({count} hidden). Select a node to see its name, or show the list.",
   "graph.showList": "Show as list",
   "graph.showPicture": "Show as picture",
   "graph.zoomIn": "Zoom in",

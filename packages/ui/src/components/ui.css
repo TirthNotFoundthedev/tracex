@@ -102,11 +102,11 @@
   color: var(--color-on-action);
 }
 
-.tx-button[data-variant="primary"]:hover {
+.tx-button[data-variant="primary"]:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-action-hover);
 }
 
-.tx-button[data-variant="secondary"]:hover {
+.tx-button[data-variant="secondary"]:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-sunken);
 }
 
@@ -116,7 +116,8 @@
   color: var(--color-on-action);
 }
 
-.tx-button:disabled {
+.tx-button:disabled,
+.tx-button[aria-disabled="true"] {
   background: var(--color-sunken);
   border-color: var(--color-line);
   color: var(--color-ink-2);
@@ -296,12 +297,15 @@
 
 .tx-topbar .tx-button {
   font-size: var(--text-body);
+}
+
+.tx-topbar .tx-button:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-header);
   border-color: var(--color-on-header);
   color: var(--color-on-header);
 }
 
-.tx-topbar .tx-button:hover {
+.tx-topbar .tx-button:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-action-hover);
 }
 
@@ -772,6 +776,9 @@
 
 .tx-restricted .tx-button[data-variant="secondary"] {
   align-self: flex-start;
+}
+
+.tx-restricted .tx-button[data-variant="secondary"]:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-paper);
   border-color: var(--color-restricted-edge);
   color: var(--color-restricted-fg);
@@ -811,7 +818,8 @@
   font-weight: var(--weight-semibold);
 }
 
-.tx-message[data-kind="error"] .tx-button[data-variant="secondary"] {
+.tx-message[data-kind="error"]
+  .tx-button[data-variant="secondary"]:not(:disabled):not([aria-disabled="true"]) {
   border-color: var(--color-danger);
   color: var(--color-danger);
 }

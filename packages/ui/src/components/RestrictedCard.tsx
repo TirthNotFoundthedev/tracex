@@ -2,13 +2,14 @@ import { Button } from "./Button";
 import { useUi } from "./context";
 import { Icon, type IconName } from "./Icon";
 
-export type RestrictedItemType = "person" | "phone" | "bank" | "vehicle";
+export type RestrictedItemType = "person" | "phone" | "bank" | "vehicle" | "org";
 
 const ITEM_ICON: Record<RestrictedItemType, IconName> = {
   person: "person",
   phone: "phone",
   bank: "bank",
   vehicle: "vehicle",
+  org: "org",
 };
 
 /**
